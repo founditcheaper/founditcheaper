@@ -14,6 +14,14 @@
   schedule = "0 6 * * *"
   timeout = 26
 
+# Self-hosted deep linker: /go/<ASIN> runs the go function, which adds the
+# affiliate tag and redirects the shopper to Amazon. Must come before the
+# catch-all root redirect below.
+[[redirects]]
+  from = "/go/*"
+  to = "/.netlify/functions/go/:splat"
+  status = 200
+
 [[redirects]]
   from = "/"
   to = "/founditcheaper-demo.html"
