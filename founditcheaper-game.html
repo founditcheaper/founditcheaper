@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Found It Cheaper — Daily Dice Roll</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-deep: #0a1f33;
+    --surface: rgba(10,31,51,0.78);
+    --border: rgba(255,255,255,0.1);
+    --border-gold: rgba(245,200,66,0.3);
+    --accent: #f5c842;
+    --text: #ffffff;
+    --text-soft: rgba(255,255,255,0.82);
+    --muted: rgba(255,255,255,0.42);
+    --green: #4ade80;
+    --red: #f87171;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(160deg, #1c5080 0%, #0f2e47 55%, #0a1f33 100%);
+    background-attachment: fixed;
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: rgba(10,31,51,0.94);
+    backdrop-filter: blur(14px);
+    border-bottom: 2px solid var(--accent);
+    padding: 0 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 62px; position: sticky; top: 0; z-index: 200;
+  }
+  .logo-wrap { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .logo-circle { width: 38px; height: 38px; background: linear-gradient(135deg,#4a9fd4,#2a6fa8); border-radius: 50%; border: 2px solid var(--accent); display: flex; align-items: center; justify-content: center; font-size: 17px; }
+  .logo { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; color: var(--text); line-height: 1; }
+  .logo sub { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--muted); display: block; text-transform: uppercase; }
+  .back-btn { font-size: 12px; font-weight: 600; color: var(--muted); text-decoration: none; border: 1px solid rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 6px; transition: all .15s; }
+  .back-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.3); }
+
+  /* PAGE */
+  .page { max-width: 600px; margin: 0 auto; padding: 24px 18px 60px; }
+
+  /* PRIZE BANNER */
+  .prize-banner {
+    background: linear-gradient(135deg, rgba(245,200,66,0.15), rgba(245,200,66,0.05));
+    border: 1px solid rgba(245,200,66,0.4);
+    border-radius: 12px; padding: 16px 20px;
+    text-align: center; margin-bottom: 20px;
+    position: relative; overflow: hidden;
+  }
+  .prize-banner::before {
+    content: ''; position: absolute; top: -30px; right: -30px;
+    width: 100px; height: 100px;
+    background: rgba(245,200,66,0.08); border-radius: 50%;
+  }
+  .prize-eyebrow { font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+  .prize-text { font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+  .prize-sub { font-size: 11px; color: var(--muted); font-weight: 500; }
+  .week-range { font-size: 11px; font-weight: 700; color: var(--accent); margin-top: 6px; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 4px; background: rgba(0,0,0,0.25); border-radius: 10px; padding: 4px; margin-bottom: 20px; }
+  .tab { flex: 1; padding: 9px; text-align: center; font-size: 12px; font-weight: 700; border: none; background: transparent; color: var(--muted); cursor: pointer; border-radius: 7px; transition: all .2s; font-family: 'Inter', sans-serif; }
+  .tab.active { background: rgba(245,200,66,0.15); color: var(--accent); border: 1px solid rgba(245,200,66,0.3); }
+
+  /* GAME PANEL */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* EMAIL GATE */
+  .email-gate {
+    background: var(--surface); backdrop-filter: blur(10px);
+    border: 1px solid var(--border-gold); border-radius: 12px;
+    padding: 28px 24px; text-align: center; margin-bottom: 16px;
+  }
+  .gate-icon { font-size: 40px; margin-bottom: 12px; }
+  .gate-title { font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 900; margin-bottom: 6px; }
+  .gate-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+  .email-input-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .email-input {
+    width: 100%; padding: 12px 16px;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px; color: var(--text); font-size: 14px;
+    font-family: 'Inter', sans-serif; outline: none; transition: border-color .2s;
+  }
+  .email-input:focus { border-color: rgba(245,200,66,0.5); }
+  .email-input::placeholder { color: var(--muted); }
+  .username-input {
+    width: 100%; padding: 12px 16px;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px; color: var(--text); font-size: 14px;
+    font-family: 'Inter', sans-serif; outline: none; transition: border-color .2s;
+  }
+  .username-input:focus { border-color: rgba(245,200,66,0.5); }
+  .username-input::placeholder { color: var(--muted); }
+  .play-btn {
+    width: 100%; padding: 13px;
+    background: var(--accent); color: #0a1f33;
+    border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 800;
+    cursor: pointer; transition: opacity .15s;
+    font-family: 'Inter', sans-serif; letter-spacing: 0.3px;
+  }
+  .play-btn:hover { opacity: .88; }
+  .gate-fine { font-size: 10px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+
+  /* GAME AREA */
+  .game-area {
+    background: var(--surface); backdrop-filter: blur(10px);
+    border: 1px solid var(--border-gold); border-radius: 12px;
+    padding: 24px 20px; text-align: center; margin-bottom: 16px;
+  }
+
+  .player-info {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(245,200,66,0.07); border: 1px solid rgba(245,200,66,0.2);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 20px;
+  }
+  .player-name { font-size: 13px; font-weight: 700; color: var(--text); }
+  .player-score { font-size: 13px; font-weight: 700; color: var(--accent); }
+  .player-score span { font-size: 10px; color: var(--muted); font-weight: 500; }
+
+  /* DICE */
+  .dice-area { margin: 24px 0; }
+  .dice-pair { display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 20px; }
+
+  .die {
+    width: 90px; height: 90px;
+    background: white; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 52px; line-height: 1;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.5);
+    transition: transform 0.1s;
+    user-select: none;
+  }
+
+  .die.rolling {
+    animation: dieRoll 0.6s ease-out;
+  }
+
+  @keyframes dieRoll {
+    0%   { transform: rotate(0deg) scale(1); }
+    15%  { transform: rotate(-15deg) scale(1.1); }
+    30%  { transform: rotate(12deg) scale(0.95); }
+    45%  { transform: rotate(-8deg) scale(1.05); }
+    60%  { transform: rotate(5deg) scale(1); }
+    75%  { transform: rotate(-3deg) scale(1.02); }
+    100% { transform: rotate(0deg) scale(1); }
+  }
+
+  .roll-btn {
+    background: var(--accent); color: #0a1f33;
+    border: none; border-radius: 10px;
+    padding: 14px 40px; font-size: 16px; font-weight: 800;
+    cursor: pointer; transition: all .15s;
+    font-family: 'Barlow Condensed', sans-serif;
+    letter-spacing: 1px; text-transform: uppercase;
+    box-shadow: 0 4px 16px rgba(245,200,66,0.3);
+  }
+  .roll-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(245,200,66,0.4); }
+  .roll-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* RESULT */
+  .result-box {
+    min-height: 60px; margin-bottom: 16px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .result-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 28px; font-weight: 900; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--accent);
+  }
+  .result-points {
+    font-size: 15px; font-weight: 700; color: var(--green);
+  }
+  .result-desc { font-size: 12px; color: var(--muted); }
+
+  /* Already played */
+  .played-msg {
+    background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.2);
+    border-radius: 8px; padding: 14px; margin-top: 16px;
+    font-size: 13px; color: var(--green); font-weight: 600; text-align: center;
+    line-height: 1.5;
+  }
+
+  /* Countdown */
+  .countdown { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .countdown span { color: var(--accent); font-weight: 700; }
+
+  /* SCORING GUIDE */
+  .scoring-guide {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px; padding: 16px; margin-top: 16px;
+  }
+  .guide-title { font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+  .guide-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .guide-row:last-child { border-bottom: none; }
+  .guide-combo { font-size: 13px; color: var(--text-soft); font-weight: 500; }
+  .guide-pts { font-size: 13px; font-weight: 700; color: var(--accent); }
+  .guide-special { color: var(--green); }
+
+  /* LEADERBOARD PANEL */
+  .leaderboard-wrap {
+    background: var(--surface); backdrop-filter: blur(10px);
+    border: 1px solid var(--border-gold); border-radius: 12px; overflow: hidden;
+  }
+  .lb-header {
+    background: rgba(245,200,66,0.08); border-bottom: 1px solid rgba(245,200,66,0.2);
+    padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .lb-title { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
+  .lb-week { font-size: 11px; color: var(--muted); font-weight: 500; }
+  .lb-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 18px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    transition: background .15s;
+  }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-row.you { background: rgba(245,200,66,0.06); }
+  .lb-rank {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; color: var(--muted); flex-shrink: 0;
+  }
+  .lb-rank.gold { background: rgba(245,200,66,0.2); border-color: rgba(245,200,66,0.5); color: var(--accent); }
+  .lb-rank.silver { background: rgba(180,180,180,0.15); border-color: rgba(180,180,180,0.3); color: #c0c0c0; }
+  .lb-rank.bronze { background: rgba(180,100,30,0.15); border-color: rgba(180,100,30,0.3); color: #cd7f32; }
+  .lb-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--text-soft); }
+  .lb-name .you-tag { font-size: 9px; font-weight: 800; color: var(--accent); background: rgba(245,200,66,0.15); padding: 1px 5px; border-radius: 3px; margin-left: 6px; letter-spacing: 1px; }
+  .lb-score { font-size: 15px; font-weight: 800; color: var(--accent); }
+  .lb-pts-label { font-size: 9px; color: var(--muted); font-weight: 500; }
+  .lb-empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+
+  .your-rank-box {
+    background: rgba(245,200,66,0.07); border-top: 1px solid rgba(245,200,66,0.2);
+    padding: 12px 18px; text-align: center;
+    font-size: 12px; color: var(--muted); font-weight: 500;
+  }
+  .your-rank-box strong { color: var(--accent); }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+<header>
+  <a class="logo-wrap" href="founditcheaper-demo.html">
+    <div class="logo-circle">🍌</div>
+    <div class="logo">founditcheaper<sub>Deals Hub</sub></div>
+  </a>
+  <a class="back-btn" href="founditcheaper-demo.html">← Back to Deals</a>
+</header>
+
+<div class="page">
+
+  <!-- PRIZE BANNER -->
+  <div class="prize-banner">
+    <div class="prize-eyebrow">🎁 This Week's Prize</div>
+    <div class="prize-text">$25 Amazon Gift Card</div>
+    <div class="prize-sub">Highest score by Sunday wins · One roll per day</div>
+    <div class="week-range" id="weekRange"></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('game')">🎲 Roll Dice</button>
+    <button class="tab" onclick="switchTab('leaderboard')">🏆 Leaderboard</button>
+  </div>
+
+  <!-- GAME PANEL -->
+  <div class="panel active" id="panel-game">
+
+    <!-- EMAIL GATE (shown when not signed in) -->
+    <div id="emailGate" class="email-gate">
+      <div class="gate-icon">🎲</div>
+      <div class="gate-title">Daily Dice Roll</div>
+      <div class="gate-sub">Enter your email and pick a display name to play.<br>One roll per day. Points stack all week. Top score wins.</div>
+      <div class="email-input-wrap">
+        <input type="text" class="username-input" id="usernameInput" placeholder="Display name (e.g. DealHunter_RGV)" maxlength="20">
+        <input type="email" class="email-input" id="emailInput" placeholder="your@email.com">
+        <button class="play-btn" onclick="startPlaying()">Let's Roll 🎲</button>
+      </div>
+      <div class="gate-fine">By entering your email you agree to receive deal updates from founditcheaper. Unsubscribe anytime.</div>
+    </div>
+
+    <!-- GAME (shown when signed in) -->
+    <div id="gameArea" class="game-area" style="display:none">
+      <div class="player-info">
+        <div class="player-name" id="playerNameDisplay"></div>
+        <div class="player-score"><span>This week · </span><span id="playerScoreDisplay">0</span> pts</div>
+      </div>
+
+      <div class="result-box" id="resultBox"></div>
+
+      <div class="dice-area">
+        <div class="dice-pair">
+          <div class="die" id="die1">⚀</div>
+          <div class="die" id="die2">⚀</div>
+        </div>
+        <button class="roll-btn" id="rollBtn" onclick="rollDice()">Roll!</button>
+      </div>
+
+      <div id="playedMsg" style="display:none" class="played-msg">
+        ✓ You already rolled today!<br>
+        <span class="countdown">Next roll available in <span id="countdown">—</span></span>
+      </div>
+
+      <div class="scoring-guide">
+        <div class="guide-title">Scoring Guide</div>
+        <div class="guide-row"><span class="guide-combo">🎲 Any roll</span><span class="guide-pts">Sum of both dice</span></div>
+        <div class="guide-row">
+          <span class="guide-combo guide-special">🔥 Doubles</span>
+          <span class="guide-pts guide-special" style="text-align:right">Roll again<br><span style="font-weight:500;font-size:11px">Both rolls added</span></span>
+        </div>
+        <div class="guide-row">
+          <span class="guide-combo guide-special">💀 Snake Eyes (1-1)</span>
+          <span class="guide-pts guide-special" style="text-align:right">Roll again × 2<br><span style="font-weight:500;font-size:11px">All rolls added</span></span>
+        </div>
+        <div class="guide-row"><span class="guide-combo">📅 Perfect week bonus</span><span class="guide-pts">+5 pts × days played</span></div>
+        <div class="guide-row"><span class="guide-combo" style="font-size:10px;color:var(--muted)">Roll every day Sun–Sat · Bonus only paid on final day</span><span class="guide-pts"></span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- LEADERBOARD PANEL -->
+  <div class="panel" id="panel-leaderboard">
+    <div class="leaderboard-wrap">
+      <div class="lb-header">
+        <div>
+          <div class="lb-title">🏆 This Week</div>
+          <div class="lb-week" id="lbWeekRange"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted)">Top 10</div>
+      </div>
+      <div id="lbRows"></div>
+      <div class="your-rank-box" id="yourRankBox" style="display:none"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL      = 'https://kvscvenwhdfwiswcfmxq.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2c2N2ZW53aGRmd2lzd2NmbXhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MTA5MDgsImV4cCI6MjA5ODA4NjkwOH0.9icQB55QM9U9KAMePgOs84Ye6-cZ07N_z0sEn7mFSgY';
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const USE_SUPABASE = SUPABASE_URL !== 'YOUR_SUPABASE_URL';
+
+const WEEK_KEY   = 'fic_week_v1';
+const SCORES_KEY = 'fic_scores_v1';
+const PLAYER_KEY = 'fic_player_v1';
+
+// Week boundaries
+function getWeekBounds() {
+  var now = new Date();
+  var day = now.getDay(); // 0=Sun
+  var startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - day);
+  startOfWeek.setHours(0,0,0,0);
+  var endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  endOfWeek.setHours(23,59,59,999);
+  return { start: startOfWeek, end: endOfWeek };
+}
+
+function formatDate(d) {
+  return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+}
+
+function getWeekString() {
+  var b = getWeekBounds();
+  return formatDate(b.start) + ' – ' + formatDate(b.end);
+}
+
+function todayString() {
+  var d = new Date();
+  return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
+}
+
+// ── PLAYER STATE ──────────────────────────────────────────────────────
+var player = null;
+
+function loadPlayer() {
+  try {
+    var raw = localStorage.getItem(PLAYER_KEY);
+    if (raw) player = JSON.parse(raw);
+  } catch(e) {}
+}
+
+function savePlayer() {
+  try { localStorage.setItem(PLAYER_KEY, JSON.stringify(player)); } catch(e) {}
+}
+
+// ── SCORES ────────────────────────────────────────────────────────────
+var scores = {};
+
+async function loadScores() {
+  if (!USE_SUPABASE) {
+    try { var raw = localStorage.getItem(SCORES_KEY); if (raw) scores = JSON.parse(raw); } catch(e) {}
+    return;
+  }
+  try {
+    var weekStart = getWeekBounds().start.toISOString().split('T')[0];
+    var { data } = await _sb.from('game_scores').select('*').eq('week_start', weekStart);
+    scores = {};
+    if (data) data.forEach(function(row) {
+      scores[row.email] = { name: row.username, weekScore: row.week_score,
+        lastRoll: row.last_roll, rollDays: row.roll_days || [], streak: row.streak };
+    });
+    // Cache locally for offline resilience
+    localStorage.setItem(SCORES_KEY, JSON.stringify(scores));
+  } catch(e) {
+    try { var raw = localStorage.getItem(SCORES_KEY); if (raw) scores = JSON.parse(raw); } catch(e2) {}
+  }
+}
+
+async function saveScores() {
+  localStorage.setItem(SCORES_KEY, JSON.stringify(scores));
+  if (!USE_SUPABASE || !player) return;
+  try {
+    var weekStart = getWeekBounds().start.toISOString().split('T')[0];
+    var entry = scores[player.email];
+    if (!entry) return;
+    await _sb.from('game_scores').upsert({
+      email:      player.email,
+      username:   entry.name,
+      week_score: entry.weekScore,
+      last_roll:  entry.lastRoll,
+      roll_days:  entry.rollDays || [],
+      streak:     entry.streak || 0,
+      week_start: weekStart,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'email,week_start' });
+  } catch(e) {}
+}
+
+// ── DICE FACES ────────────────────────────────────────────────────────
+var diceFaces = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+
+function dieEmoji(n) { return diceFaces[n - 1]; }
+
+// ── SCORING LOGIC ─────────────────────────────────────────────────────
+function isDoubles(d1, d2) { return d1 === d2; }
+function isSnakeEyes(d1, d2) { return d1 === 1 && d2 === 1; }
+function rollOnePair() { return [Math.ceil(Math.random()*6), Math.ceil(Math.random()*6)]; }
+
+// ── UI ────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+  event.target.classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'leaderboard') renderLeaderboard();
+}
+
+function maskEmail(email) {
+  var parts = email.split('@');
+  if (!parts[1]) return email;
+  return parts[0].substring(0,2) + '****@' + parts[1];
+}
+
+async function startPlaying() {
+  var username = document.getElementById('usernameInput').value.trim();
+  var email = document.getElementById('emailInput').value.trim();
+  if (!username) { alert('Please enter a display name.'); return; }
+  if (!email || !email.includes('@')) { alert('Please enter a valid email.'); return; }
+  player = { username: username, email: email };
+  savePlayer();
+  if (!scores[email]) {
+    scores[email] = { name: username, weekScore: 0, lastRoll: null, streak: 0, rollDays: [] };
+    await saveScores();
+  }
+  // Subscribe to email list silently
+  try {
+    fetch('/.netlify/functions/subscribe', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, source: 'game' }),
+    });
+  } catch(e) {}
+  showGame();
+}
+
+function showGame() {
+  document.getElementById('emailGate').style.display = 'none';
+  document.getElementById('gameArea').style.display = 'block';
+  document.getElementById('playerNameDisplay').textContent = player.username;
+  updateScoreDisplay();
+  checkAlreadyPlayed();
+}
+
+function updateScoreDisplay() {
+  var entry = scores[player.email];
+  document.getElementById('playerScoreDisplay').textContent = entry ? entry.weekScore : 0;
+}
+
+function checkAlreadyPlayed() {
+  var entry = scores[player.email];
+  if (entry && entry.lastRoll === todayString()) {
+    document.getElementById('rollBtn').disabled = true;
+    document.getElementById('playedMsg').style.display = 'block';
+    startCountdown();
+  }
+}
+
+function startCountdown() {
+  function update() {
+    var now = new Date(), midnight = new Date();
+    midnight.setHours(24,0,0,0);
+    var diff = midnight - now;
+    var h = Math.floor(diff/3600000);
+    var m = Math.floor((diff%3600000)/60000);
+    var s = Math.floor((diff%60000)/1000);
+    document.getElementById('countdown').textContent = h+'h '+m+'m '+s+'s';
+  }
+  update(); setInterval(update, 1000);
+}
+
+function animateDice(die1El, die2El, callback) {
+  die1El.classList.add('rolling'); die2El.classList.add('rolling');
+  var spins = 0;
+  var interval = setInterval(function() {
+    die1El.textContent = dieEmoji(Math.ceil(Math.random()*6));
+    die2El.textContent = dieEmoji(Math.ceil(Math.random()*6));
+    if (++spins > 8) clearInterval(interval);
+  }, 80);
+  setTimeout(function() {
+    die1El.classList.remove('rolling'); die2El.classList.remove('rolling');
+    callback();
+  }, 750);
+}
+
+async function rollDice() {
+  document.getElementById('rollBtn').disabled = true;
+  die1El = document.getElementById('die1');
+  die2El = document.getElementById('die2');
+  resultBox = document.getElementById('resultBox');
+  resultBox.innerHTML = '';
+
+  // Streak calculation
+  var entry = scores[player.email] || { name: player.username, weekScore: 0, lastRoll: null, streak: 0, rollDays: [] };
+  if (!entry.rollDays) entry.rollDays = [];
+  var today = todayString();
+  var weekStart = getWeekBounds().start;
+  var allDays = [], cursor = new Date(weekStart);
+  var todayDate = new Date(); todayDate.setHours(0,0,0,0);
+  while (cursor <= todayDate) {
+    allDays.push(cursor.getFullYear()+'-'+(cursor.getMonth()+1)+'-'+cursor.getDate());
+    cursor.setDate(cursor.getDate()+1);
+  }
+  if (entry.rollDays.indexOf(today) === -1) entry.rollDays.push(today);
+  var hasRolledEveryDay = allDays.every(function(d) { return entry.rollDays.indexOf(d) !== -1; });
+  var weekEnd = getWeekBounds().end;
+  var isLastDay = todayDate.toDateString() === new Date(weekEnd).toDateString();
+  var streakBonus = (hasRolledEveryDay && isLastDay) ? allDays.length * 5 : 0;
+  entry.streak = hasRolledEveryDay ? allDays.length : 0;
+
+  // Roll sequence
+  var rolls = [], totalPoints = 0, rollCount = 0, maxRolls = 2;
+
+  function buildResultHtml() {
+    var html = '';
+    rolls.forEach(function(r, i) {
+      var rollLabel = i === 0 ? 'Roll' : 'Bonus Roll ' + i;
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,'+(r.special?'0.2':'0.07')+');border-radius:8px;margin-bottom:6px">';
+      html += '<div><div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase">'+rollLabel+'</div>';
+      html += '<div style="font-size:24px;letter-spacing:6px;margin:4px 0">'+dieEmoji(r.d1)+dieEmoji(r.d2)+'</div>';
+      html += '<div style="font-size:11px;font-weight:700;color:'+(r.special?'var(--accent)':'var(--muted)')+'">'+r.label+'</div></div>';
+      html += '<div style="text-align:right"><div style="font-size:20px;font-weight:800;color:var(--green)">+'+r.pts+'</div><div style="font-size:10px;color:var(--muted)">pts</div></div>';
+      html += '</div>';
+    });
+    if (rolls.length > 1 || streakBonus > 0) {
+      html += '<div style="text-align:center;padding:10px;font-size:14px;color:var(--accent);font-weight:800;border-top:1px solid rgba(255,255,255,0.08);margin-top:4px">';
+      html += 'Total today: '+(totalPoints+streakBonus)+' pts';
+      if (streakBonus > 0) html += '<div style="font-size:11px;color:var(--green);font-weight:600;margin-top:2px">+'+streakBonus+' perfect week bonus included!</div>';
+      html += '</div>';
+    }
+    if (hasRolledEveryDay && !isLastDay && streakBonus === 0) {
+      html += '<div style="text-align:center;font-size:11px;color:var(--green);font-weight:600;padding:6px 0">🔥 Perfect streak — bonus unlocks on final day!</div>';
+    }
+    resultBox.innerHTML = html;
+  }
+
+  function doRoll() {
+    animateDice(die1El, die2El, function() {
+      var pair = rollOnePair();
+      var d1 = pair[0], d2 = pair[1];
+      die1El.textContent = dieEmoji(d1); die2El.textContent = dieEmoji(d2);
+      var pts = d1 + d2;
+      var label = '', special = false;
+      rollCount++;
+
+      if (isSnakeEyes(d1, d2)) {
+        special = true;
+        if (rollCount === 1)      { label = '💀 Snake Eyes! Roll again!'; maxRolls = 3; }
+        else if (rollCount === 2) { label = '💀 Snake Eyes again! One more!'; maxRolls = 3; }
+        else                      { label = '💀 Snake Eyes — unbelievable!'; }
+      } else if (isDoubles(d1, d2)) {
+        special = true;
+        label = rollCount === 1 ? '🔥 Doubles! Roll again!' : '🔥 Doubles bonus!';
+      } else {
+        label = pts >= 10 ? 'Nice roll!' : 'Keep rolling!';
+      }
+
+      rolls.push({ d1:d1, d2:d2, pts:pts, label:label, special:special });
+      totalPoints += pts;
+      buildResultHtml();
+
+      if (isDoubles(d1, d2) && rollCount < maxRolls) {
+        setTimeout(doRoll, 900);
+      } else {
+        // Done — save score
+        var finalTotal = totalPoints + streakBonus;
+        entry.weekScore = (entry.weekScore || 0) + finalTotal;
+        entry.lastRoll = today;
+        entry.name = player.username;
+        scores[player.email] = entry;
+        saveScores();
+        updateScoreDisplay();
+        document.getElementById('playedMsg').style.display = 'block';
+        startCountdown();
+      }
+    });
+  }
+
+  doRoll();
+}
+
+// ── LEADERBOARD ───────────────────────────────────────────────────────
+async function renderLeaderboard() {
+  // Refresh scores from Supabase before rendering
+  await loadScores();
+  var rows = document.getElementById('lbRows');
+  var yourRankBox = document.getElementById('yourRankBox');
+  document.getElementById('lbWeekRange').textContent = getWeekString();
+
+  var entries = Object.entries(scores).map(function(e) {
+    return { email: e[0], name: e[1].name, score: e[1].weekScore || 0 };
+  });
+  entries.sort(function(a,b) { return b.score - a.score; });
+
+  if (entries.length === 0) {
+    rows.innerHTML = '<div class="lb-empty">No scores yet this week.<br>Be the first to roll! 🎲</div>';
+    yourRankBox.style.display = 'none';
+    return;
+  }
+
+  var top10 = entries.slice(0, 10);
+  var html = '';
+  var rankClasses = ['gold','silver','bronze'];
+
+  top10.forEach(function(e, i) {
+    var isYou = player && e.email === player.email;
+    var rankCls = rankClasses[i] || '';
+    var rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+    html += '<div class="lb-row' + (isYou ? ' you' : '') + '">';
+    html += '<div class="lb-rank ' + rankCls + '">' + rankEmoji + '</div>';
+    html += '<div class="lb-name">' + e.name + (isYou ? '<span class="you-tag">YOU</span>' : '') + '</div>';
+    html += '<div style="text-align:right"><div class="lb-score">' + e.score + '</div><div class="lb-pts-label">pts</div></div>';
+    html += '</div>';
+  });
+
+  rows.innerHTML = html;
+
+  // Show player's rank if outside top 10
+  if (player) {
+    var myRank = entries.findIndex(function(e) { return e.email === player.email; });
+    if (myRank >= 10) {
+      yourRankBox.style.display = 'block';
+      yourRankBox.innerHTML = 'You\'re ranked <strong>#' + (myRank + 1) + '</strong> with <strong>' + entries[myRank].score + ' pts</strong> · Keep rolling to climb!';
+    } else if (myRank >= 0) {
+      yourRankBox.style.display = 'block';
+      yourRankBox.innerHTML = 'You\'re ranked <strong>#' + (myRank + 1) + '</strong> this week · ' + (myRank === 0 ? '👑 You\'re in the lead!' : 'Keep rolling!');
+    } else {
+      yourRankBox.style.display = 'none';
+    }
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+document.getElementById('weekRange').textContent = getWeekString();
+document.getElementById('lbWeekRange') && (document.getElementById('lbWeekRange').textContent = getWeekString());
+
+loadPlayer();
+loadScores().then(function() {
+  if (player && scores) {
+    showGame();
+  }
+});
+</script>
+</body>
+</html>

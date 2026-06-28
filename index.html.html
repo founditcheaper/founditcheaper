@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Found It Cheaper — Deals</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+  :root {
+    --bg-deep: #0a1f33;
+    --surface: rgba(10,31,51,0.97);
+    --border: rgba(255,255,255,0.1);
+    --border-gold: rgba(245,200,66,0.3);
+    --accent: #f5c842;
+    --text: #ffffff;
+    --text-soft: rgba(255,255,255,0.82);
+    --muted: rgba(255,255,255,0.42);
+    --green: #4ade80;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(160deg, #1c5080 0%, #0f2e47 55%, #0a1f33 100%);
+    background-attachment: fixed;
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: rgba(10,31,51,0.99);
+    
+    border-bottom: 2px solid var(--accent);
+    padding: 10px 16px;
+    position: sticky; top: 0; z-index: 200;
+  }
+  /* Mobile: two rows */
+  .header-row1 { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .header-row2 { display: block; }
+  .header-search-wrap { width: 100%; }
+
+  /* Desktop: single row */
+  .header-inner { width: 100%; }
+  @media (min-width: 640px) {
+    header { display: flex; align-items: center; padding: 0 24px; height: 62px; }
+    .header-inner { max-width: 1200px; width: 100%; margin: 0 auto; display: flex; align-items: center; gap: 16px; }
+    .header-row1 { display: contents; }
+    .header-row2 { display: contents; }
+    .header-search-wrap { flex: 1; }
+    .logo-wrap { flex-shrink: 0; }
+    .hamburger-btn { order: 3; flex-shrink: 0; }
+  }
+
+  .header-search-inner {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px; padding: 8px 14px;
+    transition: border-color .2s;
+  }
+  .header-search-inner:focus-within { border-color: rgba(245,200,66,0.5); background: rgba(255,255,255,0.12); }
+  .header-search-input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-size: 13px; font-family: 'Inter', sans-serif; min-width: 0; }
+  .header-search-input::placeholder { color: var(--muted); }
+  .header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+  /* PICKS SLIDER */
+  .picks-slider-wrap { padding: 14px 0 0; }
+  .picks-slider {
+    display: flex; gap: 12px;
+    overflow-x: auto; scroll-snap-type: x mandatory;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+  .picks-slider::-webkit-scrollbar { display: none; }
+  .pick-slide {
+    flex: 0 0 78%; scroll-snap-align: start;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px; overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: border-color .15s;
+  }
+  @media (min-width: 640px) {
+    .pick-slide { flex: 0 0 280px; }
+  }
+  .pick-slide:hover { border-color: rgba(245,200,66,0.4); }
+  .pick-img { width: 100%; height: 220px; object-fit: contain; background: transparent; padding: 16px; display: block; }
+  .slider-dots { display: flex; justify-content: center; gap: 6px; padding: 12px 0 8px; }
+  .slider-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2); cursor: pointer; transition: all .2s; }
+  .slider-dot.active { background: var(--accent); width: 18px; border-radius: 3px; }
+
+  .slider-arrow {
+    display: none; /* hidden on mobile */
+    position: absolute; top: 50%; transform: translateY(-50%);
+    background: rgba(10,31,51,0.85); border: 1px solid rgba(255,255,255,0.2);
+    color: white; width: 36px; height: 36px; border-radius: 50%;
+    font-size: 22px; cursor: pointer; z-index: 10;
+    align-items: center; justify-content: center;
+    transition: all .15s; line-height: 1;
+  }
+  .slider-arrow:hover { background: rgba(245,200,66,0.2); border-color: var(--accent); color: var(--accent); }
+  .slider-arrow-left { left: -14px; }
+  .slider-arrow-right { right: -14px; }
+  @media (min-width: 640px) {
+    .slider-arrow { display: flex; }
+    .picks-slider-wrap { padding-left: 10px; padding-right: 10px; }
+  }
+
+  /* HAMBURGER */
+  .hamburger-btn {
+    background: none; border: none; cursor: pointer;
+    padding: 6px; display: flex; flex-direction: column;
+    gap: 5px; flex-shrink: 0;
+  }
+  .hamburger-btn span {
+    display: block; width: 22px; height: 2px;
+    background: var(--text); border-radius: 2px;
+    transition: all .2s;
+  }
+  .hamburger-btn:hover span { background: var(--accent); }
+
+  /* MENU ITEMS */
+  .menu-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 12px; border-radius: 8px;
+    text-decoration: none; color: inherit;
+    transition: background .15s;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .menu-item:last-of-type { border-bottom: none; }
+  .menu-item:hover { background: rgba(255,255,255,0.05); }
+  .menu-item-icon { font-size: 20px; flex-shrink: 0; width: 28px; text-align: center; }
+  .menu-item-label { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .menu-item-sub { font-size: 11px; color: var(--muted); font-weight: 500; }
+  .site-footer {
+    background: rgba(5,15,25,0.95);
+    border-top: 1px solid rgba(245,200,66,0.2);
+    margin-top: 40px; padding: 28px 18px;
+  }
+  .footer-inner { padding: 0 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
+  .footer-logo { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .footer-links { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+  .footer-link { font-size: 12px; font-weight: 600; color: var(--muted); text-decoration: none; transition: color .15s; }
+  .footer-link:hover { color: var(--accent); }
+  .footer-divider { color: var(--muted); font-size: 12px; }
+  .footer-legal { border-top: 1px solid rgba(255,255,255,0.07); padding-top: 16px; }
+  .footer-legal p { font-size: 11px; color: var(--muted); line-height: 1.7; margin-bottom: 8px; }
+  .footer-legal p:last-child { margin-bottom: 0; }
+  .logo-wrap { display: flex; align-items: center; gap: 10px; }
+  .logo-circle {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg,#4a9fd4,#2a6fa8);
+    border-radius: 50%; border: 2px solid var(--accent);
+    display: flex; align-items: center; justify-content: center; font-size: 17px;
+  }
+  .logo { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; line-height: 1; }
+  .logo sub { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--muted); display: block; text-transform: uppercase; }
+  .live-dot { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--green); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
+
+  /* HERO STRIP */
+  .hero-strip {
+    background: rgba(0,0,0,0.22); border-bottom: 1px solid rgba(245,200,66,0.15);
+    padding: 8px 24px; display: flex; align-items: center; gap: 12px;
+  }
+  .hero-badge { background: var(--accent); color: #0a1f33; font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; padding: 3px 8px; border-radius: 2px; white-space: nowrap; flex-shrink: 0; }
+  .hero-strip p { font-size: 11px; color: var(--muted); font-weight: 500; }
+
+  .disclaimer-bar {
+    background: rgba(0,0,0,0.3);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding: 5px 24px;
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+  }
+
+  /* OUTER WRAPPER */
+  .page-inner { padding: 0 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+  /* PICKS SECTION (full width) */
+  .picks-outer { padding: 20px 24px 0; max-width: 1200px; margin: 0 auto; width: 100%; }
+  .picks-section-title { font-size: 11px; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+
+  /* Today card */
+  .picks-group {
+    background: var(--surface); 
+    border: 1px solid var(--border-gold); border-radius: 10px;
+    overflow: hidden; margin-bottom: 8px;
+  }
+  .picks-group.today { border-color: rgba(245,200,66,0.6); }
+
+  .picks-toggle {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; cursor: pointer; background: none; border: none;
+    color: inherit; font-family: 'Inter', sans-serif; text-align: left;
+  }
+  .picks-toggle-left { display: flex; align-items: center; gap: 10px; }
+  .today-pill { background: var(--accent); color: #0a1f33; font-size: 9px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; padding: 2px 7px; border-radius: 10px; }
+  .picks-toggle-label { font-size: 14px; font-weight: 700; color: var(--text); }
+  .picks-toggle-sub { font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 1px; }
+  .picks-group.open .chevron { transform: rotate(180deg); }
+  .chevron { width: 20px; height: 20px; color: var(--muted); flex-shrink: 0; transition: transform .25s; }
+  .picks-body { display: none; padding: 0 14px 14px; border-top: 1px solid rgba(255,255,255,0.07); }
+  .picks-group.open .picks-body { display: block; }
+
+  /* Previous picks wrapper */
+  .prev-wrapper {
+    background: var(--surface); 
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+    overflow: hidden; margin-bottom: 8px;
+  }
+  .prev-toggle {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; cursor: pointer; background: none; border: none;
+    color: inherit; font-family: 'Inter', sans-serif; text-align: left;
+  }
+  .prev-toggle-left { display: flex; align-items: center; gap: 10px; }
+  .prev-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+  .prev-label { font-size: 14px; font-weight: 700; color: var(--text-soft); }
+  .prev-sub { font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 1px; }
+  .prev-wrapper.open .prev-chevron { transform: rotate(180deg); }
+  .prev-chevron { transition: transform .25s; transform: rotate(0deg); width: 20px; height: 20px; color: var(--muted); flex-shrink: 0; }
+  .prev-body { display: none; padding: 0 10px 10px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .prev-wrapper.open .prev-body { display: block; }
+
+  /* Past day rows */
+  .past-day {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px; overflow: hidden; margin-top: 8px;
+  }
+  .past-day-toggle {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 14px; cursor: pointer; background: none; border: none;
+    color: inherit; font-family: 'Inter', sans-serif; text-align: left;
+  }
+  .past-day-label { font-size: 13px; font-weight: 600; color: var(--text-soft); }
+  .past-day-sub { font-size: 10px; color: var(--muted); margin-top: 1px; }
+  .sm-chevron { width: 16px; height: 16px; color: var(--muted); flex-shrink: 0; transition: transform .25s; }
+  .past-day.open .sm-chevron { transform: rotate(180deg); }
+  .past-day-body { display: none; padding: 0 10px 10px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .past-day.open .past-day-body { display: block; }
+
+  /* Picks grid (2-col) */
+  .picks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 14px; }
+  .pick-card {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px; overflow: hidden; display: flex; flex-direction: column;
+    transition: border-color .15s, transform .15s;
+  }
+  .pick-card:hover { border-color: rgba(245,200,66,0.5); transform: translateY(-2px); }
+  .pick-img { width: 100%; height: 160px; object-fit: contain; background: transparent; padding: 12px; display: block; }
+  .pick-body { padding: 9px; display: flex; flex-direction: column; flex: 1; }
+  .pick-name { font-size: 11px; font-weight: 500; color: var(--text-soft); line-height: 1.4; margin-bottom: 7px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; flex: 1; }
+  .pick-off { display: inline-block; background: var(--accent); color: #0a1f33; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 3px; margin-bottom: 5px; }
+  .pick-prices { display: flex; align-items: baseline; gap: 5px; margin-bottom: 8px; }
+  .pick-now { font-size: 15px; font-weight: 700; color: var(--green); }
+  .pick-was { font-size: 11px; color: var(--muted); text-decoration: line-through; }
+  .pick-code-row { display: flex; align-items: center; gap: 4px; background: rgba(245,200,66,0.07); border: 1px dashed rgba(245,200,66,0.3); border-radius: 4px; padding: 4px 7px; margin-bottom: 8px; }
+  .pick-code-label { font-size: 9px; color: var(--muted); font-weight: 800; letter-spacing: 1px; flex-shrink: 0; }
+  .pick-code-val { font-size: 11px; font-weight: 800; color: var(--accent); letter-spacing: 1.5px; flex: 1; }
+  .see-all-btn {
+  .see-all-btn {
+    display: block; width: 100%; margin-top: 14px;
+    padding: 14px; background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.35); border-radius: 8px;
+    color: #ffffff; font-size: 15px; font-weight: 700;
+    text-align: center; cursor: pointer; transition: all .2s;
+    font-family: 'Inter', sans-serif; letter-spacing: 0.3px; text-decoration: none;
+  }
+  .picks-grid-rest { margin-top: 10px; } background: transparent; border: 1px solid rgba(245,200,66,0.35); border-radius: 5px; color: var(--accent); font-size: 11px; font-weight: 700; text-align: center; text-decoration: none; cursor: pointer; transition: all .15s; font-family: 'Inter', sans-serif; }
+  .pick-shop-btn:hover { background: var(--accent); color: #0a1f33; }
+
+  /* DIVIDER */
+  .section-divider { display: flex; align-items: center; gap: 12px; padding: 20px 24px 0; max-width: 1200px; margin: 0 auto; width: 100%; }
+  .section-divider-line { flex: 1; height: 1px; background: rgba(255,255,255,0.08); }
+  .section-divider-label { font-size: 11px; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+
+  .layout { padding: 20px 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
+  .main { width: 100%; }
+  .filter-panel { background: var(--surface);  border: 1px solid var(--border-gold); border-radius: 10px; overflow: hidden; margin-bottom: 0; }
+  .filter-header { padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.07); background: rgba(245,200,66,0.07); display: flex; align-items: center; justify-content: space-between; }
+  .filter-header h3 { font-size: 11px; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; color: var(--accent); }
+  #filterBody { display: none; }
+  #filterBody.open { display: block; }
+  .clear-btn { font-size: 11px; font-weight: 600; color: var(--muted); background: none; border: none; cursor: pointer; transition: color .15s; }
+  .clear-btn:hover { color: var(--accent); }
+  .filter-section { padding: 13px 15px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .filter-section:last-child { border-bottom: none; }
+  .filter-label { font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; display: block; }
+  .chip-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; border: 1px solid rgba(255,255,255,0.14); background: transparent; color: var(--muted); cursor: pointer; transition: all .15s; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .chip.active { background: var(--accent); border-color: var(--accent); color: #0a1f33; font-weight: 800; }
+  .slider-wrap { display: flex; flex-direction: column; gap: 7px; }
+  .slider-value { font-size: 14px; font-weight: 700; color: var(--accent); }
+  input[type="range"] {
+    -webkit-appearance: none; width: 100%; height: 3px; border-radius: 2px;
+    background: rgba(255,255,255,0.14); outline: none; cursor: pointer;
+    touch-action: none; pointer-events: none; opacity: 0.5; transition: opacity .2s, background .2s;
+  }
+  input[type="range"].unlocked {
+    pointer-events: auto; opacity: 1;
+    background: rgba(245,200,66,0.4);
+    box-shadow: 0 0 8px rgba(245,200,66,0.3);
+  }
+  input[type="range"].unlocked::-webkit-slider-thumb {
+    background: var(--accent);
+    box-shadow: 0 0 10px rgba(245,200,66,0.8), 0 0 20px rgba(245,200,66,0.4);
+    transform: scale(1.3);
+  }
+  .slider-hold-btn {
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px; padding: 3px 10px;
+    cursor: pointer; user-select: none; -webkit-user-select: none;
+    letter-spacing: 0.3px; transition: all .15s; white-space: nowrap;
+    font-family: 'Inter', sans-serif;
+  }
+  .slider-hold-btn:active { background: rgba(245,200,66,0.15); border-color: rgba(245,200,66,0.4); color: var(--accent); }
+  .slider-hold-btn.hidden { display: none; }
+  .slider-unlocked-badge {
+    font-size: 10px; font-weight: 800; color: #0a1f33;
+    background: var(--accent); padding: 2px 7px; border-radius: 10px;
+    letter-spacing: 0.5px; display: none;
+  }
+  .slider-unlocked-badge.visible { display: inline-block; }
+  .slider-input-row {
+    display: flex; gap: 6px; margin-top: 8px;
+  }
+  .slider-input-box {
+    flex: 1; background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 6px;
+    padding: 6px 8px; color: var(--text); font-size: 12px; font-weight: 600;
+    font-family: "Inter", sans-serif; outline: none; text-align: center;
+    transition: border-color .2s;
+  }
+  .slider-input-box:focus { border-color: rgba(245,200,66,0.5); }
+  .slider-input-box::placeholder { color: var(--muted); font-weight: 400; }
+  .price-stepper {
+    flex: 1; display: flex; align-items: center;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px; overflow: hidden;
+  }
+  .stepper-btn {
+    width: 36px; height: 36px; flex-shrink: 0;
+    background: rgba(255,255,255,0.07); border: none;
+    color: var(--accent); font-size: 18px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+    line-height: 1;
+  }
+  .stepper-btn:hover { background: rgba(245,200,66,0.18); }
+  .stepper-btn:active { background: rgba(245,200,66,0.3); }
+  .stepper-label {
+    flex: 1; text-align: center; font-size: 12px; font-weight: 700;
+    color: var(--text); font-family: "Inter", sans-serif;
+  }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid var(--bg-deep); box-shadow: 0 0 6px rgba(245,200,66,.5); }
+  .slider-ends { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); }
+  .star-row { display: flex; flex-direction: column; gap: 5px; }
+  .star-option { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 3px 0; }
+  .star-option input[type="radio"] { display: none; }
+  .star-display { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 500; transition: color .15s; }
+  .star-option:has(input:checked) .star-display { color: var(--text); }
+  .stars { color: var(--accent); }
+  .custom-radio { width: 13px; height: 13px; border-radius: 50%; border: 2px solid rgba(255,255,255,.2); flex-shrink: 0; transition: all .15s; }
+  .star-option:has(input:checked) .custom-radio { border-color: var(--accent); background: var(--accent); }
+  .brand-toggle { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+  .brand-toggle span { font-size: 13px; font-weight: 500; color: var(--text-soft); }
+  .toggle-switch { width: 34px; height: 19px; background: rgba(255,255,255,.14); border-radius: 10px; position: relative; transition: background .2s; flex-shrink: 0; }
+  .toggle-switch::after { content:''; position: absolute; top: 2.5px; left: 2.5px; width: 14px; height: 14px; background: rgba(255,255,255,.55); border-radius: 50%; transition: transform .2s; }
+  .toggle-switch.on { background: var(--accent); }
+  .toggle-switch.on::after { background: #0a1f33; transform: translateX(15px); }
+
+  /* MAIN */
+  .main { flex: 1; min-width: 0; }
+  .quick-filter-bar {
+    background: var(--surface); 
+    border: 1px solid var(--border-gold); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 10px;
+  }
+  .quick-filter-label {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .quick-discount-val { color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+  .quick-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .quick-chip {
+    padding: 3px 9px; border-radius: 20px;
+    font-size: 11px; font-weight: 700;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: transparent; color: var(--muted);
+    cursor: pointer; transition: all .15s; font-family: 'Inter', sans-serif;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .quick-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .quick-chip.active { background: var(--accent); border-color: var(--accent); color: #0a1f33; }
+
+  .results-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .results-bar span { font-size: 12px; color: var(--muted); }
+  .sort-select { background: rgba(10,31,51,.85); border: 1px solid var(--border-gold); color: var(--text); font-size: 12px; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-family: 'Inter', sans-serif; }
+
+  /* PRODUCT GRID */
+  .product-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(210px,1fr)); gap: 12px; }
+  .product-card { background: var(--surface);  border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; transition: border-color .2s, transform .2s, box-shadow .2s; }
+  .product-card:hover { border-color: rgba(245,200,66,.55); transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,.35); }
+  .store-badge { font-size: 9px; font-weight: 800; letter-spacing: 1px; padding: 2px 6px; border-radius: 3px; margin-bottom: 4px; display: inline-block;  }
+  .store-badge.amz { background: rgba(245,200,66,0.15); color: var(--accent); border: 1px solid rgba(245,200,66,0.3); }
+  .store-badge.wmt { background: rgba(0,120,200,0.2); color: #60b8f5; border: 1px solid rgba(0,120,200,0.35); }
+  .store-badge.hd  { background: rgba(240,90,30,0.2); color: #f87c3a; border: 1px solid rgba(240,90,30,0.35); }
+  .store-badge.bby { background: rgba(30,100,220,0.2); color: #6ea8fe; border: 1px solid rgba(30,100,220,0.35); }
+  .store-badge.low { background: rgba(0,160,80,0.2); color: #4ade80; border: 1px solid rgba(0,160,80,0.35); }
+  .brand-ribbon { padding: 5px 11px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.07); }
+  .brand-ribbon.store-Amazon    { background: rgba(245,200,66,0.1);  color: var(--accent);  border-color: rgba(245,200,66,0.18); }
+  .brand-ribbon.store-Walmart   { background: rgba(0,120,200,0.15);  color: #60b8f5;        border-color: rgba(0,120,200,0.2); }
+  .brand-ribbon.store-HomeDepot { background: rgba(240,90,30,0.15);  color: #f87c3a;        border-color: rgba(240,90,30,0.2); }
+  .brand-ribbon.store-BestBuy   { background: rgba(30,100,220,0.15); color: #6ea8fe;        border-color: rgba(30,100,220,0.2); }
+  .brand-ribbon.store-Lowes     { background: rgba(0,160,80,0.15);   color: #4ade80;        border-color: rgba(0,160,80,0.2); }
+  .product-img { width: 100%; height: 190px; object-fit: contain; background: transparent; padding: 14px; display: block; }
+  .product-body { padding: 11px; display: flex; flex-direction: column; flex: 1; }
+  .product-category { font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .product-name { font-size: 12px; font-weight: 500; line-height: 1.45; color: var(--text-soft); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; flex: 1; }
+  .product-stars { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+  .stars-display { color: var(--accent); font-size: 11px; }
+  .rating-num { font-size: 11px; color: var(--muted); }
+  .price-row { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; flex-wrap: wrap; }
+  .current-price { font-size: 17px; font-weight: 700; color: var(--green); }
+  .was-price { font-size: 11px; color: var(--muted); text-decoration: line-through; }
+  .off-badge { background: var(--accent); color: #0a1f33; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 3px; margin-left: auto; }
+  .code-row { display: flex; align-items: center; gap: 5px; background: rgba(245,200,66,.07); border: 1px dashed rgba(245,200,66,.28); border-radius: 4px; padding: 5px 7px; margin-bottom: 8px; }
+  .code-label { font-size: 9px; color: var(--muted); font-weight: 800; letter-spacing: 1px; flex-shrink: 0; }
+  .code-value { font-size: 11px; font-weight: 800; color: var(--accent); letter-spacing: 1.5px; flex: 1; }
+  .copy-btn { background: var(--accent); color: #0a1f33; border: none; border-radius: 3px; padding: 3px 7px; font-size: 9px; font-weight: 800; cursor: pointer; flex-shrink: 0; transition: opacity .15s; font-family: 'Inter', sans-serif; }
+  .copy-btn:hover { opacity: .85; }
+  .copy-btn.copied { background: var(--green); color: #0a1f33; }
+  .share-btn {
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    width: 100%; padding: 7px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px; color: var(--muted);
+    font-size: 11px; font-weight: 600;
+    cursor: pointer; transition: all .15s;
+    font-family: 'Inter', sans-serif; margin-top: 6px;
+  }
+  .share-btn:hover { border-color: rgba(255,255,255,0.3); color: var(--text); }
+  .share-btn.copied { border-color: var(--green); color: var(--green); }
+  .shop-btn { display: block; width: 100%; padding: 8px; background: transparent; border: 1px solid rgba(245,200,66,.35); border-radius: 6px; color: var(--accent); font-size: 12px; font-weight: 700; text-align: center; text-decoration: none; cursor: pointer; transition: all .15s; font-family: 'Inter', sans-serif; }
+  .shop-btn:hover { background: var(--accent); color: #0a1f33; }
+
+  /* LOADER */
+  .loader { text-align: center; padding: 30px 0; color: var(--muted); font-size: 12px; font-weight: 600; display: none; }
+  .loader.visible { display: block; }
+  .loader-dots { display: inline-flex; gap: 5px; margin-left: 6px; }
+  .loader-dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); opacity: .3; animation: blink 1.2s infinite; }
+  .loader-dots span:nth-child(2) { animation-delay: .2s; }
+  .loader-dots span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%,100%{opacity:.3} 50%{opacity:1} }
+  .end-msg { text-align: center; padding: 26px 0; color: var(--muted); font-size: 11px; font-weight: 600; display: none; }
+  .end-msg.visible { display: block; }
+  .no-results { text-align: center; padding: 55px 20px; color: var(--muted); display: none; }
+  .no-results.visible { display: block; }
+  #sentinel { height: 1px; }
+
+  @media (max-width: 820px) {
+    .layout { padding: 14px; }
+    .picks-outer { padding: 14px 14px 0; }
+    .section-divider { padding: 14px 14px 0; }
+    header { padding: 0 16px; }
+    .hero-strip { padding: 7px 16px; }
+    .picks-grid { grid-template-columns: 1fr 1fr; }
+    .product-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+<div class="header-inner">
+  <div class="header-row1">
+    <div class="logo-wrap">
+      <div class="logo-circle">🍌</div>
+      <div class="logo">founditcheaper
+        <sub style="display:flex;align-items:center;gap:5px">
+          DEALS HUB
+          <span class="live-dot" style="font-size:10px"><span class="dot"></span> Live</span>
+        </sub>
+      </div>
+    </div>
+    <button class="hamburger-btn" onclick="openMenu()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <div class="header-row2" style="margin-top:2px;padding-bottom:4px">
+    <div class="header-search-wrap">
+      <div class="header-search-inner">
+        <svg style="width:14px;height:14px;color:var(--muted);flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" class="header-search-input" placeholder="Search deals, brands, products…" oninput="updateSearch(this.value)">
+        <button class="search-clear" id="searchClear" onclick="clearSearch()" style="display:none">✕</button>
+      </div>
+    </div>
+  </div>
+</div>
+</header>
+
+<!-- SLIDE-IN MENU OVERLAY -->
+<div id="menuOverlay" onclick="closeMenu()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:400;backdrop-filter:blur(3px)"></div>
+
+<!-- SLIDE-IN MENU PANEL -->
+<div id="menuPanel" style="position:fixed;top:0;right:-320px;width:300px;height:100%;background:linear-gradient(180deg,#0d2a42,#081a28);z-index:401;transition:right 0.3s ease;box-shadow:-4px 0 30px rgba(0,0,0,0.5);overflow-y:auto">
+  <div style="padding:20px 20px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="logo-circle" style="width:32px;height:32px;font-size:14px">🍌</div>
+      <span style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--text)">founditcheaper</span>
+    </div>
+    <button onclick="closeMenu()" style="background:rgba(255,255,255,0.08);border:none;color:var(--muted);width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+  </div>
+
+  <div style="padding:16px 20px">
+
+    <!-- EMAIL SIGNUP -->
+    <div style="background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.25);border-radius:10px;padding:16px;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:6px">📧 Get Daily Deals</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Join the list — get the best deals before everyone else.</div>
+      <input type="email" id="menuEmailInput" placeholder="your@email.com" style="width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:7px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;outline:none;margin-bottom:8px;box-sizing:border-box">
+      <button onclick="menuEmailSignup()" style="width:100%;background:var(--accent);color:#0a1f33;border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif">Join the List 🔥</button>
+      <div id="menuEmailMsg" style="font-size:11px;text-align:center;margin-top:8px;display:none"></div>
+    </div>
+
+    <!-- MENU ITEMS -->
+    <a href="founditcheaper-game.html" class="menu-item">
+      <span class="menu-item-icon">🎲</span>
+      <div><div class="menu-item-label">Daily Dice Game</div><div class="menu-item-sub">Roll every day · Win prizes</div></div>
+    </a>
+
+    <a href="https://www.instagram.com/founditcheaper1" target="_blank" rel="noopener" class="menu-item">
+      <span class="menu-item-icon">📸</span>
+      <div><div class="menu-item-label">Instagram</div><div class="menu-item-sub">@founditcheaper1</div></div>
+    </a>
+
+    <a href="#" onclick="closeMenu();openBugReport();return false;" class="menu-item">
+      <span class="menu-item-icon">🐛</span>
+      <div><div class="menu-item-label">Report a Bug</div><div class="menu-item-sub">Help us improve the site</div></div>
+    </a>
+
+    <a href="#" onclick="closeMenu();openLegal();return false;" class="menu-item">
+      <span class="menu-item-icon">📜</span>
+      <div><div class="menu-item-label">Legal & Disclaimer</div><div class="menu-item-sub">Affiliate disclosure · Terms</div></div>
+    </a>
+
+    <a href="#" onclick="closeMenu();openContact();return false;" class="menu-item">
+      <span class="menu-item-icon">✉️</span>
+      <div><div class="menu-item-label">Contact Us</div><div class="menu-item-sub">deals@founditcheaper.net</div></div>
+    </a>
+
+    <div style="border-top:1px solid rgba(255,255,255,0.07);margin-top:8px;padding-top:16px;font-size:10px;color:var(--muted);text-align:center;line-height:1.6">
+      © 2026 founditcheaper<br>
+      Deals can expire at any time · Associate commissions earned
+    </div>
+  </div>
+</div>
+
+
+
+
+<div class="picks-outer">
+  <div id="picksContainer"></div>
+</div>
+
+<!-- DIVIDER -->
+<div class="section-divider" id="allDealsAnchor">
+  <div class="section-divider-line"></div>
+  <div class="section-divider-label">All Deals</div>
+  <div class="section-divider-line"></div>
+</div>
+
+<!-- FILTERS + GRID -->
+<div class="layout">
+  <div class="main">
+    <div class="results-bar">
+      <span id="resultsCount">Loading...</span>
+      <select class="sort-select" onchange="sortDeals(this.value)">
+        <option value="rating" selected>Top Rated</option>
+        <option value="discount">Highest Discount</option>
+        <option value="price-asc">Price: Low to High</option>
+        <option value="price-desc">Price: High to Low</option>
+      </select>
+    </div>
+
+
+
+    <div class="filter-panel">
+      <div style="padding:12px 15px 10px;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px" onclick="toggleFilters()" class="filter-header-row">
+          <h3 style="font-size:11px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:var(--accent)">Filters</h3>
+          <div style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <span id="filterToggleLabel" style="font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap">More filters</span>
+            <svg id="filterChevron" style="width:16px;height:16px;color:var(--muted);transition:transform .25s;flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Discount %</div>
+        <div id="quickChipsInline" style="display:flex;gap:6px;flex-wrap:nowrap">
+          <button class="quick-chip active" onclick="setQuickDiscount(0, this)" style="flex:1;text-align:center">All</button>
+          <button class="quick-chip" onclick="setQuickDiscount(20, this)" style="flex:1;text-align:center">20%+</button>
+          <button class="quick-chip" onclick="setQuickDiscount(30, this)" style="flex:1;text-align:center">30%+</button>
+          <button class="quick-chip" onclick="setQuickDiscount(40, this)" style="flex:1;text-align:center">40%+</button>
+          <button class="quick-chip" onclick="setQuickDiscount(50, this)" style="flex:1;text-align:center">50%+</button>
+        </div>
+      </div>
+      <div id="filterBody">
+        <div class="filter-section">
+          <span class="filter-label">Quick Filters</span>
+          <div class="chip-grid">
+            <button class="chip" id="chipPromo" onclick="togglePromo(this)">🏷️ Promo Codes Only</button>
+            <button class="chip" id="chipFBA" onclick="toggleFBA(this)">📦 Sold by Amazon</button>
+          </div>
+        </div>
+        <div class="filter-section">
+          <span class="filter-label">Store</span>
+          <div class="chip-grid" id="storeChips">
+            <button class="chip active" data-store="all" onclick="setStore(this,'all')">All</button>
+            <button class="chip" data-store="Amazon" onclick="setStore(this,'Amazon')">Amazon</button>
+            <button class="chip" data-store="Walmart" onclick="setStore(this,'Walmart')">Walmart</button>
+            <button class="chip" data-store="HomeDepot" onclick="setStore(this,'HomeDepot')">Home Depot</button>
+            <button class="chip" data-store="BestBuy" onclick="setStore(this,'BestBuy')">Best Buy</button>
+            <button class="chip" data-store="Lowes" onclick="setStore(this,'Lowes')">Lowe's</button>
+          </div>
+        </div>
+        <div class="filter-section">
+          <span class="filter-label">Category</span>
+          <div class="chip-grid" id="catChips">
+            <button class="chip active" data-cat="all" onclick="setCategory(this,'all')">All</button>
+            <button class="chip" data-cat="Tools" onclick="setCategory(this,'Tools')">Tools</button>
+            <button class="chip" data-cat="Kitchen" onclick="setCategory(this,'Kitchen')">Kitchen</button>
+            <button class="chip" data-cat="Electronics" onclick="setCategory(this,'Electronics')">Electronics</button>
+            <button class="chip" data-cat="Outdoors" onclick="setCategory(this,'Outdoors')">Outdoors</button>
+            <button class="chip" data-cat="Auto" onclick="setCategory(this,'Auto')">Auto</button>
+            <button class="chip" data-cat="Home" onclick="setCategory(this,'Home')">Home</button>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <span class="filter-label">Max Price</span>
+          <div class="slider-wrap" id="priceWrap">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <span class="slider-value" id="priceVal">Any</span>
+              <div style="display:flex;align-items:center;gap:6px">
+                <button class="slider-hold-btn" id="priceHint"
+                  ontouchstart="startHold('priceSlider','priceHint');event.preventDefault()"
+                  ontouchend="endHold('priceSlider','priceHint')"
+                  ontouchcancel="endHold('priceSlider','priceHint')"
+                  onmousedown="startHold('priceSlider','priceHint')"
+                  onmouseup="endHold('priceSlider','priceHint')">Hold to unlock slider</button>
+                <div class="slider-unlocked-badge" id="priceBadge">Unlocked ✓</div>
+              </div>
+            </div>
+            <div style="position:relative;padding:4px 0">
+              <input type="range" min="0" max="500" step="10" value="0" id="priceSlider" oninput="updatePriceDisplay(this.value)" onchange="updatePrice(this.value)" onmouseup="updatePrice(this.value)" ontouchend="updatePrice(this.value)">
+            </div>
+            <div class="slider-ends"><span>$0</span><span>$500</span></div>
+            <div class="slider-input-row">
+              <div class="price-stepper">
+                <button class="stepper-btn" onclick="stepPrice('min',-10)">−</button>
+                <span class="stepper-label" id="priceMinLabel">Min</span>
+                <button class="stepper-btn" onclick="stepPrice('min',10)">+</button>
+              </div>
+              <div class="price-stepper">
+                <button class="stepper-btn" onclick="stepPrice('max',-10)">−</button>
+                <span class="stepper-label" id="priceMaxLabel">Max</span>
+                <button class="stepper-btn" onclick="stepPrice('max',10)">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="filter-section">
+          <span class="filter-label">Min Rating</span>
+          <div class="star-row">
+            <label class="star-option"><input type="radio" name="stars" value="0" checked onchange="updateStars(0)"><span class="custom-radio"></span><span class="star-display">Any rating</span></label>
+            <label class="star-option"><input type="radio" name="stars" value="3" onchange="updateStars(3)"><span class="custom-radio"></span><span class="star-display"><span class="stars">★★★</span>+ 3.0</span></label>
+            <label class="star-option"><input type="radio" name="stars" value="3.5" onchange="updateStars(3.5)"><span class="custom-radio"></span><span class="star-display"><span class="stars">★★★½</span>+ 3.5</span></label>
+            <label class="star-option"><input type="radio" name="stars" value="4" onchange="updateStars(4)"><span class="custom-radio"></span><span class="star-display"><span class="stars">★★★★</span>+ 4.0</span></label>
+            <label class="star-option"><input type="radio" name="stars" value="4.5" onchange="updateStars(4.5)"><span class="custom-radio"></span><span class="star-display"><span class="stars">★★★★½</span>+ 4.5</span></label>
+          </div>
+        </div>
+        <div class="filter-section">
+          <span class="filter-label">Brand Filter</span>
+          <label class="brand-toggle" onclick="toggleBrand()">
+            <span>Name brands only</span>
+            <div class="toggle-switch" id="brandToggle"></div>
+          </label>
+        </div>
+        <div class="filter-section" style="padding-top:10px;padding-bottom:10px">
+          <button onclick="clearFilters()" style="width:100%;padding:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">Clear all filters</button>
+        </div>
+      </div><!-- end filterBody -->
+    </div>
+
+    <div style="height:14px"></div>
+    <div class="product-grid" id="productGrid"></div>
+    <div id="sentinel"></div>
+    <div class="loader" id="loader">Loading more deals <span class="loader-dots"><span></span><span></span><span></span></span></div>
+    <div class="end-msg" id="endMsg">✓ You've seen all the deals · Check back soon</div>
+    <div class="no-results" id="noResults"><p>No deals match your filters.</p></div>
+  </div>
+</div>
+
+<script>
+const ASSOCIATE_TAG = "founditcheaper-20";
+const PAGE_SIZE = 6;
+const MAX_PAST_DAYS = 7;
+
+// ── DAILY PICKS DATA ─────────────────────────────────────────────────
+const dailyPicks = [
+  {
+    date: 'June 25',
+    label: '',
+    items: [
+      { id: "dewalt-drill", name: "DEWALT 20V MAX Cordless Drill Kit", store: "Amazon", img: "https://m.media-amazon.com/images/I/71jHbMnUMmL._AC_SL1500_.jpg", price: 79, was: 149, off: 47, url: "https://www.amazon.com/dp/B00ET595RA?tag=founditcheaper-20", code: null },
+      { id: "instant-pot", name: "Instant Pot Duo 7-in-1, 6 Qt", store: "Amazon", img: "https://m.media-amazon.com/images/I/71V1B65gXCL._AC_SL1500_.jpg", price: 59, was: 99, off: 40, url: "https://www.amazon.com/dp/B00FLYWNYQ?tag=founditcheaper-20", code: "IPOT20" },
+      { id: "anker-charger", name: "Anker 65W USB-C GaN Charger", store: "Amazon", img: "https://m.media-amazon.com/images/I/51KZR5DiBQL._AC_SL1500_.jpg", price: 22, was: 45, off: 51, url: "https://www.amazon.com/dp/B09C5ND27F?tag=founditcheaper-20", code: null },
+      { id: "echo-dot", name: "Echo Dot 5th Gen with Alexa", store: "Amazon", img: "https://m.media-amazon.com/images/I/71xoR4A6q9L._AC_SL1500_.jpg", price: 22, was: 49, off: 55, url: "https://www.amazon.com/dp/B09B8RF4PY?tag=founditcheaper-20", code: null },
+      { id: "coleman-chair", name: "Coleman Camping Chair w/ Side Table", store: "Walmart", img: "https://m.media-amazon.com/images/I/81SBBRgMakL._AC_SL1500_.jpg", price: 24, was: 59, off: 59, url: "https://www.walmart.com/ip/987654321", code: null },
+      { id: "ninja-airfryer", name: "Ninja AF101 Air Fryer 4 Quart", store: "Amazon", img: "https://m.media-amazon.com/images/I/71lMVCNaV-L._AC_SL1500_.jpg", price: 79, was: 129, off: 39, url: "https://www.amazon.com/dp/B07FDJMC9Q?tag=founditcheaper-20", code: "NINJA10" },
+      { id: "wd-harddrive", name: "WD 4TB External Hard Drive", store: "Amazon", img: "https://m.media-amazon.com/images/I/61btoqrUUQL._AC_SL1500_.jpg", price: 69, was: 119, off: 42, url: "https://www.amazon.com/dp/B07X4V7M4T?tag=founditcheaper-20", code: null },
+      { id: "milwaukee-pliers", name: "Milwaukee 10-Piece Pliers Set", store: "HomeDepot", img: "https://m.media-amazon.com/images/I/71pxXfpVD3L._AC_SL1500_.jpg", price: 69, was: 119, off: 42, url: "https://www.homedepot.com/p/Milwaukee-Pliers/334567890", code: "HD10OFF" },
+      { id: "tile-tracker", name: "Tile Mate Bluetooth Tracker 4-Pack", store: "Amazon", img: "https://m.media-amazon.com/images/I/71pHiqL0MkL._AC_SL1500_.jpg", price: 49, was: 99, off: 50, url: "https://www.amazon.com/dp/B09B2QMXXY?tag=founditcheaper-20", code: null },
+      { id: "philips-hue", name: "Philips Hue Smart Bulb Starter Kit", store: "Amazon", img: "https://m.media-amazon.com/images/I/61nG1WJmMKL._AC_SL1500_.jpg", price: 99, was: 199, off: 50, url: "https://www.amazon.com/dp/B014H2P4KI?tag=founditcheaper-20", code: "HUE15" }
+    ]
+  },
+  {
+    date: 'June 24',
+    label: '',
+    items: [
+      { id: "garden-hose", name: "Garden Hose Reel Upgrade 100ft", store: "Walmart", img: "https://m.media-amazon.com/images/I/71VkUV1NWKL._AC_SL1500_.jpg", price: 75, was: 149, off: 50, url: "https://www.walmart.com/ip/777888999", code: "WTIFXD8Q" },
+      { name: "Electric Portable Bidet for Travel", store: "Amazon", img: "https://m.media-amazon.com/images/I/61tpI2jGepL._AC_SL1500_.jpg", price: 27.99, was: 39.99, off: 30, url: "https://www.amazon.com/dp/B08XQY77KV?tag=founditcheaper-20", code: "JUTIMER30" },
+      { id: "led-lights", name: "Brobantle LED Garage Lights 6-Pack", store: "Amazon", img: "https://m.media-amazon.com/images/I/71H1EHHpb0L._AC_SL1500_.jpg", price: 65, was: 129, off: 50, url: "https://www.amazon.com/dp/B08N5LNQCV?tag=founditcheaper-20", code: "WMTA466S" },
+      { name: "LOKITHOR JC400 9-in-1 Battery Charger", store: "Amazon", img: "https://m.media-amazon.com/images/I/61btoqrUUQL._AC_SL1500_.jpg", price: 49.82, was: 66.43, off: 25, url: "https://www.amazon.com/dp/B07X4V7M4T?tag=founditcheaper-20", code: "ZR4JJR26" },
+      { id: "stanley-tumbler", name: "Stanley Quencher Tumbler 40oz", store: "Walmart", img: "https://m.media-amazon.com/images/I/61KnGmKGGTL._AC_SL1500_.jpg", price: 22, was: 45, off: 51, url: "https://www.walmart.com/ip/998877665", code: null },
+      { id: "craftsman-toolset", name: "Craftsman 230-Piece Tool Set", store: "Walmart", img: "https://m.media-amazon.com/images/I/71jHbMnUMmL._AC_SL1500_.jpg", price: 89, was: 179, off: 50, url: "https://www.walmart.com/ip/334455667", code: null },
+      { name: "BLACK+DECKER 20V Cordless Leaf Blower", store: "Walmart", img: "https://m.media-amazon.com/images/I/71I1HdumVPL._AC_SL1500_.jpg", price: 29, was: 79, off: 63, url: "https://www.walmart.com/ip/112233445", code: null },
+      { id: "keurig-mini", name: "Keurig K-Mini Single Serve Coffee Maker", store: "Amazon", img: "https://m.media-amazon.com/images/I/71M+mAn9AjL._AC_SL1500_.jpg", price: 59, was: 99, off: 40, url: "https://www.amazon.com/dp/B0756DB16N?tag=founditcheaper-20", code: null },
+      { name: "iRobot Roomba i3 Robot Vacuum", store: "Walmart", img: "https://m.media-amazon.com/images/I/71xoR4A6q9L._AC_SL1500_.jpg", price: 149, was: 299, off: 50, url: "https://www.walmart.com/ip/223344556", code: null },
+      { id: "ryobi-combo", name: "Ryobi ONE+ 18V 6-Tool Combo Kit", store: "Amazon", img: "https://m.media-amazon.com/images/I/71pxXfpVD3L._AC_SL1500_.jpg", price: 179, was: 299, off: 40, url: "https://www.amazon.com/dp/B09Y6YZT3D?tag=founditcheaper-20", code: "RYOBI10" }
+    ]
+  },
+  {
+    date: 'June 23',
+    label: 'Prime Day',
+    items: [
+      { id: "milwaukee-wrench", name: "Milwaukee M18 FUEL Impact Wrench Kit", store: "HomeDepot", img: "https://m.media-amazon.com/images/I/71pxXfpVD3L._AC_SL1500_.jpg", price: 199, was: 349, off: 43, url: "https://www.homedepot.com/p/Milwaukee/334567890", code: null },
+      { id: "vitamix-blender", name: "Vitamix 5200 Blender Professional", store: "Amazon", img: "https://m.media-amazon.com/images/I/71V1B65gXCL._AC_SL1500_.jpg", price: 299, was: 549, off: 45, url: "https://www.amazon.com/dp/B00FLYWNYQ?tag=founditcheaper-20", code: "VITA20" },
+      { id: "weber-grill", name: "Weber Kettle 22-inch Charcoal Grill", store: "Walmart", img: "https://m.media-amazon.com/images/I/81SBBRgMakL._AC_SL1500_.jpg", price: 89, was: 169, off: 47, url: "https://www.walmart.com/ip/667788990", code: null },
+      { id: "yeti-tumbler", name: "YETI Rambler 20oz Tumbler", store: "Amazon", img: "https://m.media-amazon.com/images/I/71lMVCNaV-L._AC_SL1500_.jpg", price: 25, was: 38, off: 34, url: "https://www.amazon.com/dp/B09B8RF4PY?tag=founditcheaper-20", code: null },
+      { id: "oxo-bowls", name: "OXO 3-Piece Mixing Bowl Set", store: "Walmart", img: "https://m.media-amazon.com/images/I/81sSSBG-EEL._AC_SL1500_.jpg", price: 28, was: 54, off: 48, url: "https://www.walmart.com/ip/444555666", code: null },
+      { id: "cuisinart-coffee", name: "Cuisinart 14-Cup Coffee Maker", store: "Amazon", img: "https://m.media-amazon.com/images/I/71M+mAn9AjL._AC_SL1500_.jpg", price: 55, was: 99, off: 44, url: "https://www.amazon.com/dp/B0756DB16N?tag=founditcheaper-20", code: "COFFEE10" },
+      { id: "power-bank", name: "10000mAh Power Bank USB-C", store: "Amazon", img: "https://m.media-amazon.com/images/I/61btoqrUUQL._AC_SL1500_.jpg", price: 16, was: 35, off: 54, url: "https://www.amazon.com/dp/B09C5ND27F?tag=founditcheaper-20", code: "PB20" },
+      { id: "solar-lights", name: "Solar Outdoor String Lights 100ft", store: "Amazon", img: "https://m.media-amazon.com/images/I/61nG1WJmMKL._AC_SL1500_.jpg", price: 22, was: 49, off: 55, url: "https://www.amazon.com/dp/B09WQMNMR8?tag=founditcheaper-20", code: "SOLAR15" },
+      { name: "Dash Cam Front and Rear 1080P", store: "Walmart", img: "https://m.media-amazon.com/images/I/61tpI2jGepL._AC_SL1500_.jpg", price: 29, was: 69, off: 58, url: "https://www.walmart.com/ip/778899001", code: "CAM30" },
+      { id: "philips-hue", name: "Philips Hue Starter Kit", store: "BestBuy", img: "https://m.media-amazon.com/images/I/61nG1WJmMKL._AC_SL1500_.jpg", price: 89, was: 199, off: 55, url: "https://www.bestbuy.com/site/philips-hue/6501234.p", code: "HUE15" }
+    ]
+  }
+];
+
+// ── ALL DEALS DATA ────────────────────────────────────────────────────
+const allProducts = [
+  { id: "dewalt-drill", name: "DEWALT 20V MAX Cordless Drill/Driver Kit", store: "Amazon", category: "Tools", brand: true, brandName: "DEWALT", price: 79, was: 149, off: 47, rating: 4.8, reviews: 12450, img: "https://m.media-amazon.com/images/I/71jHbMnUMmL._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B00ET595RA?tag=founditcheaper-20", found: "Jun 25 · 6:14 AM", code: null },
+  { id: "instant-pot", name: "Instant Pot Duo 7-in-1, 6 Qt", store: "Amazon", category: "Kitchen", brand: true, brandName: "Instant Pot", price: 59, was: 99, off: 40, rating: 4.7, reviews: 98234, img: "https://m.media-amazon.com/images/I/71V1B65gXCL._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B00FLYWNYQ?tag=founditcheaper-20", found: "Jun 25 · 7:02 AM", code: "IPOT20" },
+  { id: "anker-charger", name: "Anker 65W USB-C GaN Fast Charger", store: "Amazon", category: "Electronics", brand: true, brandName: "Anker", price: 22, was: 45, off: 51, rating: 4.6, reviews: 33210, img: "https://m.media-amazon.com/images/I/51KZR5DiBQL._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B09C5ND27F?tag=founditcheaper-20", found: "Jun 25 · 7:45 AM", code: null },
+  { id: "phone-mount", name: "Phone Mount for Car Dashboard", store: "Walmart", category: "Auto", brand: false, brandName: "", price: 7, was: 24, off: 71, rating: 4.1, reviews: 4120, img: "https://m.media-amazon.com/images/I/61tpI2jGepL._AC_SL1500_.jpg", url: "https://www.walmart.com/ip/123456789", found: "Jun 25 · 8:30 AM", code: "MOUNT15" },
+  { id: "coleman-chair", name: "Coleman Camping Chair with Side Table", store: "Walmart", category: "Outdoors", brand: true, brandName: "Coleman", price: 24, was: 59, off: 59, rating: 4.5, reviews: 8900, img: "https://m.media-amazon.com/images/I/81SBBRgMakL._AC_SL1500_.jpg", url: "https://www.walmart.com/ip/987654321", found: "Jun 25 · 9:11 AM", code: null },
+  { id: "wd-harddrive", name: "WD 4TB Elements External Hard Drive", store: "Amazon", category: "Electronics", brand: true, brandName: "Western Digital", price: 69, was: 119, off: 42, rating: 4.6, reviews: 41200, img: "https://m.media-amazon.com/images/I/61btoqrUUQL._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B07X4V7M4T?tag=founditcheaper-20", found: "Jun 25 · 9:58 AM", code: null },
+  { id: "ninja-airfryer", name: "Ninja AF101 Air Fryer 4 Quart", store: "Amazon", category: "Kitchen", brand: true, brandName: "Ninja", price: 79, was: 129, off: 39, rating: 4.7, reviews: 57300, img: "https://m.media-amazon.com/images/I/71lMVCNaV-L._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B07FDJMC9Q?tag=founditcheaper-20", found: "Jun 25 · 10:22 AM", code: "NINJA10" },
+  { id: "led-lights", name: "LED Work Light Strips 3-Pack", store: "Walmart", category: "Tools", brand: false, brandName: "", price: 14, was: 36, off: 61, rating: 3.9, reviews: 1230, img: "https://m.media-amazon.com/images/I/71H1EHHpb0L._AC_SL1500_.jpg", url: "https://www.walmart.com/ip/111222333", found: "Jun 25 · 11:05 AM", code: null },
+  { id: "echo-dot", name: "Echo Dot 5th Gen Smart Speaker", store: "Amazon", category: "Electronics", brand: true, brandName: "Amazon", price: 22, was: 49, off: 55, rating: 4.7, reviews: 89400, img: "https://m.media-amazon.com/images/I/71xoR4A6q9L._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B09B8RF4PY?tag=founditcheaper-20", found: "Jun 25 · 11:47 AM", code: null },
+  { id: "oxo-bowls", name: "OXO Good Grips 3-Piece Mixing Bowl Set", store: "Walmart", category: "Kitchen", brand: true, brandName: "OXO", price: 28, was: 54, off: 48, rating: 4.8, reviews: 7800, img: "https://m.media-amazon.com/images/I/81sSSBG-EEL._AC_SL1500_.jpg", url: "https://www.walmart.com/ip/444555666", found: "Jun 25 · 12:33 PM", code: null },
+  { id: "gorilla-tape", name: "Gorilla Heavy Duty Mounting Tape", store: "Amazon", category: "Home", brand: true, brandName: "Gorilla", price: 7, was: 14, off: 50, rating: 4.5, reviews: 22100, img: "https://m.media-amazon.com/images/I/71xaqEIqZvL._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B00M8XVAJQ?tag=founditcheaper-20", found: "Jun 25 · 1:14 PM", code: null },
+  { id: "garden-hose", name: "50ft Garden Hose Expandable", store: "Walmart", category: "Outdoors", brand: false, brandName: "", price: 16, was: 44, off: 64, rating: 3.7, reviews: 2340, img: "https://m.media-amazon.com/images/I/71VkUV1NWKL._AC_SL1500_.jpg", url: "https://www.walmart.com/ip/777888999", found: "Jun 25 · 1:55 PM", code: "HOSE25" },
+  { id: "milwaukee-wrench", name: "Milwaukee M18 FUEL Impact Wrench Kit", store: "Amazon", category: "Tools", brand: true, brandName: "Milwaukee", price: 199, was: 349, off: 43, rating: 4.9, reviews: 3420, img: "https://m.media-amazon.com/images/I/71pxXfpVD3L._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B09Y6YZT3D?tag=founditcheaper-20", found: "Jun 25 · 2:30 PM", code: null },
+  { id: "philips-hue", name: "Philips Hue Smart Bulb Starter Kit", store: "Amazon", category: "Home", brand: true, brandName: "Philips", price: 99, was: 199, off: 50, rating: 4.6, reviews: 18700, img: "https://m.media-amazon.com/images/I/61nG1WJmMKL._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B014H2P4KI?tag=founditcheaper-20", found: "Jun 25 · 3:08 PM", code: "HUE15" },
+  { id: "tile-tracker", name: "Tile Mate Bluetooth Tracker 4-Pack", store: "Amazon", category: "Electronics", brand: true, brandName: "Tile", price: 49, was: 99, off: 50, rating: 4.4, reviews: 31200, img: "https://m.media-amazon.com/images/I/71pHiqL0MkL._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B09B2QMXXY?tag=founditcheaper-20", found: "Jun 25 · 3:44 PM", code: null },
+  { id: "bd-blower", name: "BLACK+DECKER 20V Cordless Leaf Blower", store: "Walmart", category: "Outdoors", brand: true, brandName: "BLACK+DECKER", price: 29, was: 79, off: 63, rating: 4.3, reviews: 9800, img: "https://m.media-amazon.com/images/I/71I1HdumVPL._AC_SL1500_.jpg", url: "https://www.walmart.com/ip/112233445", found: "Jun 25 · 4:20 PM", code: null },
+  { id: "car-organizer", name: "Car Organizer Trunk Storage Bin", store: "Walmart", category: "Auto", brand: false, brandName: "", price: 11, was: 29, off: 62, rating: 4.0, reviews: 3400, img: "https://m.media-amazon.com/images/I/81o7WFrr12L._AC_SL1500_.jpg", url: "https://www.walmart.com/ip/556677889", found: "Jun 25 · 5:01 PM", code: null },
+  { id: "cuisinart-coffee", name: "Cuisinart 14-Cup Coffee Maker", store: "Amazon", category: "Kitchen", brand: true, brandName: "Cuisinart", price: 55, was: 99, off: 44, rating: 4.4, reviews: 14500, img: "https://m.media-amazon.com/images/I/71M+mAn9AjL._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B0756DB16N?tag=founditcheaper-20", found: "Jun 25 · 5:38 PM", code: "COFFEE10" },
+  { id: "stanley-tumbler", name: "Stanley Quencher Tumbler 40oz", store: "Walmart", category: "Kitchen", brand: true, brandName: "Stanley", price: 22, was: 45, off: 51, rating: 4.7, reviews: 67800, img: "https://m.media-amazon.com/images/I/61KnGmKGGTL._AC_SL1500_.jpg", url: "https://www.walmart.com/ip/998877665", found: "Jun 25 · 6:15 PM", code: null },
+  { id: "power-bank", name: "10000mAh Power Bank USB-C", store: "Amazon", category: "Electronics", brand: false, brandName: "", price: 16, was: 35, off: 54, rating: 4.0, reviews: 5600, img: "https://m.media-amazon.com/images/I/61btoqrUUQL._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B09C5ND27F?tag=founditcheaper-20", found: "Jun 25 · 6:52 PM", code: "PB20" },
+  { id: "craftsman-toolset", name: "Craftsman 230-Piece Mechanic Tool Set", store: "Walmart", category: "Tools", brand: true, brandName: "Craftsman", price: 89, was: 179, off: 50, rating: 4.7, reviews: 8200, img: "https://m.media-amazon.com/images/I/71jHbMnUMmL._AC_SL1500_.jpg", url: "https://www.walmart.com/ip/334455667", found: "Jun 25 · 7:30 PM", code: null },
+  { id: "yeti-tumbler", name: "YETI Rambler 20oz Tumbler", store: "Amazon", category: "Outdoors", brand: true, brandName: "YETI", price: 25, was: 38, off: 34, rating: 4.8, reviews: 44100, img: "https://m.media-amazon.com/images/I/71lMVCNaV-L._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B09B8RF4PY?tag=founditcheaper-20", found: "Jun 25 · 8:05 PM", code: null },
+  { id: "dash-cam", name: "Dash Cam Front and Rear 1080P", store: "Walmart", category: "Auto", brand: false, brandName: "", price: 22, was: 69, off: 68, rating: 3.8, reviews: 2100, img: "https://m.media-amazon.com/images/I/61tpI2jGepL._AC_SL1500_.jpg", url: "https://www.walmart.com/ip/778899001", found: "Jun 25 · 8:40 PM", code: "CAM30" },
+  { id: "keurig-mini", name: "Keurig K-Mini Single Serve Coffee Maker", store: "Amazon", category: "Kitchen", brand: true, brandName: "Keurig", price: 59, was: 99, off: 40, rating: 4.5, reviews: 38900, img: "https://m.media-amazon.com/images/I/71M+mAn9AjL._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B0756DB16N?tag=founditcheaper-20", found: "Jun 25 · 9:12 PM", code: null },
+  { id: "irobot-roomba", name: "iRobot Roomba i3 Robot Vacuum", store: "Walmart", category: "Home", brand: true, brandName: "iRobot", price: 149, was: 299, off: 50, rating: 4.4, reviews: 22600, img: "https://m.media-amazon.com/images/I/71xoR4A6q9L._AC_SL1500_.jpg", url: "https://www.walmart.com/ip/223344556", found: "Jun 24 · 8:22 AM", code: null },
+  { id: "solar-lights", name: "Solar Outdoor String Lights 100ft", store: "Amazon", category: "Home", brand: false, brandName: "", price: 22, was: 49, off: 55, rating: 3.9, reviews: 3300, img: "https://m.media-amazon.com/images/I/61nG1WJmMKL._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B09WQMNMR8?tag=founditcheaper-20", found: "Jun 24 · 9:45 AM", code: "SOLAR15" },
+  { id: "weber-grill", name: "Weber Kettle 22-inch Charcoal Grill", store: "Walmart", category: "Outdoors", brand: true, brandName: "Weber", price: 89, was: 169, off: 47, rating: 4.7, reviews: 17400, img: "https://m.media-amazon.com/images/I/81SBBRgMakL._AC_SL1500_.jpg", url: "https://www.walmart.com/ip/667788990", found: "Jun 24 · 11:30 AM", code: null },
+  { id: "ryobi-combo", name: "Ryobi ONE+ 18V 6-Tool Combo Kit", store: "Amazon", category: "Tools", brand: true, brandName: "Ryobi", price: 179, was: 299, off: 40, rating: 4.6, reviews: 6700, img: "https://m.media-amazon.com/images/I/71pxXfpVD3L._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B09Y6YZT3D?tag=founditcheaper-20", found: "Jun 24 · 2:15 PM", code: "RYOBI10" },
+  { id: "usbc-hub", name: "USB-C Hub 7-in-1 Multiport Adapter", store: "Walmart", category: "Electronics", brand: false, brandName: "", price: 14, was: 39, off: 64, rating: 4.1, reviews: 7800, img: "https://m.media-amazon.com/images/I/51KZR5DiBQL._AC_SL1500_.jpg", url: "https://www.walmart.com/ip/445566778", found: "Jun 24 · 4:00 PM", code: null },
+  { id: "vitamix-blender", name: "Vitamix 5200 Blender Professional", store: "Amazon", category: "Kitchen", brand: true, brandName: "Vitamix", price: 299, was: 549, off: 45, rating: 4.8, reviews: 12300, img: "https://m.media-amazon.com/images/I/71V1B65gXCL._AC_SL1500_.jpg", url: "https://www.amazon.com/dp/B00FLYWNYQ?tag=founditcheaper-20", found: "Jun 24 · 6:30 PM", code: "VITA20" },
+  { id: "dewalt-hd-kit", name: "DEWALT 20V MAX Lithium-Ion Starter Kit", store: "HomeDepot", category: "Tools", brand: true, brandName: "DEWALT", price: 99, was: 179, off: 45, rating: 4.8, reviews: 6200, img: "https://m.media-amazon.com/images/I/71jHbMnUMmL._AC_SL1500_.jpg", url: "https://www.homedepot.com/p/DEWALT-20V-MAX/301234567", found: "Jun 23 · 9:00 AM", code: null },
+  { id: "husky-ladder", name: "Husky 6 ft. Fiberglass Step Ladder", store: "HomeDepot", category: "Tools", brand: true, brandName: "Husky", price: 49, was: 89, off: 45, rating: 4.6, reviews: 3100, img: "https://m.media-amazon.com/images/I/71pxXfpVD3L._AC_SL1500_.jpg", url: "https://www.homedepot.com/p/Husky-Ladder/312345678", found: "Jun 23 · 10:30 AM", code: null },
+  { id: "defiant-light", name: "Defiant Motion Security Light 180°", store: "HomeDepot", category: "Home", brand: true, brandName: "Defiant", price: 29, was: 59, off: 51, rating: 4.5, reviews: 4800, img: "https://m.media-amazon.com/images/I/61nG1WJmMKL._AC_SL1500_.jpg", url: "https://www.homedepot.com/p/Defiant-Motion-Light/323456789", found: "Jun 23 · 12:00 PM", code: null },
+  { id: "milwaukee-pliers", name: "Milwaukee 10-Piece Pliers Set", store: "HomeDepot", category: "Tools", brand: true, brandName: "Milwaukee", price: 69, was: 119, off: 42, rating: 4.9, reviews: 2200, img: "https://m.media-amazon.com/images/I/71pxXfpVD3L._AC_SL1500_.jpg", url: "https://www.homedepot.com/p/Milwaukee-Pliers/334567890", found: "Jun 23 · 2:00 PM", code: "HD10OFF" },
+  { id: "ego-mower", name: "EGO 56V Cordless Self-Propelled Mower", store: "HomeDepot", category: "Outdoors", brand: true, brandName: "EGO", price: 399, was: 599, off: 33, rating: 4.7, reviews: 1850, img: "https://m.media-amazon.com/images/I/81SBBRgMakL._AC_SL1500_.jpg", url: "https://www.homedepot.com/p/EGO-Mower/345678901", found: "Jun 23 · 4:30 PM", code: null },
+  { id: "samsung-tv", name: "Samsung 65\" 4K Crystal UHD Smart TV", store: "BestBuy", category: "Electronics", brand: true, brandName: "Samsung", price: 429, was: 699, off: 39, rating: 4.6, reviews: 9800, img: "https://m.media-amazon.com/images/I/71xoR4A6q9L._AC_SL1500_.jpg", url: "https://www.bestbuy.com/site/samsung-65-tv/6501234.p", found: "Jun 23 · 7:00 PM", code: null },
+  { id: "apple-airpods", name: "Apple AirPods Pro 2nd Generation", store: "BestBuy", category: "Electronics", brand: true, brandName: "Apple", price: 189, was: 249, off: 24, rating: 4.8, reviews: 34500, img: "https://m.media-amazon.com/images/I/51KZR5DiBQL._AC_SL1500_.jpg", url: "https://www.bestbuy.com/site/apple-airpods-pro/6509655.p", found: "Jun 23 · 8:15 AM", code: null },
+  { id: "lg-oled", name: "LG C3 55\" OLED evo 4K Smart TV", store: "BestBuy", category: "Electronics", brand: true, brandName: "LG", price: 799, was: 1299, off: 38, rating: 4.8, reviews: 7600, img: "https://m.media-amazon.com/images/I/71xoR4A6q9L._AC_SL1500_.jpg", url: "https://www.bestbuy.com/site/lg-55-oled/6535932.p", found: "Jun 23 · 11:00 AM", code: "BBYOLED" },
+  { id: "dyson-v15", name: "Dyson V15 Detect Cordless Vacuum", store: "BestBuy", category: "Home", brand: true, brandName: "Dyson", price: 549, was: 749, off: 27, rating: 4.7, reviews: 5400, img: "https://m.media-amazon.com/images/I/71lMVCNaV-L._AC_SL1500_.jpg", url: "https://www.bestbuy.com/site/dyson-v15/6501872.p", found: "Jun 23 · 1:30 PM", code: null },
+  { id: "sony-headphones", name: "Sony WH-1000XM5 Noise Canceling Headphones", store: "BestBuy", category: "Electronics", brand: true, brandName: "Sony", price: 279, was: 399, off: 30, rating: 4.8, reviews: 18200, img: "https://m.media-amazon.com/images/I/51KZR5DiBQL._AC_SL1500_.jpg", url: "https://www.bestbuy.com/site/sony-wh1000xm5/6505727.p", found: "Jun 23 · 3:00 PM", code: null },
+  { id: "craftsman-drill", name: "CRAFTSMAN V20 20V Cordless Drill Kit", store: "Lowes", category: "Tools", brand: true, brandName: "Craftsman", price: 69, was: 119, off: 42, rating: 4.6, reviews: 4300, img: "https://m.media-amazon.com/images/I/71jHbMnUMmL._AC_SL1500_.jpg", url: "https://www.lowes.com/pd/CRAFTSMAN-V20-Drill/5013815527", found: "Jun 22 · 9:30 AM", code: null },
+  { id: "kohler-toilet", name: "KOHLER Memoirs Elongated Toilet", store: "Lowes", category: "Home", brand: true, brandName: "KOHLER", price: 199, was: 349, off: 43, rating: 4.5, reviews: 2100, img: "https://m.media-amazon.com/images/I/61nG1WJmMKL._AC_SL1500_.jpg", url: "https://www.lowes.com/pd/KOHLER-Memoirs/5013987654", found: "Jun 22 · 11:45 AM", code: "LOWBATH15" },
+  { id: "trex-board", name: "TREX 16 ft. Composite Deck Board", store: "Lowes", category: "Outdoors", brand: true, brandName: "Trex", price: 44, was: 72, off: 39, rating: 4.7, reviews: 980, img: "https://m.media-amazon.com/images/I/81SBBRgMakL._AC_SL1500_.jpg", url: "https://www.lowes.com/pd/Trex-Deck/5014123456", found: "Jun 22 · 2:00 PM", code: null },
+  { id: "dewalt-saw", name: "DEWALT 7-1/4\" Circular Saw", store: "Lowes", category: "Tools", brand: true, brandName: "DEWALT", price: 89, was: 149, off: 40, rating: 4.8, reviews: 3700, img: "https://m.media-amazon.com/images/I/71pxXfpVD3L._AC_SL1500_.jpg", url: "https://www.lowes.com/pd/DEWALT-Circular-Saw/5013654321", found: "Jun 22 · 5:00 PM", code: "LOWTOOLS" },
+  { id: "ge-range", name: "GE 30 in. Freestanding Gas Range", store: "Lowes", category: "Kitchen", brand: true, brandName: "GE", price: 549, was: 799, off: 31, rating: 4.5, reviews: 1560, img: "https://m.media-amazon.com/images/I/71V1B65gXCL._AC_SL1500_.jpg", url: "https://www.lowes.com/pd/GE-Gas-Range/5014567890", found: "Jun 22 · 7:30 AM", code: null }
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────
+var state = { store: 'all', category: 'all', minDiscount: 0, maxPrice: 0, minStars: 0, brandOnly: false, sort: 'rating', search: '', promoOnly: false, soldByAmazon: false };
+var filtered = [], page = 0, loading = false;
+
+// ── HELPERS ───────────────────────────────────────────────────────────
+function amzLink(asin) { return 'https://www.amazon.com/dp/' + asin + '?tag=' + ASSOCIATE_TAG; }
+function starsHtml(r) { return '★'.repeat(Math.floor(r)) + (r % 1 >= 0.5 ? '½' : ''); }
+function copyCode(code, btn) {
+  navigator.clipboard.writeText(code).then(function() {
+    btn.textContent = 'Copied!'; btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+function copyLink(url, id, btn) {
+  var dealUrl = window.location.origin + window.location.pathname.replace('founditcheaper-demo.html','') + 'founditcheaper-deal.html?id=' + id;
+  navigator.clipboard.writeText(dealUrl).then(function() {
+    var orig = btn.innerHTML;
+    btn.innerHTML = '✓ Link Copied!'; btn.classList.add('copied');
+    setTimeout(function() { btn.innerHTML = orig; btn.classList.remove('copied'); }, 2000);
+  });
+}
+function chevron(cls) {
+  return '<svg class="' + cls + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+}
+
+// ── PICKS RENDER ──────────────────────────────────────────────────────
+function pickGridHtml(items, groupId) {
+  var itemCount = items.length;
+  var html = '<div class="picks-slider-wrap" style="position:relative">';
+  html += '<button class="slider-arrow slider-arrow-left" onclick="goToSlide(\'today\', Math.max(0, getCurrentSlide(\'today\')-1))">&#8249;</button>';
+  html += '<button class="slider-arrow slider-arrow-right" onclick="goToSlide(\'today\', Math.min(' + (itemCount-1) + ', getCurrentSlide(\'today\')+1))">&#8250;</button>';
+  html += '<div class="picks-slider" id="slider-' + groupId + '">';
+  for (var i = 0; i < items.length; i++) {
+    html += pickCardHtml(items[i], i + 1);
+  }
+  html += '</div>';
+  // Dot indicators
+  html += '<div class="slider-dots" id="dots-' + groupId + '">';
+  for (var d = 0; d < items.length; d++) {
+    html += '<div class="slider-dot' + (d === 0 ? ' active' : '') + '" onclick="goToSlide(\'' + groupId + '\',' + d + ')"></div>';
+  }
+  html += '</div>';
+  // See All Deals button
+  var dealCount = allProducts.length.toLocaleString();
+  var dealCount = allProducts.length.toLocaleString();
+  html += '<a href="#allDealsAnchor" onclick="closePicksAndScroll()" style="display:block;width:100%;margin-top:14px;padding:13px 20px;background:rgba(245,200,66,0.08);border:2px solid rgba(245,200,66,0.5);border-radius:8px;color:#ffffff;font-size:15px;font-weight:700;text-align:center;text-decoration:none;font-family:Inter,sans-serif;box-sizing:border-box;line-height:1.6">We found ' + dealCount + ' deals from 5 different stores<br>Click here to see them all</a>';
+  return html;
+}
+
+function getCurrentSlide(groupId) {
+  var slider = document.getElementById('slider-' + groupId);
+  if (!slider || !slider.children[0]) return 0;
+  var cardWidth = slider.children[0].offsetWidth + 12;
+  return Math.round(slider.scrollLeft / cardWidth);
+}
+
+function goToSlide(groupId, index) {
+  var slider = document.getElementById('slider-' + groupId);
+  if (!slider) return;
+  var cardWidth = slider.children[0] ? slider.children[0].offsetWidth + 12 : 0;
+  slider.scrollTo({ left: index * cardWidth, behavior: 'smooth' });
+  updateDots(groupId, index);
+}
+
+function updateDots(groupId, index) {
+  var dotsEl = document.getElementById('dots-' + groupId);
+  if (!dotsEl) return;
+  var dots = dotsEl.querySelectorAll('.slider-dot');
+  dots.forEach(function(d, i) { d.classList.toggle('active', i === index); });
+}
+
+// Listen to scroll on sliders to update dots
+function initSliderScroll(groupId, count) {
+  var slider = document.getElementById('slider-' + groupId);
+  if (!slider) return;
+  slider.addEventListener('scroll', function() {
+    var cardWidth = slider.children[0] ? slider.children[0].offsetWidth + 12 : 1;
+    var index = Math.round(slider.scrollLeft / cardWidth);
+    updateDots(groupId, Math.min(index, count - 1));
+  });
+}
+
+function pickCardHtml(item, rank) {
+  var storeMap2 = { 'Amazon':'amz','Walmart':'wmt','HomeDepot':'hd','BestBuy':'bby','Lowes':'low' };
+  var storeNames = { 'Amazon':'Amazon','Walmart':'Walmart','HomeDepot':'Home Depot','BestBuy':'Best Buy','Lowes':"Lowe's" };
+  var store = item.store || 'Amazon';
+  var s = storeMap2[store] || 'amz';
+  var sName = storeNames[store] || store;
+  var clickable = item.id ? 'onclick="openDrawer(\'' + item.id + '\')"' : '';
+
+  var rankColors = { 1:'#f5c842', 2:'#c0c0c0', 3:'#cd7f32', 4:'rgba(255,255,255,0.6)' };
+  var rankBg = { 1:'rgba(245,200,66,0.25)', 2:'rgba(192,192,192,0.15)', 3:'rgba(205,127,50,0.15)', 4:'rgba(255,255,255,0.08)' };
+  var showRank = rank <= 5;
+  var rColor = rankColors[rank] || 'rgba(255,255,255,0.4)';
+  var rBg = rankBg[rank] || 'rgba(255,255,255,0.06)';
+
+  var html = '<div class="pick-slide" ' + clickable + ' style="cursor:pointer">';
+  // Image area with rank badge
+  html += '<div style="position:relative;background:rgba(255,255,255,0.05);border-radius:10px 10px 0 0;overflow:hidden">';
+  html += '<img class="pick-img" src="' + item.img + '" alt="" onerror="this.style.opacity=\'0\'">';
+  if (showRank) {
+    html += '<div style="position:absolute;top:8px;left:8px;min-width:28px;height:28px;border-radius:7px;background:' + rBg + ';border:2px solid ' + rColor + ';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:' + rColor + ';padding:0 8px;font-family:Barlow Condensed,sans-serif">#' + rank + '</div>';
+  }
+  html += '<span class="store-badge ' + s + '" style="position:absolute;top:8px;right:8px">' + sName + '</span>';
+  html += '</div>';
+  // Info
+  html += '<div class="pick-body">';
+  html += '<div class="pick-name" style="font-size:14px;font-weight:700;-webkit-line-clamp:2">' + item.name + '</div>';
+  html += '<div style="margin-top:auto">';
+  if (item.code) {
+    html += '<div class="pick-code-row" style="margin-bottom:8px"><span class="pick-code-label">CODE</span><span class="pick-code-val">' + item.code + '</span></div>';
+  }
+  html += '<div class="pick-off" style="font-size:12px;margin-bottom:6px">' + item.off + '% OFF</div>';
+  html += '<div class="pick-prices"><span class="pick-now" style="font-size:20px">$' + item.price + '</span><span class="pick-was" style="font-size:13px;margin-left:6px">$' + item.was + '</span></div>';
+  html += '</div>';
+  html += '</div></div>';
+  return html;
+}
+
+function expandPicks(groupId, restCount) {
+  document.getElementById('rest-' + groupId).style.display = 'grid';
+  document.getElementById('seebtn-' + groupId).style.display = 'none';
+}
+
+function renderPicks() {
+  var container = document.getElementById('picksContainer');
+  var today = dailyPicks[0];
+  var past = dailyPicks.slice(1, MAX_PAST_DAYS + 1);
+
+  // Today row
+  var html = '<div class="picks-group today open" id="picks-today">';
+  html += '<button class="picks-toggle" onclick="toggleToday()">';
+  html += '<div class="picks-toggle-left"><div>';
+  html += '<div style="font-family:Barlow Condensed,sans-serif;font-size:22px;font-weight:900;color:var(--text);letter-spacing:0.5px;text-transform:uppercase;line-height:1.2">Today\'s Top Deal Picks — ' + today.date + '</div>';
+  html += '</div></div>' + chevron('chevron') + '</button>';
+  html += '<div class="picks-body">' + pickGridHtml(today.items, 'today') + '</div>';
+  html += '</div>';
+
+  // Previous folder
+  if (past.length > 0) {
+    html += '<div class="prev-wrapper" id="prev-wrapper">';
+    html += '<button class="prev-toggle" onclick="togglePrev()">';
+    html += '<div class="prev-toggle-left"><div class="prev-icon">📁</div><div>';
+    html += '<div class="prev-label">Previous Top Deal Picks</div>';
+    html += '<div class="prev-sub">' + past.length + ' past date' + (past.length !== 1 ? 's' : '') + ' · last 7 days only</div>';
+    html += '</div></div>' + chevron('prev-chevron') + '</button>';
+    html += '<div class="prev-body">';
+    for (var j = 0; j < past.length; j++) {
+      var day = past[j];
+      var labelTag = day.label ? ' <span style="color:var(--accent);font-size:10px;font-weight:700">· ' + day.label + '</span>' : '';
+      html += '<div class="past-day" id="past-' + j + '">';
+      html += '<button class="past-day-toggle" onclick="togglePastDay(' + j + ')">';
+      html += '<div><div class="past-day-label">Top Deal Picks — ' + day.date + labelTag + '</div>';
+      html += '</div>';
+      html += chevron('sm-chevron') + '</button>';
+      html += '<div class="past-day-body">' + pickGridHtml(day.items, 'past-' + j) + '</div>';
+      html += '</div>';
+    }
+    html += '</div></div>';
+  }
+
+  container.innerHTML = html;
+}
+
+function toggleToday() { document.getElementById('picks-today').classList.toggle('open'); }
+function togglePrev() { document.getElementById('prev-wrapper').classList.toggle('open'); }
+function togglePastDay(i) { document.getElementById('past-' + i).classList.toggle('open'); }
+
+// ── MAIN GRID ─────────────────────────────────────────────────────────
+function getFiltered() {
+  var f = allProducts.filter(function(p) {
+    if (state.promoOnly && !p.code) return false;
+    if (state.soldByAmazon && p.store !== 'Amazon') return false;
+    if (state.store !== 'all' && p.store !== state.store) return false;
+    if (state.category !== 'all' && p.category !== state.category) return false;
+    if (state.search) {
+      var q = state.search.toLowerCase();
+      var hay = (p.name + ' ' + p.brandName + ' ' + p.category + ' ' + p.store).toLowerCase();
+      if (hay.indexOf(q) === -1) return false;
+    }
+    if (p.off < state.minDiscount) return false;
+    if (state.maxPrice > 0 && p.price > state.maxPrice) return false;
+    if (state_minPrice > 0 && p.price < state_minPrice) return false;
+    if (p.rating < state.minStars) return false;
+    if (state.brandOnly && !p.brand) return false;
+    return true;
+  });
+  f.sort(function(a, b) {
+    if (state.sort === 'rating') return b.rating - a.rating;
+    if (state.sort === 'discount') return b.off - a.off;
+    if (state.sort === 'price-asc') return a.price - b.price;
+    if (state.sort === 'price-desc') return b.price - a.price;
+    return 0;
+  });
+  return f;
+}
+
+function topPickCardHtml(p, rank) {
+  var rankColors = { 1:'#f5c842', 2:'#c0c0c0', 3:'#cd7f32', 4:'rgba(255,255,255,0.6)' };
+  var rankBg = { 1:'rgba(245,200,66,0.25)', 2:'rgba(192,192,192,0.2)', 3:'rgba(205,127,50,0.2)', 4:'rgba(255,255,255,0.1)' };
+  var storeMap2 = { 'Amazon':'amz','Walmart':'wmt','HomeDepot':'hd','BestBuy':'bby','Lowes':'low' };
+  var storeNames = { 'Amazon':'Amazon','Walmart':'Walmart','HomeDepot':'Home Depot','BestBuy':'Best Buy','Lowes':"Lowe's" };
+  var s = storeMap2[p.store] || 'amz';
+  var sName = storeNames[p.store] || p.store;
+
+  var html = '<div class="product-card" onclick="openDrawer(\'' + p.id + '\')" style="cursor:pointer;border-color:' + rankColors[rank] + ';border-width:2px">';
+  html += '<div style="position:relative;background:rgba(255,255,255,0.05);border-radius:10px 10px 0 0;overflow:hidden">';
+  html += '<img class="product-img" src="' + p.img + '" alt="' + p.name + '" onerror="this.style.opacity=\'0\'">';
+  html += '<div style="position:absolute;top:8px;left:8px;min-width:28px;height:28px;border-radius:7px;background:' + rankBg[rank] + ';border:2px solid ' + rankColors[rank] + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:' + rankColors[rank] + ';padding:0 7px;font-family:Barlow Condensed,sans-serif">#' + rank + '</div>';
+  html += '<span class="store-badge ' + s + '" style="position:absolute;top:8px;right:8px">' + sName + '</span>';
+  if (p.code) html += '<span style="position:absolute;bottom:8px;right:8px;background:rgba(245,200,66,0.9);color:#0a1f33;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.5px">PROMO</span>';
+  html += '</div>';
+  html += '<div class="product-body">';
+  html += '<div class="product-category" style="margin-bottom:4px">' + p.category + '</div>';
+  html += '<div class="product-name">' + p.name + '</div>';
+  html += '<div style="font-size:9px;color:var(--muted);margin-bottom:7px">🕐 Found · ' + p.found + '</div>';
+  html += '<div class="product-stars"><span class="stars-display">' + starsHtml(p.rating) + '</span><span class="rating-num">' + p.rating + ' (' + p.reviews.toLocaleString() + ')</span></div>';
+  html += '<div style="margin-top:auto">';
+  if (p.code) html += '<div class="code-row" style="margin-bottom:6px"><span class="code-label">CODE</span><span class="code-value">' + p.code + '</span></div>';
+  html += '<div class="price-row"><span class="current-price">$' + p.price + '</span><span class="was-price">$' + p.was + '</span><span class="off-badge">' + p.off + '% OFF</span></div>';
+  html += '</div>';
+  html += '</div></div>';
+  return html;
+}
+
+function cardHtml(p) {
+  var storeMap = {
+    'Amazon':    { cls: 'amz' }, 'Walmart': { cls: 'wmt' },
+    'HomeDepot': { cls: 'hd'  }, 'BestBuy': { cls: 'bby' }, 'Lowes': { cls: 'low' }
+  };
+  var s = storeMap[p.store] || { cls: 'amz' };
+  var storeNames = { 'Amazon':'Amazon', 'Walmart':'Walmart', 'HomeDepot':'Home Depot', 'BestBuy':'Best Buy', 'Lowes':"Lowe's" };
+  var sName = storeNames[p.store] || p.store;
+
+  var html = '<div class="product-card" onclick="openDrawer(\'' + p.id + '\')" style="cursor:pointer">';
+
+  // Image first with store badge overlaid top-left
+  html += '<div style="position:relative;background:rgba(255,255,255,0.05);border-radius:10px 10px 0 0;overflow:hidden">';
+  html += '<img class="product-img" src="' + p.img + '" alt="' + p.name + '" onerror="this.style.opacity=\'0\'">';
+  html += '<span class="store-badge ' + s.cls + '" style="position:absolute;top:8px;left:8px">' + sName + '</span>';
+  if (p.code) html += '<span style="position:absolute;top:8px;right:8px;background:rgba(245,200,66,0.9);color:#0a1f33;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.5px">PROMO</span>';
+  html += '</div>';
+
+  // Info below
+  html += '<div class="product-body">';
+  html += '<div class="product-category" style="margin-bottom:4px">' + p.category + '</div>';
+  html += '<div class="product-name">' + p.name + '</div>';
+  html += '<div style="font-size:9px;color:var(--muted);margin-bottom:7px">🕐 Found · ' + p.found + '</div>';
+  html += '<div class="product-stars"><span class="stars-display">' + starsHtml(p.rating) + '</span><span class="rating-num">' + p.rating + ' (' + p.reviews.toLocaleString() + ')</span></div>';
+  html += '<div style="margin-top:auto">';
+  if (p.code) html += '<div class="code-row" style="margin-bottom:6px"><span class="code-label">CODE</span><span class="code-value">' + p.code + '</span></div>';
+  html += '<div class="price-row"><span class="current-price">$' + p.price + '</span><span class="was-price">$' + p.was + '</span><span class="off-badge">' + p.off + '% OFF</span></div>';
+  html += '</div>';
+  html += '</div></div>';
+  return html;
+}
+
+function resetAndRender() {
+  filtered = getFiltered(); page = 0;
+  window.promoShown = false;
+  document.getElementById('productGrid').innerHTML = '';
+  document.getElementById('endMsg').classList.remove('visible');
+  document.getElementById('loader').classList.remove('visible');
+  var noRes = document.getElementById('noResults');
+  var count = document.getElementById('resultsCount');
+  if (filtered.length === 0) {
+    noRes.classList.add('visible'); count.textContent = 'No results'; return;
+  }
+  noRes.classList.remove('visible');
+  count.textContent = filtered.length + ' deal' + (filtered.length !== 1 ? 's' : '') + ' found';
+  loadMore();
+}
+
+
+function promoCardsHtml() {
+  var emailCard = '<div style="background:linear-gradient(135deg,rgba(245,200,66,0.15),rgba(245,200,66,0.05));border:1px solid rgba(245,200,66,0.35);border-radius:10px;padding:18px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px">';
+  emailCard += '<div style="font-size:24px">\u{1F4E7}</div>';
+  emailCard += '<div style="font-family:Barlow Condensed,sans-serif;font-size:20px;font-weight:900;color:var(--text);text-transform:uppercase;line-height:1.1">Get Daily Deals</div>';
+  emailCard += '<div style="font-size:11px;color:var(--muted);line-height:1.6">New deals sent every day to your inbox.<br>Free. Unsubscribe anytime.</div>';
+  emailCard += '<input type="email" id="gridEmailInput" placeholder="your@email.com" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;font-family:Inter,sans-serif;outline:none;box-sizing:border-box">';
+  emailCard += '<button onclick="gridEmailSignup()" style="width:100%;background:var(--accent);color:#0a1f33;border:none;border-radius:6px;padding:9px;font-size:13px;font-weight:800;cursor:pointer;font-family:Inter,sans-serif">Join Free</button>';
+  emailCard += '<div id="gridEmailMsg" style="font-size:10px;color:var(--green);display:none">You are in!</div>';
+  emailCard += '</div>';
+
+  var gameCard = '<div onclick="window.location.href=\'founditcheaper-game.html\'" style="background:linear-gradient(135deg,rgba(74,158,212,0.15),rgba(10,31,51,0.5));border:1px solid rgba(74,158,212,0.35);border-radius:10px;padding:18px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;cursor:pointer">';
+  gameCard += '<div style="font-size:28px">\u{1F3B2}</div>';
+  gameCard += '<div style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:900;color:var(--text);text-transform:uppercase;line-height:1.2">Daily Dice<br>Roll Game</div>';
+  gameCard += '<div style="font-size:11px;color:var(--muted);line-height:1.5">Roll every day.<br>Top score wins a prize!</div>';
+  gameCard += '<div style="width:100%;background:rgba(74,158,212,0.2);border:1px solid rgba(74,158,212,0.4);border-radius:6px;padding:9px;font-size:13px;font-weight:800;color:#60b8f5;font-family:Inter,sans-serif">Play Now</div>';
+  gameCard += '</div>';
+
+  return emailCard + gameCard;
+}
+
+function gridEmailSignup() {
+  var input = document.getElementById('gridEmailInput');
+  var msg = document.getElementById('gridEmailMsg');
+  if (!input || !input.value.includes('@')) return;
+  if (msg) msg.style.display = 'block';
+  if (input) input.value = '';
+}
+
+
+function loadMore() {
+  if (loading) return;
+  var start = page * PAGE_SIZE;
+  if (start >= filtered.length) return;
+  loading = true;
+  document.getElementById('loader').classList.add('visible');
+  setTimeout(function() {
+    var grid = document.getElementById('productGrid');
+    var slice = filtered.slice(start, start + PAGE_SIZE);
+    var html = '';
+    for (var i = 0; i < slice.length; i++) html += cardHtml(slice[i]);
+    // Inject promo cards once only, after the 10th deal (end of page 1, since PAGE_SIZE=6, page 2 brings us to 12)
+    if (page === 0 && !window.promoShown) {
+      html += promoCardsHtml();
+      window.promoShown = true;
+    }
+    grid.insertAdjacentHTML('beforeend', html);
+    page++; loading = false;
+    document.getElementById('loader').classList.remove('visible');
+    if (page * PAGE_SIZE >= filtered.length) document.getElementById('endMsg').classList.add('visible');
+  }, 380);
+}
+
+new IntersectionObserver(function(entries) {
+  if (entries[0].isIntersecting && !loading) loadMore();
+}, { rootMargin: '200px' }).observe(document.getElementById('sentinel'));
+
+// ── FILTER FUNCTIONS ──────────────────────────────────────────────────
+// ── SLIDER LONG PRESS (mobile only) ───────────────────────────────────
+var holdTimers = {};
+var badgeMap = { 'discountSlider':'discountBadge', 'priceSlider':'priceBadge' };
+
+var isDesktop = window.matchMedia('(min-width: 640px)').matches;
+
+// On desktop, unlock all sliders immediately and hide the hold buttons
+if (isDesktop) {
+  window.addEventListener('DOMContentLoaded', function() {
+    ['priceSlider'].forEach(function(id) {
+      var s = document.getElementById(id);
+      if (s) s.classList.add('unlocked');
+    });
+    document.querySelectorAll('.slider-hold-btn').forEach(function(b) { b.style.display = 'none'; });
+    document.querySelectorAll('.slider-unlocked-badge').forEach(function(b) { b.style.display = 'none'; });
+  });
+}
+
+function startHold(sliderId, hintId) {
+  if (isDesktop) return;
+  holdTimers[sliderId] = setTimeout(function() {
+    var s = document.getElementById(sliderId);
+    var h = document.getElementById(hintId);
+    var b = document.getElementById(badgeMap[sliderId]);
+    s.classList.add('unlocked');
+    if (h) { h.style.display = 'none'; }
+    if (b) b.classList.add('visible');
+    clearTimeout(s._lockTimer);
+    s._lockTimer = setTimeout(function() { lockSlider(sliderId, hintId); }, 2000);
+  }, 250);
+}
+function endHold(sliderId, hintId) {
+  if (isDesktop) return;
+  clearTimeout(holdTimers[sliderId]);
+}
+function lockSlider(sliderId, hintId) {
+  if (isDesktop) return;
+  var s = document.getElementById(sliderId);
+  var h = document.getElementById(hintId);
+  var b = document.getElementById(badgeMap[sliderId]);
+  if (s) s.classList.remove('unlocked');
+  if (h) { h.style.display = ''; }
+  if (b) b.classList.remove('visible');
+}
+
+function resetSliderLock(sliderId, hintId) {
+  if (isDesktop) return;
+  var s = document.getElementById(sliderId);
+  clearTimeout(s._lockTimer);
+  s._lockTimer = setTimeout(function() { lockSlider(sliderId, hintId); }, 2000);
+}
+
+var state_minPrice = 0;
+var _sliderDebounce = null;
+function sliderRender() {
+  clearTimeout(_sliderDebounce);
+  _sliderDebounce = setTimeout(resetAndRender, 300);
+}
+
+function stepPrice(which, delta) {
+  if (which === 'min') {
+    state_minPrice = Math.min(500, Math.max(0, state_minPrice + delta));
+    document.getElementById('priceMinLabel').textContent = state_minPrice === 0 ? 'Min' : '$' + state_minPrice;
+    resetAndRender();
+  } else {
+    var cur = state.maxPrice === 0 ? 500 : state.maxPrice;
+    var next = Math.min(500, Math.max(0, cur + delta));
+    state.maxPrice = next === 500 ? 0 : next;
+    document.getElementById('priceMaxLabel').textContent = state.maxPrice === 0 ? 'Max' : '$' + state.maxPrice;
+    document.getElementById('priceVal').textContent = state.maxPrice === 0 ? 'Any' : 'Under $' + state.maxPrice;
+    var sliderVal = state.maxPrice === 0 ? 500 : state.maxPrice;
+    document.getElementById('priceSlider').value = sliderVal;
+    resetAndRender();
+  }
+}
+
+function updatePriceMin(val) {
+  state_minPrice = val;
+  sliderRender();
+}
+
+function activateSlider(slider) {} // kept for safety, no longer used
+
+function updateSearch(val) {
+  state.search = val.trim();
+  document.getElementById('searchClear').style.display = val ? 'block' : 'none';
+  resetAndRender();
+}
+function clearSearch() {
+  state.search = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').style.display = 'none';
+  resetAndRender();
+}
+function togglePromo(el) {
+  state.promoOnly = !state.promoOnly;
+  el.classList.toggle('active', state.promoOnly);
+  resetAndRender();
+}
+function toggleFBA(el) {
+  state.soldByAmazon = !state.soldByAmazon;
+  el.classList.toggle('active', state.soldByAmazon);
+  // If sold by Amazon is active, clear store filter conflict
+  if (state.soldByAmazon) { state.store = 'all'; document.querySelectorAll('#storeChips .chip').forEach(function(c){c.classList.remove('active');}); document.querySelector('#storeChips .chip[data-store="all"]').classList.add('active'); }
+  resetAndRender();
+}
+function setStore(el, store) {
+  document.querySelectorAll('#storeChips .chip').forEach(function(c) { c.classList.remove('active'); });
+  el.classList.add('active'); state.store = store; resetAndRender();
+}
+function setCategory(el, cat) {
+  document.querySelectorAll('#catChips .chip').forEach(function(c) { c.classList.remove('active'); });
+  el.classList.add('active'); state.category = cat; resetAndRender();
+}
+function setQuickDiscount(val, el) {
+  state.minDiscount = val;
+  var slider = document.getElementById('discountSlider');
+  if (slider) slider.value = val;
+  var discountVal = document.getElementById('discountVal');
+  if (discountVal) discountVal.textContent = val === 0 ? 'Any' : val + '%+';
+  document.querySelectorAll('#quickChipsInline .quick-chip').forEach(function(c) { c.classList.remove('active'); });
+  el.classList.add('active');
+  resetAndRender();
+}
+
+function updateDiscount(v) {
+  state.minDiscount = parseInt(v);
+  var discountVal = document.getElementById('discountVal');
+  if (discountVal) discountVal.textContent = v == 0 ? 'Any' : v + '%+';
+  var val = parseInt(v);
+  document.querySelectorAll('#quickChipsInline .quick-chip').forEach(function(c) { c.classList.remove('active'); });
+  var matched = false;
+  document.querySelectorAll('.quick-chip').forEach(function(c) {
+    var chipVal = parseInt(c.textContent) || 0;
+    if (chipVal === val) { c.classList.add('active'); matched = true; }
+  });
+  if (!matched && val === 0) document.querySelector('.quick-chip').classList.add('active');
+  resetAndRender();
+}
+function updatePriceDisplay(v) {
+  state.maxPrice = parseInt(v);
+  document.getElementById('priceVal').textContent = v == 0 ? 'Any' : 'Under $' + v;
+  document.getElementById('priceMaxLabel').textContent = v == 0 ? 'Max' : '$' + v;
+}
+function updatePrice(v) {
+  updatePriceDisplay(v);
+  resetAndRender();
+}
+function updateStars(v) { state.minStars = parseFloat(v); resetAndRender(); }
+function toggleBrand() {
+  state.brandOnly = !state.brandOnly;
+  document.getElementById('brandToggle').classList.toggle('on', state.brandOnly);
+  resetAndRender();
+}
+function sortDeals(v) { state.sort = v; resetAndRender(); }
+function clearFilters() {
+  state = { store: 'all', category: 'all', minDiscount: 0, maxPrice: 0, minStars: 0, brandOnly: false, sort: state.sort, search: '', promoOnly: false, soldByAmazon: false };
+  state_minPrice = 0;
+  document.getElementById('chipPromo').classList.remove('active');
+  document.getElementById('chipFBA').classList.remove('active');
+  document.querySelectorAll('#quickChipsInline .quick-chip').forEach(function(c) { c.classList.remove('active'); });
+  document.querySelector('.quick-chip').classList.add('active');
+
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').style.display = 'none';
+  document.querySelectorAll('#storeChips .chip').forEach(function(c) { c.classList.remove('active'); });
+  document.querySelector('#storeChips .chip[data-store="all"]').classList.add('active');
+  document.getElementById('priceSlider').value = 0;
+  document.getElementById('priceVal').textContent = 'Any';
+  document.getElementById('priceMinLabel').textContent = 'Min';
+  document.getElementById('priceMaxLabel').textContent = 'Max';
+  document.querySelectorAll('#catChips .chip').forEach(function(c) { c.classList.remove('active'); });
+  document.querySelector('#catChips .chip[data-cat="all"]').classList.add('active');
+  document.querySelector('input[name="stars"][value="0"]').checked = true;
+  document.getElementById('brandToggle').classList.remove('on');
+  resetAndRender();
+}
+
+function toggleFilters() {
+  var body = document.getElementById('filterBody');
+  var chev = document.getElementById('filterChevron');
+  var label = document.getElementById('filterToggleLabel');
+  body.classList.toggle('open');
+  var isOpen = body.classList.contains('open');
+  chev.style.transform = isOpen ? 'rotate(180deg)' : '';
+  if (label) label.textContent = isOpen ? 'Less filters' : 'More filters';
+  if (!isOpen) {
+    ['discountSlider','priceSlider'].forEach(function(id) {
+      var s = document.getElementById(id);
+      if (s) { s.classList.add('slider-inactive'); s.closest('.slider-wrap').classList.remove('active-slider'); }
+    });
+  }
+}
+
+// ── HAMBURGER MENU ────────────────────────────────────────────────────
+function closePicksAndScroll() {
+  // Collapse today's picks so the page jumps to deals cleanly
+  var picks = document.getElementById('picks-today');
+  if (picks) picks.classList.remove('open');
+  // Small delay so collapse animation runs first
+  setTimeout(function() {
+    var anchor = document.getElementById('allDealsAnchor');
+    if (anchor) anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 150);
+}
+
+function openMenu() {
+  document.getElementById('menuPanel').style.right = '0';
+  document.getElementById('menuOverlay').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+function closeMenu() {
+  document.getElementById('menuPanel').style.right = '-320px';
+  document.getElementById('menuOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+function menuEmailSignup() {
+  var email = document.getElementById('menuEmailInput').value.trim();
+  var msg = document.getElementById('menuEmailMsg');
+  if (!email || !email.includes('@')) {
+    msg.style.display = 'block';
+    msg.style.color = '#f87171';
+    msg.textContent = 'Please enter a valid email.';
+    return;
+  }
+  // In production this posts to Beehiiv API
+  msg.style.display = 'block';
+  msg.style.color = 'var(--green)';
+  msg.textContent = '✓ You\'re in! Check your inbox for a welcome email.';
+  document.getElementById('menuEmailInput').value = '';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+renderPicks();
+// Init scroll dot tracking and one-time peek animation
+setTimeout(function() {
+  initSliderScroll('today', dailyPicks[0].items.length);
+  // One-time peek: slide slightly right then back to reveal card #2
+  var slider = document.getElementById('slider-today');
+  if (slider && !sessionStorage.getItem('peeked')) {
+    sessionStorage.setItem('peeked', '1');
+    setTimeout(function() {
+      slider.scrollTo({ left: 80, behavior: 'smooth' });
+      setTimeout(function() {
+        slider.scrollTo({ left: 0, behavior: 'smooth' });
+      }, 700);
+    }, 800);
+  }
+}, 200);
+resetAndRender();
+
+// Auto-open drawer if ?deal= param in URL
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var dealId = params.get('deal');
+  if (dealId) {
+    // Wait for grid to render then open drawer
+    setTimeout(function() {
+      openDrawer(dealId);
+      // Clean up URL without reloading
+      window.history.replaceState({}, '', window.location.pathname);
+    }, 600);
+  }
+})();
+</script>
+<!-- PRODUCT DETAIL DRAWER -->
+<div id="drawerOverlay" onclick="closeDrawer()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;backdrop-filter:blur(4px)"></div>
+<div id="productDrawer" style="display:none;position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;max-height:92vh;overflow-y:auto;background:#0f2e47;border-radius:18px 18px 0 0;border-top:2px solid rgba(245,200,66,0.4);z-index:301;">
+  <div style="text-align:center;padding:10px 0 0"><div style="width:36px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;display:inline-block"></div></div>
+  <div id="drawerContent" style="padding:0 18px 40px"></div>
+</div>
+
+<style>
+  #productDrawer { transition: transform 0.3s ease; }
+  .drawer-gallery { display:flex; gap:8px; overflow-x:auto; padding:16px 0 8px; scrollbar-width:none; }
+  .drawer-gallery::-webkit-scrollbar { display:none; }
+  .drawer-gallery-main { width:100%; background:rgba(255,255,255,0.05); border-radius:10px; overflow:hidden; margin-bottom:8px; display:flex; align-items:center; justify-content:center; min-height:220px; }
+  .drawer-gallery-main img { max-width:100%; max-height:260px; object-fit:contain; padding:16px; }
+  .drawer-thumb { width:60px; height:60px; flex-shrink:0; border-radius:8px; overflow:hidden; border:2px solid rgba(255,255,255,0.1); cursor:pointer; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; transition:border-color .15s; }
+  .drawer-thumb.active { border-color:var(--accent); }
+  .drawer-thumb img { width:100%; height:100%; object-fit:contain; padding:4px; }
+  .drawer-store-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .drawer-name { font-size:17px; font-weight:700; line-height:1.35; color:var(--text); margin-bottom:10px; }
+  .drawer-stars { display:flex; align-items:center; gap:6px; margin-bottom:12px; font-size:12px; color:var(--muted); }
+  .drawer-stars .stars { color:var(--accent); font-size:14px; }
+  .drawer-price-row { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  .drawer-price { font-size:32px; font-weight:900; color:var(--green); }
+  .drawer-was { font-size:15px; color:var(--muted); text-decoration:line-through; }
+  .drawer-off { background:var(--accent); color:#0a1f33; font-size:12px; font-weight:800; padding:3px 9px; border-radius:4px; }
+  .drawer-found { font-size:11px; color:var(--muted); margin-bottom:16px; }
+
+  /* Code box */
+  .drawer-code-box { background:rgba(245,200,66,0.08); border:1px dashed rgba(245,200,66,0.45); border-radius:10px; padding:16px; margin-bottom:14px; }
+  .drawer-code-label { font-size:10px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:10px; text-align:center; }
+  .drawer-code-value { font-size:28px; font-weight:900; color:var(--accent); letter-spacing:4px; text-align:center; margin-bottom:12px; }
+  .drawer-copy-code { display:block; width:100%; padding:12px; background:var(--accent); color:#0a1f33; border:none; border-radius:8px; font-size:14px; font-weight:800; cursor:pointer; font-family:'Inter',sans-serif; transition:opacity .15s; }
+  .drawer-copy-code:hover { opacity:.88; }
+  .drawer-copy-code.copied { background:var(--green); }
+  .drawer-code-note { font-size:11px; color:var(--muted); text-align:center; margin-top:8px; }
+
+  /* Why not working */
+  .drawer-why-wrap { border:1px solid rgba(255,255,255,0.1); border-radius:10px; overflow:hidden; margin-bottom:14px; }
+  .drawer-why-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:none; border:none; color:var(--text-soft); font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+  .drawer-why-body { display:none; padding:0 14px 14px; border-top:1px solid rgba(255,255,255,0.07); }
+  .drawer-why-body.open { display:block; }
+  .why-item { padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+  .why-item:last-child { border-bottom:none; }
+  .why-num { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; font-size:10px; font-weight:800; flex-shrink:0; margin-right:8px; }
+  .why-num.green { background:rgba(74,222,128,0.2); color:var(--green); }
+  .why-num.yellow { background:rgba(245,200,66,0.2); color:var(--accent); }
+  .why-num.blue { background:rgba(96,184,245,0.2); color:#60b8f5; }
+  .why-num.red { background:rgba(248,113,113,0.2); color:#f87171; }
+  .why-title { font-size:12px; font-weight:700; color:var(--text); margin-bottom:3px; }
+  .why-desc { font-size:11px; color:var(--muted); line-height:1.5; }
+
+  /* Action buttons */
+  .drawer-view-btn { display:block; width:100%; padding:14px; background:var(--accent); color:#0a1f33; border:none; border-radius:8px; font-size:16px; font-weight:900; text-align:center; text-decoration:none; cursor:pointer; font-family:'Barlow Condensed',sans-serif; letter-spacing:1px; text-transform:uppercase; margin-bottom:10px; transition:opacity .15s; }
+  .drawer-view-btn:hover { opacity:.88; }
+  .drawer-share-btn { display:block; width:100%; padding:11px; background:transparent; border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:var(--muted); font-size:13px; font-weight:600; text-align:center; cursor:pointer; font-family:'Inter',sans-serif; transition:all .15s; }
+  .drawer-share-btn:hover { border-color:rgba(255,255,255,0.3); color:var(--text); }
+  .drawer-share-btn.copied { border-color:var(--green); color:var(--green); }
+  .drawer-close { float:right; background:rgba(255,255,255,0.08); border:none; color:var(--muted); width:28px; height:28px; border-radius:50%; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; margin-top:12px; }
+</style>
+
+<script>
+var currentDrawerProduct = null;
+
+function openDrawer(productId) {
+  // Find product from allProducts
+  var p = allProducts.find(function(x) { return x.id === productId; });
+  if (!p) return;
+  currentDrawerProduct = p;
+
+  var storeNames = { 'Amazon':'Amazon', 'Walmart':'Walmart', 'HomeDepot':'Home Depot', 'BestBuy':'Best Buy', 'Lowes':"Lowe's" };
+  var storeMap2 = { 'Amazon':'amz', 'Walmart':'wmt', 'HomeDepot':'hd', 'BestBuy':'bby', 'Lowes':'low' };
+  var sName = storeNames[p.store] || p.store;
+  var sCls = storeMap2[p.store] || 'amz';
+  var untracked = (p.store === 'HomeDepot' || p.store === 'BestBuy' || p.store === 'Lowes');
+
+  // Mock multiple images (real API returns array)
+  var imgs = [p.img, p.img, p.img, p.img];
+
+  var html = '<div style="display:flex;justify-content:flex-end"><button class="drawer-close" onclick="closeDrawer()">✕</button></div>';
+
+  // Gallery
+  html += '<div class="drawer-gallery-main"><img id="drawerMainImg" src="' + p.img + '" alt="' + p.name + '"></div>';
+  html += '<div class="drawer-gallery">';
+  imgs.forEach(function(img, i) {
+    html += '<div class="drawer-thumb' + (i===0?' active':'') + '" onclick="switchImg(this,\'' + img + '\')">';
+    html += '<img src="' + img + '" alt=""></div>';
+  });
+  html += '</div>';
+
+  // Store + category
+  html += '<div class="drawer-store-row"><span class="store-badge ' + sCls + '">' + sName + '</span><span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px">' + p.category + '</span></div>';
+
+  // Name
+  html += '<div class="drawer-name">' + p.name + '</div>';
+
+  // Stars
+  html += '<div class="drawer-stars"><span class="stars">' + starsHtml(p.rating) + '</span>' + p.rating + ' (' + p.reviews.toLocaleString() + ' reviews)</div>';
+
+  // Price
+  html += '<div class="drawer-price-row"><span class="drawer-price">$' + p.price + '</span><span class="drawer-was">$' + p.was + '</span><span class="drawer-off">' + p.off + '% OFF</span></div>';
+  html += '<div class="drawer-found">🕐 Found · ' + p.found + '</div>';
+
+  // Code box
+  if (p.code) {
+    html += '<div class="drawer-code-box">';
+    html += '<div class="drawer-code-label">Promo Code</div>';
+    html += '<div class="drawer-code-value">' + p.code + '</div>';
+    html += '<button class="drawer-copy-code" id="drawerCopyBtn" onclick="drawerCopyCode(\'' + p.code + '\')">Copy Code</button>';
+    html += '<div class="drawer-code-note">Paste at checkout · Copy the code above to use on ' + sName + '</div>';
+    html += '</div>';
+
+    // Why not working
+    html += '<div class="drawer-why-wrap">';
+    html += '<button class="drawer-why-toggle" onclick="toggleWhy(this)"><span>🤔 Promo code not working?</span><svg style="width:16px;height:16px;transition:transform .2s" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>';
+    html += '<div class="drawer-why-body">';
+    html += '<div style="background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.25);border-radius:7px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--muted);line-height:1.5">If you\'re outside the U.S., the promo code or discount may not work.</div>';
+    html += '<div style="font-size:12px;font-weight:600;color:var(--text-soft);margin-bottom:10px">Inside the USA &amp; still not applying? After applying the code, you\'ll receive one of 4 messages:</div>';
+    html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num green">1</span><div><div class="why-title">It worked!</div><div class="why-desc"><em>"This promotional code has been successfully applied to your account."</em></div></div></div></div>';
+    html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num yellow">2</span><div><div class="why-title">Amazon glitch &#8212; try again</div><div class="why-desc"><em>&quot;We&#39;re having trouble applying this code.&quot;</em><br>Enter the code again and it should work.</div></div></div></div>';
+    html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num blue">3</span><div><div class="why-title">Already applied via our link</div><div class="why-desc"><em>"This promotional code cannot be applied to your account."</em><br>Check your cart — the discount may already be reflected in the price.</div></div></div></div>';
+    html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num red">4</span><div><div class="why-title">Expired</div><div class="why-desc"><em>"This promotional code is not valid."</em><br>Unfortunately this promo code has expired.</div></div></div></div>';
+    html += '<div class="why-item" style="border-bottom:none"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num" style="background:rgba(255,255,255,0.08);color:var(--muted)">?</span><div><div class="why-title">Why do codes expire so fast?</div><div class="why-desc">The seller sets a promotional budget — let\'s say $5,000. Every time someone uses the code, it chips away at that budget. Once it hits $0, the code stops working for everyone. The more popular the deal, the faster it goes!</div></div></div></div>';
+    html += '</div></div>';
+  }
+
+  // Buttons
+  html += '<a class="drawer-view-btn" href="' + p.url + '" target="_blank" rel="noopener">View Deal on ' + sName + ' →</a>';
+  html += '<button class="drawer-share-btn" onclick="drawerShareDeal(this)">🔗 Share Deal</button>';
+
+  document.getElementById('drawerContent').innerHTML = html;
+  document.getElementById('drawerOverlay').style.display = 'block';
+  document.getElementById('productDrawer').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDrawer() {
+  document.getElementById('drawerOverlay').style.display = 'none';
+  document.getElementById('productDrawer').style.display = 'none';
+  document.body.style.overflow = '';
+  currentDrawerProduct = null;
+}
+
+function switchImg(thumb, src) {
+  document.getElementById('drawerMainImg').src = src;
+  document.querySelectorAll('.drawer-thumb').forEach(function(t) { t.classList.remove('active'); });
+  thumb.classList.add('active');
+}
+
+function toggleWhy(btn) {
+  var body = btn.nextElementSibling;
+  var chev = btn.querySelector('svg');
+  body.classList.toggle('open');
+  chev.style.transform = body.classList.contains('open') ? 'rotate(180deg)' : '';
+}
+
+function drawerCopyCode(code) {
+  var btn = document.getElementById('drawerCopyBtn');
+  function onSuccess() {
+    btn.textContent = '✓ Copied!'; btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = 'Copy Code'; btn.classList.remove('copied'); }, 2000);
+  }
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(code).then(onSuccess);
+  } else {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = code; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      onSuccess();
+    } catch(e) { window.prompt('Copy this code:', code); }
+  }
+}
+
+function drawerShareDeal(btn) {
+  if (!currentDrawerProduct) return;
+  var base = window.location.origin + window.location.pathname;
+  var url = base + '?deal=' + currentDrawerProduct.id;
+  function onSuccess() {
+    btn.textContent = '✓ Link Copied!'; btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = '🔗 Share Deal'; btn.classList.remove('copied'); }, 2000);
+  }
+  function onFail() {
+    // Fallback: prompt so user can manually copy
+    window.prompt('Copy this link:', url);
+  }
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(url).then(onSuccess).catch(onFail);
+  } else {
+    // Fallback for non-HTTPS (local file preview)
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      onSuccess();
+    } catch(e) { onFail(); }
+  }
+}
+</script>
+
+<!-- CONTACT MODAL -->
+<div id="contactOverlay" onclick="closeContact()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px)"></div>
+<div id="contactModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:92%;max-width:480px;background:linear-gradient(180deg,#0d2a42,#081a28);border:1px solid rgba(245,200,66,0.25);border-radius:16px;z-index:501;padding:28px 24px 32px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:16px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:22px">✉️</span>
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:#fff;letter-spacing:0.5px">Contact Us</div>
+        <div style="font-size:11px;color:var(--muted)">deals@founditcheaper.net</div>
+      </div>
+    </div>
+    <button onclick="closeContact()" style="background:rgba(255,255,255,0.08);border:none;color:#fff;font-size:18px;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">&times;</button>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <div>
+      <label style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px">Your Name</label>
+      <input id="contactName" type="text" placeholder="First name is fine" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:13px;padding:10px 12px;font-family:inherit;box-sizing:border-box">
+    </div>
+    <div>
+      <label style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px">Your Email</label>
+      <input id="contactEmail" type="email" placeholder="so we can get back to you" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:13px;padding:10px 12px;font-family:inherit;box-sizing:border-box">
+    </div>
+    <div>
+      <label style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px">Message</label>
+      <textarea id="contactMsg" rows="4" placeholder="What's on your mind?" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:13px;padding:10px 12px;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>
+    </div>
+    <div id="contactFeedback" style="display:none;font-size:12px;padding:8px 12px;border-radius:6px"></div>
+    <button onclick="submitContact()" style="background:var(--accent);color:#000;font-weight:800;font-size:14px;border:none;border-radius:8px;padding:12px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;letter-spacing:0.5px">SEND MESSAGE</button>
+  </div>
+</div>
+
+<script>
+function openContact() {
+  document.getElementById('contactOverlay').style.display = 'block';
+  document.getElementById('contactModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  document.getElementById('contactName').value = '';
+  document.getElementById('contactEmail').value = '';
+  document.getElementById('contactMsg').value = '';
+  document.getElementById('contactFeedback').style.display = 'none';
+}
+function closeContact() {
+  document.getElementById('contactOverlay').style.display = 'none';
+  document.getElementById('contactModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+function submitContact() {
+  var name = document.getElementById('contactName').value.trim();
+  var email = document.getElementById('contactEmail').value.trim();
+  var msg = document.getElementById('contactMsg').value.trim();
+  var feedback = document.getElementById('contactFeedback');
+  if (!email || !email.includes('@')) {
+    feedback.style.display = 'block';
+    feedback.style.background = 'rgba(248,113,113,0.15)';
+    feedback.style.color = '#f87171';
+    feedback.textContent = 'Please enter a valid email address.';
+    return;
+  }
+  if (!msg) {
+    feedback.style.display = 'block';
+    feedback.style.background = 'rgba(248,113,113,0.15)';
+    feedback.style.color = '#f87171';
+    feedback.textContent = 'Please enter a message.';
+    return;
+  }
+  var subject = encodeURIComponent('Message from founditcheaper.net' + (name ? ' - ' + name : ''));
+  var body = encodeURIComponent((name ? 'Name: ' + name + '\n' : '') + 'Email: ' + email + '\n\n' + msg);
+  window.location.href = 'mailto:deals@founditcheaper.net?subject=' + subject + '&body=' + body;
+  feedback.style.display = 'block';
+  feedback.style.background = 'rgba(74,222,128,0.15)';
+  feedback.style.color = 'var(--green)';
+  feedback.textContent = '✓ Opening your email app now — thanks for reaching out!';
+}
+</script>
+
+<!-- BUG REPORT MODAL -->
+<div id="bugOverlay" onclick="closeBugReport()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px)"></div>
+<div id="bugModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:92%;max-width:480px;background:linear-gradient(180deg,#0d2a42,#081a28);border:1px solid rgba(245,200,66,0.25);border-radius:16px;z-index:501;padding:28px 24px 32px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:16px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:22px">🐛</span>
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:#fff;letter-spacing:0.5px">Report a Bug</div>
+        <div style="font-size:11px;color:var(--muted)">Help us improve the site</div>
+      </div>
+    </div>
+    <button onclick="closeBugReport()" style="background:rgba(255,255,255,0.08);border:none;color:#fff;font-size:18px;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">&times;</button>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <div>
+      <label style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px">What happened?</label>
+      <textarea id="bugDesc" rows="4" placeholder="Describe the bug — what you saw, what you expected, what page you were on..." style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:13px;padding:10px 12px;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>
+    </div>
+    <div>
+      <label style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px">Your email (optional)</label>
+      <input id="bugEmail" type="email" placeholder="so we can follow up if needed" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:13px;padding:10px 12px;font-family:inherit;box-sizing:border-box">
+    </div>
+    <div id="bugMsg" style="display:none;font-size:12px;padding:8px 12px;border-radius:6px"></div>
+    <button onclick="submitBugReport()" style="background:var(--accent);color:#000;font-weight:800;font-size:14px;border:none;border-radius:8px;padding:12px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;letter-spacing:0.5px">SEND REPORT</button>
+  </div>
+</div>
+
+<script>
+function openBugReport() {
+  document.getElementById('bugOverlay').style.display = 'block';
+  document.getElementById('bugModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  document.getElementById('bugDesc').value = '';
+  document.getElementById('bugEmail').value = '';
+  document.getElementById('bugMsg').style.display = 'none';
+}
+function closeBugReport() {
+  document.getElementById('bugOverlay').style.display = 'none';
+  document.getElementById('bugModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+function submitBugReport() {
+  var desc = document.getElementById('bugDesc').value.trim();
+  var email = document.getElementById('bugEmail').value.trim();
+  var msg = document.getElementById('bugMsg');
+  if (!desc) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(248,113,113,0.15)';
+    msg.style.color = '#f87171';
+    msg.textContent = 'Please describe the bug before sending.';
+    return;
+  }
+  var subject = encodeURIComponent('Bug Report - founditcheaper.net');
+  var body = encodeURIComponent((email ? 'From: ' + email + '\n\n' : '') + desc);
+  window.location.href = 'mailto:deals@founditcheaper.net?subject=' + subject + '&body=' + body;
+  msg.style.display = 'block';
+  msg.style.background = 'rgba(74,222,128,0.15)';
+  msg.style.color = 'var(--green)';
+  msg.textContent = '✓ Opening your email app now — thanks for the report!';
+}
+</script>
+
+<div id="legalOverlay" onclick="closeLegal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px)"></div>
+<div id="legalModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:92%;max-width:620px;max-height:85vh;overflow-y:auto;background:linear-gradient(180deg,#0d2a42,#081a28);border:1px solid rgba(245,200,66,0.25);border-radius:16px;z-index:501;padding:28px 24px 32px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:16px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:22px">📜</span>
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:#fff;letter-spacing:0.5px">Legal &amp; Disclaimer</div>
+        <div style="font-size:11px;color:var(--muted)">founditcheaper.net</div>
+      </div>
+    </div>
+    <button onclick="closeLegal()" style="background:rgba(255,255,255,0.08);border:none;color:#fff;font-size:18px;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">&times;</button>
+  </div>
+
+  <div style="font-size:13px;color:var(--text-soft);line-height:1.75;display:flex;flex-direction:column;gap:18px">
+
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Affiliate Disclosure</div>
+      <p>founditcheaper.net is a participant in the Amazon Services LLC Associates Program, an affiliate advertising program designed to provide a means for sites to earn advertising fees by advertising and linking to Amazon.com. We also participate in other affiliate programs including Walmart, Creator Connections, and Mavely.</p>
+      <p style="margin-top:8px">When you click a link on this site and make a purchase, we may earn a commission at no additional cost to you. This helps us keep the site free and the deals coming.</p>
+    </div>
+
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Price &amp; Deal Accuracy</div>
+      <p>Prices and deal availability change frequently and without notice. We do our best to keep listings current, but we cannot guarantee that any price, discount, or coupon code shown is still valid at the time you click. Always verify the final price at checkout before completing a purchase.</p>
+    </div>
+
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">No Endorsement</div>
+      <p>Product listings on this site do not constitute an endorsement or guarantee of quality. We are not responsible for the products, services, or content of any third-party retailer. Reviews and ratings shown are sourced from retailer platforms and reflect the opinions of customers, not founditcheaper.net.</p>
+    </div>
+
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Limitation of Liability</div>
+      <p>founditcheaper.net and MiscMore LLC are not liable for any loss or damage resulting from reliance on information provided on this site, including but not limited to expired deals, incorrect pricing, or product availability errors.</p>
+    </div>
+
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Contact</div>
+      <p>Questions about this disclosure or site policies? Email us at <a href="mailto:deals@founditcheaper.net" style="color:var(--accent)">deals@founditcheaper.net</a>.</p>
+    </div>
+
+    <div style="font-size:11px;color:var(--muted);border-top:1px solid rgba(255,255,255,0.07);padding-top:14px">
+      © 2026 founditcheaper.net · Last updated June 2026
+    </div>
+  </div>
+</div>
+
+<script>
+function openLegal() {
+  document.getElementById('legalOverlay').style.display = 'block';
+  document.getElementById('legalModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+function closeLegal() {
+  document.getElementById('legalOverlay').style.display = 'none';
+  document.getElementById('legalModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+</script>
+
+</body>
+</html>

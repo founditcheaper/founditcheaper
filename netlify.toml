@@ -1,0 +1,27 @@
+[build]
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+[functions."auto-pick"]
+  timeout = 26
+
+[functions."save-deals"]
+  timeout = 26
+
+[functions."sync-deals"]
+  schedule = "0 6 * * *"
+  timeout = 26
+
+[[redirects]]
+  from = "/"
+  to = "/founditcheaper-demo.html"
+  status = 200
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
