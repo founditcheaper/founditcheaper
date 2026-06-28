@@ -58,8 +58,12 @@ founditcheaper/
 
 ```
 SUPABASE_URL=https://kvscvenwhdfwiswcfmxq.supabase.co
-SUPABASE_SERVICE_KEY=<secret>
+SUPABASE_SERVICE_ROLE_KEY=<secret>
+SUPABASE_ANON_KEY=<public — also in frontend HTML>
 RAINFOREST_API_KEY=<secret>
+AMAZON_CREATORS_CLIENT_ID=<secret>
+AMAZON_CREATORS_CLIENT_SECRET=<secret>
+ADMIN_PASSWORD=<secret>
 ```
 
 ---
@@ -68,7 +72,7 @@ RAINFOREST_API_KEY=<secret>
 
 **Project:** `founditcheaper amazon api`
 **URL:** `https://kvscvenwhdfwiswcfmxq.supabase.co`
-**RLS:** OFF (intentional — deals table is public read)
+**RLS:** ON for `deals` — policy "Public reads" allows SELECT only; no public write policy, so the anon key can read but not insert/update/delete. Writes happen via Netlify Functions using the service_role key, which bypasses RLS. (Verified live 2026-06-28.)
 **Using:** legacy `service_role` key for server-side writes
 
 **Table: `deals`**
@@ -189,9 +193,9 @@ updated_at timestamptz default now()
 - Plan: replace with self-hosted deep linker at deal.founditcheaper.net
 
 ### Supabase
-- RLS is OFF for now
+- RLS is ON for `deals` (public read only; no public write — verified live 2026-06-28)
 - Public read on deals table is intentional
-- Tighten security before going fully live
+- `email_subscribers` and `game_scores` tables don't exist in Supabase yet; the correct RLS for them is already written in `supabase-schema.sql` and gets created when those features go live (subscribers currently live in Beehiiv)
 
 ---
 
