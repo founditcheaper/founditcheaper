@@ -1,0 +1,11 @@
+{
+  "name": "founditcheaper",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node build.js"
+  },
+  "dependencies": {
+    "html-minifier-terser": "^7.2.0"
+  }
+}
