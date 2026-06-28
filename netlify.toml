@@ -1,6 +1,14 @@
 [build]
   functions = "netlify/functions"
 
+[build.environment]
+  # SUPABASE_ANON_KEY is a public, browser-side key — it MUST live in the
+  # frontend HTML for the site to talk to Supabase, so it is safe to appear in
+  # committed files. Tell Netlify's secret scanner to ignore this one key.
+  # The real secrets (SERVICE_ROLE, RAINFOREST, AMAZON_*, ADMIN_PASSWORD) are
+  # never in code and stay scanned/protected.
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_ANON_KEY"
+
 [functions]
   node_bundler = "esbuild"
 
