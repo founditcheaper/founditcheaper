@@ -25,17 +25,14 @@
   timeout = 26
 
 # Self-hosted deep linker: /go/<ASIN> runs the go function, which adds the
-# affiliate tag and redirects the shopper to Amazon. Must come before the
-# catch-all root redirect below.
+# affiliate tag and redirects the shopper to Amazon.
 [[redirects]]
   from = "/go/*"
   to = "/.netlify/functions/go/:splat"
   status = 200
 
-[[redirects]]
-  from = "/"
-  to = "/founditcheaper-demo.html"
-  status = 200
+# The homepage is index.html, which Netlify serves at "/" automatically —
+# no root redirect needed.
 
 [[headers]]
   for = "/*.html"

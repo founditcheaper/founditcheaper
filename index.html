@@ -843,7 +843,7 @@ function copyCode(code, btn) {
   });
 }
 function copyLink(url, id, btn) {
-  var dealUrl = window.location.origin + window.location.pathname.replace('founditcheaper-demo.html','') + 'founditcheaper-deal.html?id=' + id;
+  var dealUrl = window.location.origin + window.location.pathname + '?deal=' + id;
   navigator.clipboard.writeText(dealUrl).then(function() {
     var orig = btn.innerHTML;
     btn.innerHTML = '✓ Link Copied!'; btn.classList.add('copied');
