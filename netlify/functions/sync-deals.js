@@ -129,16 +129,19 @@ async function discoverDeals() {
   try { token = await getCreatorsToken(); }
   catch (e) { console.error('[sync-deals] token failed:', e.message); return []; }
 
-  const results = await Promise.all(SEARCH_TERMS.map(t => searchAmazon(t, token)));
-
-  // One-time: log the real item shape so we can confirm/adjust field paths.
-  const probe = results.flatMap(r => r.items).find(Boolean);
-  if (probe) console.log('[sync-deals] sample item:', JSON.stringify(probe).slice(0, 700));
-  else console.log('[sync-deals] searchItems returned no items — check endpoint/params in logs above');
-
+  // The Creators API throttles to ~1 request/sec, so search SEQUENTIALLY with a
+  // small delay (parallel calls return HTTP 429). A time cap keeps us safely
+  // inside the function limit; whatever we gathered is used.
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const start = Date.now();
   const found = {};
-  for (const r of results) {
-    for (const it of r.items) {
+  let probed = false;
+
+  for (const term of SEARCH_TERMS) {
+    if (Date.now() - start > 18000) { console.log('[sync-deals] search time cap reached — using what we have'); break; }
+    const { items } = await searchAmazon(term, token);
+    if (!probed && items[0]) { console.log('[sync-deals] sample item:', JSON.stringify(items[0]).slice(0, 700)); probed = true; }
+    for (const it of items) {
       const asin = it.asin || it.ASIN;
       if (!asin || found[asin]) continue;
       const listing = it.offersV2?.listings?.[0];
@@ -167,7 +170,9 @@ async function discoverDeals() {
         url:       `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`,
       };
     }
+    await sleep(1100);   // ~1 req/sec — respect the Creators API rate limit
   }
+  if (!probed) console.log('[sync-deals] searchItems returned no items across all terms');
   return Object.values(found);
 }
 
