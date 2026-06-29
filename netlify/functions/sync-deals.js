@@ -84,7 +84,7 @@ async function getCreatorsToken() {
 }
 
 // ── Search Amazon for discounted items (one keyword) ───────────────────────
-async function searchAmazon(keywords, token) {
+async function searchAmazon(keywords, token, retry = true) {
   const ctrl  = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
@@ -112,9 +112,13 @@ async function searchAmazon(keywords, token) {
       signal: ctrl.signal,
     });
     clearTimeout(timer);
+    if (res.status === 429 && retry) {            // throttled — back off once and retry
+      await new Promise(r => setTimeout(r, 2500));
+      return searchAmazon(keywords, token, false);
+    }
     const text = await res.text();
     let data = null; try { data = JSON.parse(text); } catch {}
-    if (res.status !== 200) { console.error(`[sync-deals] search "${keywords}" -> HTTP ${res.status}: ${text.slice(0, 200)}`); return { items: [] }; }
+    if (res.status !== 200) { console.error(`[sync-deals] search "${keywords}" -> HTTP ${res.status}: ${text.slice(0, 160)}`); return { items: [] }; }
     return { items: (data && (data.searchResult?.items || data.itemsResult?.items)) || [], data };
   } catch (e) {
     clearTimeout(timer);
@@ -170,7 +174,7 @@ async function discoverDeals() {
         url:       `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`,
       };
     }
-    await sleep(1100);   // ~1 req/sec — respect the Creators API rate limit
+    await sleep(1500);   // conservative spacing — respect the Creators API rate limit
   }
   if (!probed) console.log('[sync-deals] searchItems returned no items across all terms');
   return Object.values(found);
