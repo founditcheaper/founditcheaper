@@ -169,8 +169,9 @@ async function discoverDeals() {
       if (off > BRAND_MAX) continue;
       const rating  = it.customerReviews?.starRating?.value || 0;
       const reviews = it.customerReviews?.count || 0;
+      // searchItems often omits reviews — only filter on them when present.
       if (rating > 0 && rating < MIN_RATING) continue;
-      if (reviews < MIN_REVIEWS) continue;
+      if (reviews > 0 && reviews < MIN_REVIEWS) continue;
       if (MAX_PRICE_CAP > 0 && price > MAX_PRICE_CAP) continue;
       found[asin] = {
         asin, name: name.slice(0, 250), price, was, off,
