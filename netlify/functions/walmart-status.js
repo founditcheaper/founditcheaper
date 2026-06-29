@@ -76,21 +76,26 @@ exports.handler = async function () {
   out.taxonomyStatus = tax.status;
   if (tax.status !== 200) out.taxonomyRaw = tax.raw;
 
-  // 2. Catalog Product (paginated/items) — the real deals endpoint. Uses the
-  //    Impact Publisher ID (4077610). Can filter by special offers (rollback/clearance).
-  const PUB = process.env.WALMART_PUBLISHER_ID || '4077610';
-  const cat = await wmGet(`/paginated/items?publisherId=${PUB}`);
-  out.catalogStatus = cat.status;
-  out.catalogSample = summarize(cat, 1400);
+  // Pull a few REAL category ids from the taxonomy
+  const cats = (tax.json && tax.json.categories) || [];
+  out.sampleCategories = cats.slice(0, 6).map(c => ({ id: c.id, name: c.name }));
+  const PUB    = process.env.WALMART_PUBLISHER_ID || '4077610';
+  const realId = cats.find(c => /electronic|home|tool/i.test(c.name || ''))?.id || (cats[0] && cats[0].id);
+  out.testCategoryId = realId;
 
-  const roll = await wmGet(`/paginated/items?publisherId=${PUB}&specialOffers=rollback`);
-  out.rollbackSample = summarize(roll, 1400);
+  // 2a. paginated/items filtered to a real category (looking for non-sample data)
+  if (realId) {
+    const byCat = await wmGet(`/paginated/items?publisherId=${PUB}&category=${encodeURIComponent(realId)}`);
+    out.itemsByCategory = summarize(byCat, 900);
+  }
 
-  const clr = await wmGet(`/paginated/items?publisherId=${PUB}&specialOffers=clearance`);
-  out.clearanceSample = summarize(clr, 600);
+  // 2b. search for a real product term — most reliable source of live data + prices
+  const srch = await wmGet(`/search?publisherId=${PUB}&query=${encodeURIComponent('cordless drill')}`);
+  out.searchStatus = srch.status;
+  out.searchSample = summarize(srch, 1200);
 
   out.verdict = tax.status === 200
-    ? 'AUTH OK — Walmart signed requests work. See catalogSample / rollbackSample for deal data.'
+    ? 'AUTH OK. Compare itemsByCategory / searchSample — looking for REAL (non-sample) items with msrp>salePrice.'
     : `AUTH issue (${tax.status}) — see taxonomyRaw`;
   return resp(out);
 };
