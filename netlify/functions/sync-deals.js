@@ -119,14 +119,12 @@ async function searchAmazon(keywords, token, retry = true) {
     }
     const text = await res.text();
     let data = null; try { data = JSON.parse(text); } catch {}
-    if (res.status !== 200) { console.error(`[sync-deals] search "${keywords}" -> HTTP ${res.status}: ${text.slice(0, 160)}`); return { items: [] }; }
-    if (!_loggedShape) { _loggedShape = true; console.log(`[sync-deals] 200 keys: ${Object.keys(data || {}).join(',')} | body: ${text.slice(0, 400)}`); }
-    const items = (data && (data.searchResult?.items || data.itemsResult?.items || data.items || data.searchResult?.Items)) || [];
-    return { items, data };
+    if (res.status !== 200) { console.error(`[sync-deals] search "${keywords}" -> HTTP ${res.status}: ${text.slice(0, 160)}`); return { items: [], status: res.status, err: text.slice(0, 120) }; }
+    const items = (data && (data.searchResult?.items || data.itemsResult?.items || data.items)) || [];
+    return { items, status: 200 };
   } catch (e) {
     clearTimeout(timer);
-    console.error(`[sync-deals] search "${keywords}" failed: ${e.message}`);
-    return { items: [] };
+    return { items: [], status: 0, err: String(e).slice(0, 120) };
   }
 }
 
@@ -142,12 +140,17 @@ async function discoverDeals() {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const start = Date.now();
   const found = {};
-  let probed = false;
+  const stats = { terms: 0, s200: 0, s429: 0, sOther: 0, sErr: 0, itemsSeen: 0, lastErr: '' };
 
   for (const term of SEARCH_TERMS) {
-    if (Date.now() - start > 18000) { console.log('[sync-deals] search time cap reached — using what we have'); break; }
-    const { items } = await searchAmazon(term, token);
-    if (!probed && items[0]) { console.log('[sync-deals] sample item:', JSON.stringify(items[0]).slice(0, 700)); probed = true; }
+    if (Date.now() - start > 18000) { stats.timeCap = true; break; }
+    const { items, status, err } = await searchAmazon(term, token);
+    stats.terms++;
+    if (status === 200) stats.s200++;
+    else if (status === 429) stats.s429++;
+    else if (status === 0) { stats.sErr++; if (err) stats.lastErr = err; }
+    else { stats.sOther++; if (err) stats.lastErr = `${status}:${err}`; }
+    stats.itemsSeen += items.length;
     for (const it of items) {
       const asin = it.asin || it.ASIN;
       if (!asin || found[asin]) continue;
@@ -180,8 +183,9 @@ async function discoverDeals() {
     }
     await sleep(1500);   // conservative spacing — respect the Creators API rate limit
   }
-  if (!probed) console.log('[sync-deals] searchItems returned no items across all terms');
-  return Object.values(found);
+  stats.found = Object.keys(found).length;
+  console.log('[sync-deals] discovery stats:', JSON.stringify(stats));
+  return { deals: Object.values(found), stats };
 }
 
 exports.handler = async function () {
@@ -194,7 +198,8 @@ exports.handler = async function () {
   const sbHeaders = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
 
   // 1. Discover + variant-dedup
-  let deals = await discoverDeals();
+  const disc = await discoverDeals();
+  let deals = disc.deals;
   const bestByKey = {};
   for (const d of deals) {
     const k = baseNameKey(d.name);
@@ -205,7 +210,7 @@ exports.handler = async function () {
 
   // Safety: if discovery returned nothing (API hiccup), leave the existing grid alone.
   if (deals.length === 0) {
-    return { statusCode: 200, body: JSON.stringify({ ok: true, added: 0 }) };
+    return { statusCode: 200, body: JSON.stringify({ ok: true, added: 0, stats: disc.stats }) };
   }
 
   // 2. Replace the auto-pulled Amazon set (preserve manual Top Picks)
@@ -255,6 +260,6 @@ exports.handler = async function () {
   return {
     statusCode: 200,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ok: true, added: inserted }),
+    body: JSON.stringify({ ok: true, added: inserted, stats: disc.stats }),
   };
 };
