@@ -151,12 +151,13 @@ async function discoverDeals() {
     for (const it of items) {
       const asin = it.asin || it.ASIN;
       if (!asin || found[asin]) continue;
-      const listing = it.offersV2?.listings?.[0];
-      const price   = Number(listing?.price?.amount) || 0;
-      const dd      = listing?.dealDetails || {};
-      const was     = Number(dd.originalPrice?.amount) || Number(listing?.price?.savingBasis?.amount) || 0;
-      if (price < MIN_PRICE || was <= price) continue;
-      const off = dd.percentageSaved ? Math.round(dd.percentageSaved) : Math.round((1 - price / was) * 100);
+      const listings = it.offersV2?.listings || [];
+      const listing  = listings.find(l => l.isBuyBoxWinner) || listings[0];
+      const price = Number(listing?.price?.money?.amount) || 0;
+      const was   = Number(listing?.price?.savingBasis?.money?.amount) || 0;
+      const pct   = listing?.price?.savings?.percentage;
+      if (price < MIN_PRICE || was <= price) continue;     // require a real markdown
+      const off = (typeof pct === 'number' && pct > 0) ? Math.round(pct) : Math.round((1 - price / was) * 100);
       if (off < MIN_DISCOUNT) continue;
       const name      = it.itemInfo?.title?.displayValue || '';
       const brandName = it.itemInfo?.byLineInfo?.brand?.displayValue || '';
