@@ -20,19 +20,20 @@
 [functions."save-deals"]
   timeout = 26
 
+# All Deals grid refreshes twice a day — 7:30 & 19:30 UTC = 2:30 AM & 2:30 PM CDT.
+# Both syncs REPLACE their store's auto-pulled deals (is_top_pick=false) and
+# preserve manually curated Top Picks (is_top_pick=true).
 [functions."sync-deals"]
-  schedule = "0 6 * * *"
+  schedule = "30 7,19 * * *"
   timeout = 26
 
 [functions."sync-walmart"]
-  schedule = "0 7 * * *"
+  schedule = "40 7,19 * * *"
   timeout = 26
 
-# Promotes today's best deals to the Top Picks carousel, ~50/50 Walmart/Amazon.
-# Runs after both deal syncs.
-[functions."promote-top-picks"]
-  schedule = "30 7 * * *"
-  timeout = 26
+# promote-top-picks is intentionally NOT scheduled. Top Daily Deal Picks are
+# curated manually by Erik (he features specific products for videos), so nothing
+# auto-touches them. The function remains available to run on demand if wanted.
 
 # Self-hosted deep linker: /go/<ASIN> runs the go function, which adds the
 # affiliate tag and redirects the shopper to Amazon.

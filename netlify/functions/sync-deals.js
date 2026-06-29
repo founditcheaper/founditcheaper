@@ -1,20 +1,45 @@
-// Scheduled daily at 6 AM UTC (configured in netlify.toml).
+// Scheduled twice daily (see netlify.toml) — Amazon deal sync.
 //
-// Pulls Amazon deals, dedupes by ASIN against Supabase, enriches each with
-// images + ratings via the Amazon Creators API, then inserts the new rows.
-// Historical rows are never deleted — the grid accumulates over time.
-//
-// ⚠️  DEAL DISCOVERY IS NOT WIRED UP YET.
-// Rainforest (the previous deal source) was removed for Amazon Associates
-// compliance. The Amazon-native deal-finder still needs to be built — see
-// discoverDeals() below. Until then this function pulls nothing and inserts 0.
+// Discovers discounted Amazon products via the Amazon Creators API `searchItems`
+// operation (searches category terms, filtered by minimum discount), applies the
+// same quality rules as Walmart, then REPLACES the auto-pulled Amazon deals in
+// Supabase (store='Amazon', is_top_pick=false) so the grid stays current and
+// dup-free. Manually curated Top Picks (is_top_pick=true) are always preserved.
 
 const AFFILIATE_TAG = 'founditchea09-20';
-const MIN_DISCOUNT  = 10;   // % off — minimum discount a deal must have to qualify
-const MAX_PRICE     = 0;    // 0 = no price cap
+const MIN_DISCOUNT  = 20;   // % off
+const MAX_DISCOUNT  = 75;   // brand trust: above this is usually an inflated list price
+const BRAND_MAX     = 90;   // hard sanity ceiling even for brands
+const MIN_PRICE     = 5;    // skip sub-$5 junk
+const MIN_RATING    = 3.5;
+const MIN_REVIEWS   = 3;
+const MAX_PRICE_CAP = 0;    // 0 = no price cap
+
+const SEARCH_TERMS = [
+  'cordless drill', 'power tools', 'tool set', 'impact driver', 'work boots',
+  'air fryer', 'coffee maker', 'bluetooth headphones', 'bluetooth speaker',
+  'smart tv', 'vacuum cleaner', 'gaming headset', 'kitchen appliances',
+  'home improvement', 'garden tools', 'car accessories', 'camping gear',
+  'fitness equipment', 'laptop', 'monitor', 'security camera', 'space heater',
+  'generator', 'air compressor', 'cooler',
+];
+
+const BRANDS = [
+  'dewalt','milwaukee','makita','ryobi','craftsman','black+decker','black & decker','bosch',
+  'stanley','ridgid','kobalt','skil','porter-cable','metabo','hart','greenworks','ego',
+  'ninja','kitchenaid','cuisinart','keurig','instant pot','crock-pot','hamilton beach','oster',
+  'vitamix','nespresso','breville','pyrex','rubbermaid',
+  'sony','samsung','lg','bose','jbl','apple','beats','anker','logitech','razer','hp','dell','asus','acer','lenovo','tcl','hisense','roku','amazon','google','garmin','gopro',
+  'dyson','shark','bissell','hoover','irobot','roomba',
+  'yeti','coleman','igloo','carhartt','dickies','nike','adidas','under armour','columbia','the north face',
+];
+
+function isBrand(name, brandName) {
+  const hay = `${(brandName || '')} ${(name || '')}`.toLowerCase();
+  return BRANDS.some(b => hay.includes(b));
+}
 
 function baseNameKey(name) {
-  // Strip trailing color/variant qualifiers then keep first 7 words as dedup key
   return (name || '').toLowerCase()
     .replace(/[\s,\-|]+(?:black|white|blue|red|green|grey|gray|silver|gold|pink|purple|midnight|charcoal|cream|navy|teal|rose|ivory|titanium|sage|natural|espresso|walnut|oak|brown|beige|tan|coral|yellow|orange|lavender|violet|maroon|olive|mint|turquoise|multicolor|multi.color|\d+[\s-]?pack|\d+\s*oz|\d+\s*lbs?|\d+\s*ft|\d+\s*in(?:ch)?|\d+\s*count)\b.*$/i, '')
     .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
@@ -47,10 +72,8 @@ async function getCreatorsToken() {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body:    new URLSearchParams({
-      grant_type:    'client_credentials',
-      client_id:     clientId,
-      client_secret: clientSecret,
-      scope:         'creatorsapi::default',
+      grant_type: 'client_credentials', client_id: clientId,
+      client_secret: clientSecret, scope: 'creatorsapi::default',
     }).toString(),
   });
   const data = await res.json();
@@ -60,30 +83,12 @@ async function getCreatorsToken() {
   return _creatorsToken;
 }
 
-// ── Deal discovery ────────────────────────────────────────────────────────
-// TODO: implement Amazon-native deal discovery here, via the Amazon Creators /
-// PA-API SearchItems endpoint with a minimum-discount filter (MIN_DISCOUNT)
-// across the target categories. Should return an array of:
-//   { asin, name, category, price, was, off, img, url }
-// `seenAsins` holds ASINs already in the DB — skip those. Honor MAX_PRICE.
-// Returns [] until the Amazon search piece is built.
-async function discoverDeals(seenAsins) {
-  console.log(
-    '[sync-deals] No Amazon deal-discovery source is configured yet ' +
-    '(Rainforest was removed for compliance). Nothing to pull — build ' +
-    'discoverDeals() on the Amazon API.'
-  );
-  return [];
-}
-
-// ── Enrich a single ASIN with images + rating via the Amazon Creators API ──
-let _creatorsEligible = true;
-
-async function fetchProductData(asin) {
-  if (!_creatorsEligible) return { images: [], rating: 0, reviews: 0 };
+// ── Search Amazon for discounted items (one keyword) ───────────────────────
+async function searchAmazon(keywords, token) {
+  const ctrl  = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
-    const token = await getCreatorsToken();
-    const res   = await fetch('https://creatorsapi.amazon/catalog/v1/getItems', {
+    const res = await fetch('https://creatorsapi.amazon/catalog/v1/searchItems', {
       method:  'POST',
       headers: {
         Authorization:   `Bearer ${token}`,
@@ -91,108 +96,116 @@ async function fetchProductData(asin) {
         'x-marketplace': 'www.amazon.com',
       },
       body: JSON.stringify({
-        itemIds:     [asin],
-        itemIdType:  'ASIN',
-        resources:   ['images.primary.large', 'images.variants.large', 'customerReviews.starRating', 'customerReviews.count'],
+        keywords,
+        searchIndex:      'All',
+        itemCount:        10,
+        minSavingPercent: MIN_DISCOUNT,
+        resources: [
+          'images.primary.large', 'itemInfo.title', 'itemInfo.byLineInfo',
+          'offersV2.listings.price', 'offersV2.listings.dealDetails',
+          'customerReviews.starRating', 'customerReviews.count',
+        ],
         partnerTag:  AFFILIATE_TAG,
         partnerType: 'Associates',
         marketplace: 'www.amazon.com',
       }),
+      signal: ctrl.signal,
     });
-    const data = await res.json();
-
-    // AssociateNotEligible can arrive at the top level OR inside errors[].
-    const reason = data.reason || data.errors?.[0]?.reason;
-    if (reason === 'AssociateNotEligible') {
-      _creatorsEligible = false;
-      console.log('[sync-deals] Amazon Creators API not eligible yet — storing deals without enrichment');
-      return { images: [], rating: 0, reviews: 0 };
-    }
-
-    const item = data.itemsResult?.items?.[0];
-    if (!item) return { images: [], rating: 0, reviews: 0 };
-    const primary  = item.images?.primary?.large?.url;
-    const variants = (item.images?.variants || []).map(v => v.large?.url).filter(Boolean);
-    return {
-      images:  primary ? [primary, ...variants] : variants,
-      rating:  item.customerReviews?.starRating?.value || 0,
-      reviews: item.customerReviews?.count || 0,
-    };
-  } catch {
-    return { images: [], rating: 0, reviews: 0 };
+    clearTimeout(timer);
+    const text = await res.text();
+    let data = null; try { data = JSON.parse(text); } catch {}
+    if (res.status !== 200) { console.error(`[sync-deals] search "${keywords}" -> HTTP ${res.status}: ${text.slice(0, 200)}`); return { items: [] }; }
+    return { items: (data && (data.searchResult?.items || data.itemsResult?.items)) || [], data };
+  } catch (e) {
+    clearTimeout(timer);
+    console.error(`[sync-deals] search "${keywords}" failed: ${e.message}`);
+    return { items: [] };
   }
 }
 
-exports.handler = async function (event) {
+// ── Deal discovery via the Creators API searchItems operation ──────────────
+async function discoverDeals() {
+  let token;
+  try { token = await getCreatorsToken(); }
+  catch (e) { console.error('[sync-deals] token failed:', e.message); return []; }
+
+  const results = await Promise.all(SEARCH_TERMS.map(t => searchAmazon(t, token)));
+
+  // One-time: log the real item shape so we can confirm/adjust field paths.
+  const probe = results.flatMap(r => r.items).find(Boolean);
+  if (probe) console.log('[sync-deals] sample item:', JSON.stringify(probe).slice(0, 700));
+  else console.log('[sync-deals] searchItems returned no items — check endpoint/params in logs above');
+
+  const found = {};
+  for (const r of results) {
+    for (const it of r.items) {
+      const asin = it.asin || it.ASIN;
+      if (!asin || found[asin]) continue;
+      const listing = it.offersV2?.listings?.[0];
+      const price   = Number(listing?.price?.amount) || 0;
+      const dd      = listing?.dealDetails || {};
+      const was     = Number(dd.originalPrice?.amount) || Number(listing?.price?.savingBasis?.amount) || 0;
+      if (price < MIN_PRICE || was <= price) continue;
+      const off = dd.percentageSaved ? Math.round(dd.percentageSaved) : Math.round((1 - price / was) * 100);
+      if (off < MIN_DISCOUNT) continue;
+      const name      = it.itemInfo?.title?.displayValue || '';
+      const brandName = it.itemInfo?.byLineInfo?.brand?.displayValue || '';
+      const brand     = isBrand(name, brandName);
+      if (off > MAX_DISCOUNT && !brand) continue;      // trust: no fake-looking mega-discounts
+      if (off > BRAND_MAX) continue;
+      const rating  = it.customerReviews?.starRating?.value || 0;
+      const reviews = it.customerReviews?.count || 0;
+      if (rating > 0 && rating < MIN_RATING) continue;
+      if (reviews < MIN_REVIEWS) continue;
+      if (MAX_PRICE_CAP > 0 && price > MAX_PRICE_CAP) continue;
+      found[asin] = {
+        asin, name: name.slice(0, 250), price, was, off,
+        img:       it.images?.primary?.large?.url || '',
+        rating, reviews, brand,
+        brandName: brand ? brandName : '',
+        category:  inferCategory(name),
+        url:       `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`,
+      };
+    }
+  }
+  return Object.values(found);
+}
+
+exports.handler = async function () {
   const sbUrl = process.env.SUPABASE_URL;
   const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
   if (!sbUrl || !sbKey) {
     console.error('[sync-deals] Missing required environment variables');
     return { statusCode: 500, body: 'Configuration error' };
   }
+  const sbHeaders = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
 
-  const sbHeaders = {
-    apikey:         sbKey,
-    Authorization:  `Bearer ${sbKey}`,
-    'Content-Type': 'application/json',
-  };
-
-  // ── 1. Load existing ASINs from Supabase to skip duplicates ──────────────
-  const seenAsins = new Set();
-  try {
-    const res  = await fetch(`${sbUrl}/rest/v1/deals?select=url&limit=20000`, {
-      headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
-    });
-    const rows = await res.json();
-    for (const row of (rows || [])) {
-      const m = (row.url || '').match(/\/dp\/([A-Z0-9]{10})/i);
-      if (m) seenAsins.add(m[1]);
-    }
-    console.log(`[sync-deals] ${seenAsins.size} existing products in DB`);
-  } catch (e) {
-    console.error('[sync-deals] Could not load existing ASINs:', e.message);
-    // Non-fatal — worst case a few duplicates get in
+  // 1. Discover + variant-dedup
+  let deals = await discoverDeals();
+  const bestByKey = {};
+  for (const d of deals) {
+    const k = baseNameKey(d.name);
+    if (!bestByKey[k] || d.off > bestByKey[k].off) bestByKey[k] = d;
   }
+  deals = Object.values(bestByKey);
+  console.log(`[sync-deals] ${deals.length} qualifying Amazon deals (after variant dedup)`);
 
-  // ── 2. Discover new Amazon deals (not yet implemented — see discoverDeals) ─
-  let newDeals = await discoverDeals(seenAsins);
-
-  // Dedup variants: same base product name → keep highest-discount entry only
-  const _bestByKey = {};
-  newDeals.forEach(d => {
-    const key = baseNameKey(d.name);
-    if (!_bestByKey[key] || d.off > _bestByKey[key].off) _bestByKey[key] = d;
-  });
-  newDeals = Object.values(_bestByKey);
-
-  console.log(`[sync-deals] ${newDeals.length} new deals to insert (after variant dedup)`);
-
-  if (newDeals.length === 0) {
+  // Safety: if discovery returned nothing (API hiccup), leave the existing grid alone.
+  if (deals.length === 0) {
     return { statusCode: 200, body: JSON.stringify({ ok: true, added: 0 }) };
   }
 
-  // ── 3. Enrich each deal with images + rating via the Amazon Creators API ──
-  const IMG_BATCH   = 20;
-  const enrichStart = Date.now();
-  for (let b = 0; b < newDeals.length; b += IMG_BATCH) {
-    if (Date.now() - enrichStart > 10000) {
-      console.log('[sync-deals] Enrichment time cap reached — remaining deals stored without images/ratings');
-      break;
-    }
-    const slice   = newDeals.slice(b, b + IMG_BATCH);
-    const results = await Promise.all(slice.map(d => fetchProductData(d.asin)));
-    slice.forEach((d, i) => {
-      d.images  = results[i].images;
-      d.rating  = results[i].rating;
-      d.reviews = results[i].reviews;
+  // 2. Replace the auto-pulled Amazon set (preserve manual Top Picks)
+  try {
+    const del = await fetch(`${sbUrl}/rest/v1/deals?store=eq.Amazon&is_top_pick=eq.false`, {
+      method: 'DELETE', headers: { ...sbHeaders, Prefer: 'return=minimal' },
     });
-  }
-  console.log(`[sync-deals] Enrichment done in ${Date.now() - enrichStart}ms`);
+    console.log(`[sync-deals] cleared previous Amazon deals -> HTTP ${del.status}`);
+  } catch (e) { console.error('[sync-deals] clear failed:', e.message); }
 
-  // ── 4. Insert new deals into Supabase in chunks ───────────────────────────
+  // 3. Insert fresh
   const today = new Date().toISOString().split('T')[0];
-  const rows  = newDeals.map((d, i) => ({
+  const rows  = deals.map((d, i) => ({
     rank:         i + 1,
     name:         d.name,
     store:        'Amazon',
@@ -203,13 +216,13 @@ exports.handler = async function (event) {
     rating:       d.rating  || 0,
     reviews:      d.reviews || 0,
     img:          d.img,
-    images:       d.images?.length ? JSON.stringify(d.images) : null,
+    images:       null,
     url:          d.url,
     code:         null,
     use_code_url: false,
-    creator:      false,
-    brand:        false,
-    brand_name:   null,
+    creator:      d.brand,
+    brand:        d.brand,
+    brand_name:   d.brandName || null,
     active_date:  today,
     is_top_pick:  false,
   }));
@@ -219,19 +232,13 @@ exports.handler = async function (event) {
   for (let i = 0; i < rows.length; i += CHUNK) {
     const chunk = rows.slice(i, i + CHUNK);
     const ins   = await fetch(`${sbUrl}/rest/v1/deals`, {
-      method:  'POST',
-      headers: { ...sbHeaders, Prefer: 'return=minimal' },
-      body:    JSON.stringify(chunk),
+      method: 'POST', headers: { ...sbHeaders, Prefer: 'return=minimal' }, body: JSON.stringify(chunk),
     });
-    if (!ins.ok) {
-      const detail = await ins.text();
-      console.error(`[sync-deals] Insert chunk ${i} failed:`, detail);
-    } else {
-      inserted += chunk.length;
-    }
+    if (!ins.ok) console.error(`[sync-deals] insert chunk ${i} failed:`, await ins.text());
+    else inserted += chunk.length;
   }
 
-  console.log(`[sync-deals] ✓ Inserted ${inserted} deals`);
+  console.log(`[sync-deals] ✓ Inserted ${inserted} Amazon deals`);
   return {
     statusCode: 200,
     headers: { 'Content-Type': 'application/json' },
