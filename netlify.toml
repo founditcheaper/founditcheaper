@@ -28,6 +28,12 @@
   schedule = "0 7 * * *"
   timeout = 26
 
+# Promotes today's best deals to the Top Picks carousel, ~50/50 Walmart/Amazon.
+# Runs after both deal syncs.
+[functions."promote-top-picks"]
+  schedule = "30 7 * * *"
+  timeout = 26
+
 # Self-hosted deep linker: /go/<ASIN> runs the go function, which adds the
 # affiliate tag and redirects the shopper to Amazon.
 [[redirects]]

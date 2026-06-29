@@ -45,19 +45,24 @@ exports.handler = async function () {
   const [amz, wmt] = await Promise.all([topFor('Amazon'), topFor('Walmart')]);
   console.log(`[promote-top-picks] selected ${amz.length} Amazon + ${wmt.length} Walmart`);
 
-  // Clear ALL existing top picks first, so the carousel shows exactly today's clean
-  // 50/50 set (no stale Amazon-only picks or duplicate ranks carrying over).
-  await fetch(`${sbUrl}/rest/v1/deals?is_top_pick=eq.true`, {
-    method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ is_top_pick: false }),
-  });
-
   // Interleave A,W,A,W… so the carousel reads as a 50/50 mix.
   const ordered = [];
   for (let i = 0; i < Math.max(amz.length, wmt.length); i++) {
     if (amz[i]) ordered.push(amz[i]);
     if (wmt[i]) ordered.push(wmt[i]);
   }
-  if (ordered.length === 0) return { statusCode: 200, body: JSON.stringify({ ok: true, picked: 0 }) };
+  // Safety: if a sync failed and there's nothing to pick, leave existing picks
+  // alone rather than blanking the carousel.
+  if (ordered.length === 0) {
+    console.log('[promote-top-picks] no candidates — leaving existing picks unchanged');
+    return { statusCode: 200, body: JSON.stringify({ ok: true, picked: 0 }) };
+  }
+
+  // Clear ALL existing top picks, so the carousel shows exactly today's clean
+  // 50/50 set (no stale picks or duplicate ranks carrying over).
+  await fetch(`${sbUrl}/rest/v1/deals?is_top_pick=eq.true`, {
+    method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ is_top_pick: false }),
+  });
 
   let promoted = 0;
   for (let i = 0; i < ordered.length; i++) {
