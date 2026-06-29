@@ -45,9 +45,9 @@ exports.handler = async function () {
   const [amz, wmt] = await Promise.all([topFor('Amazon'), topFor('Walmart')]);
   console.log(`[promote-top-picks] selected ${amz.length} Amazon + ${wmt.length} Walmart`);
 
-  // Clear today's existing picks so re-runs replace (not duplicate) today's set.
-  // Past days' picks are left intact (carousel history).
-  await fetch(`${sbUrl}/rest/v1/deals?is_top_pick=eq.true&active_date=eq.${today}`, {
+  // Clear ALL existing top picks first, so the carousel shows exactly today's clean
+  // 50/50 set (no stale Amazon-only picks or duplicate ranks carrying over).
+  await fetch(`${sbUrl}/rest/v1/deals?is_top_pick=eq.true`, {
     method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ is_top_pick: false }),
   });
 
