@@ -13,6 +13,33 @@ const MAX_DISCOUNT = 75;   // brand trust: above this is usually a fake/inflated
 const MIN_PRICE    = 5;    // skip sub-$5 junk
 const MIN_RATING   = 3.5;  // skip junk (0 rating = unknown, allowed)
 const MIN_REVIEWS  = 3;
+const BRAND_MAX    = 90;   // hard sanity ceiling even for brands (above = likely a price error)
+
+// Recognized brands: a >MAX_DISCOUNT deal is trustworthy if it's a real brand
+// (real brands rarely fake-inflate MSRP). Per Erik: brand + big discount = great deal.
+const BRANDS = [
+  'dewalt','milwaukee','makita','ryobi','craftsman','black+decker','black & decker','bosch',
+  'stanley','ridgid','kobalt','skil','porter-cable','metabo','hart','greenworks','ego',
+  'ninja','kitchenaid','cuisinart','keurig','instant pot','crock-pot','hamilton beach','oster',
+  'vitamix','nespresso','breville','pyrex','rubbermaid','tupperware',
+  'sony','samsung','lg','bose','jbl','apple','beats','anker','logitech','razer','hp','dell','asus','acer','lenovo','tcl','hisense','roku','amazon','google','garmin','gopro',
+  'dyson','shark','bissell','hoover','irobot','roomba',
+  'yeti','coleman','igloo','stanley','carhartt','dickies','nike','adidas','under armour','columbia','the north face',
+  'graco','fisher-price','lego','nerf','hot wheels','barbie',
+  'gillette','olay','cerave','colgate','crest',
+];
+
+function isBrand(name, brandName) {
+  const hay = `${(brandName || '')} ${(name || '')}`.toLowerCase();
+  return BRANDS.some(b => hay.includes(b));
+}
+
+// Strip trailing color/size/variant words → dedup key (avoids the same item twice)
+function baseNameKey(name) {
+  return (name || '').toLowerCase()
+    .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+    .split(' ').slice(0, 8).join(' ');
+}
 
 // Blue-collar / male-skewed category terms (mirrors the old auto-picker intent)
 const SEARCH_TERMS = [
@@ -88,30 +115,10 @@ exports.handler = async function () {
   }
   const sbHeaders = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
 
-  // 0. Trust cleanup: purge existing Walmart rows that fail the quality bar
-  //    (fake-looking discounts above MAX_DISCOUNT, or sub-floor prices).
-  try {
-    const del = await fetch(
-      `${sbUrl}/rest/v1/deals?store=eq.Walmart&or=(off.gt.${MAX_DISCOUNT},price.lt.${MIN_PRICE})`,
-      { method: 'DELETE', headers: { ...sbHeaders, Prefer: 'return=minimal' } }
-    );
-    console.log(`[sync-walmart] quality cleanup (off>${MAX_DISCOUNT} or price<${MIN_PRICE}) -> HTTP ${del.status}`);
-  } catch (e) {
-    console.error('[sync-walmart] cleanup failed:', e.message);
-  }
-
-  // 1. Existing Walmart item ids (dedupe) — itemId is embedded in the /ip/<id> url
-  const seen = new Set();
-  try {
-    const res  = await fetch(`${sbUrl}/rest/v1/deals?select=url&store=eq.Walmart&limit=20000`, { headers: sbHeaders });
-    const rows = await res.json();
-    for (const r of (rows || [])) { const m = (r.url || '').match(/\/ip\/(\d+)/); if (m) seen.add(m[1]); }
-    console.log(`[sync-walmart] ${seen.size} existing Walmart deals in DB`);
-  } catch (e) {
-    console.error('[sync-walmart] Could not load existing Walmart deals:', e.message);
-  }
-
-  // 2. Search across terms IN PARALLEL (stays within the function time limit)
+  // 1. Search across terms IN PARALLEL (stays within the function time limit).
+  //    REPLACE-style sync: pull the current best deals, then swap out the old
+  //    auto-pulled Walmart set below — so deals stay fresh and never accumulate
+  //    duplicates or stale prices.
   const termResults = await Promise.all(SEARCH_TERMS.map(t => wmSearch(t, pub)));
 
   // One-time: reveal the real field names on the first live item
@@ -125,12 +132,17 @@ exports.handler = async function () {
   for (const items of termResults) {
     for (const it of items) {
       const id = String(it.itemId || '');
-      if (!id || seen.has(id) || found[id]) continue;
+      if (!id || found[id]) continue;
       const price = Number(it.salePrice) || 0;
       const was   = Number(it.msrp) || 0;
       if (price < MIN_PRICE || was <= price) continue;     // real markdown + skip sub-$5 junk
       const off = Math.round((1 - price / was) * 100);
-      if (off < MIN_DISCOUNT || off > MAX_DISCOUNT) continue;  // trust: no fake-looking mega-discounts
+      if (off < MIN_DISCOUNT) continue;
+      // Trust rule: cap discounts at MAX_DISCOUNT — UNLESS it's a recognized brand
+      // (real brands rarely fake-inflate MSRP, so a big brand discount is a real deal).
+      const brand = isBrand(it.name, it.brandName);
+      if (off > MAX_DISCOUNT && !brand) continue;
+      if (off > BRAND_MAX) continue;                       // sanity backstop even for brands
       const rating  = parseFloat(it.customerRating) || 0;
       const reviews = Number(it.numReviews) || 0;
       if (rating > 0 && rating < MIN_RATING) continue;
@@ -143,16 +155,34 @@ exports.handler = async function () {
         img:      it.largeImage || it.mediumImage || it.thumbnailImage || '',
         url,
         rating, reviews,
+        brand,
+        brandName: brand ? (it.brandName || '') : '',
         category: inferCategory(it.categoryPath),
       };
     }
   }
 
-  const deals = Object.values(found);
-  console.log(`[sync-walmart] ${deals.length} new qualifying Walmart deals`);
+  // Dedup variants: same base product name → keep the highest-discount one only
+  const bestByKey = {};
+  for (const d of Object.values(found)) {
+    const k = baseNameKey(d.name);
+    if (!bestByKey[k] || d.off > bestByKey[k].off) bestByKey[k] = d;
+  }
+  const deals = Object.values(bestByKey);
+  console.log(`[sync-walmart] ${deals.length} new qualifying Walmart deals (after variant dedup)`);
   if (deals.length === 0) {
     return { statusCode: 200, body: JSON.stringify({ ok: true, added: 0 }) };
   }
+
+  // 2. Swap: remove the previous auto-pulled Walmart deals (keep any marked as top
+  //    picks), then insert the fresh set. Only runs when we actually have new deals,
+  //    so an API hiccup never leaves the grid empty.
+  try {
+    const del = await fetch(`${sbUrl}/rest/v1/deals?store=eq.Walmart&is_top_pick=eq.false`, {
+      method: 'DELETE', headers: { ...sbHeaders, Prefer: 'return=minimal' },
+    });
+    console.log(`[sync-walmart] cleared previous Walmart deals -> HTTP ${del.status}`);
+  } catch (e) { console.error('[sync-walmart] clear failed:', e.message); }
 
   // 3. Insert into Supabase
   const today = new Date().toISOString().split('T')[0];
@@ -171,9 +201,9 @@ exports.handler = async function () {
     url:          d.url,
     code:         null,
     use_code_url: false,
-    creator:      false,
-    brand:        false,
-    brand_name:   null,
+    creator:      d.brand,
+    brand:        d.brand,
+    brand_name:   d.brandName || null,
     active_date:  today,
     is_top_pick:  false,
   }));
