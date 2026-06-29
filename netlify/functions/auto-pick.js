@@ -106,7 +106,7 @@ exports.handler = async function (event) {
           price,   was: was || price,   off,
           rating,  reviews,
           img:     item.image ?? '',
-          url:     `https://www.amazon.com/dp/${item.asin}?tag=founditcheaper-20`,
+          url:     `https://www.amazon.com/dp/${item.asin}?tag=founditchea09-20`,
           code: '', useCodeUrl: true,
           creator: bigBrand, brand: bigBrand, brandName: '', rank: 0,
         });

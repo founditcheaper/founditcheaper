@@ -1,4 +1,4 @@
-const AFFILIATE_TAG = 'founditcheaper-20';
+const AFFILIATE_TAG = 'founditchea09-20';
 
 function withTag(url) {
   if (!url) return url;

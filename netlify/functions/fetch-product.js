@@ -1,7 +1,7 @@
 const TOKEN_ENDPOINT = 'https://api.amazon.com/auth/o2/token';
 const ITEMS_ENDPOINT = 'https://creatorsapi.amazon/catalog/v1/getItems';
 const MARKETPLACE    = 'www.amazon.com';
-const AFFILIATE_TAG  = 'founditcheaper-20';
+const AFFILIATE_TAG  = 'founditchea09-20';
 
 const RESOURCES = [
   'images.primary.large',

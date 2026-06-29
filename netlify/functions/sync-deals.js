@@ -3,7 +3,7 @@
 // Only inserts products not already in Supabase (deduplicates by ASIN).
 // Historical rows are never deleted — the grid accumulates over time.
 
-const AFFILIATE_TAG  = 'founditcheaper-20';
+const AFFILIATE_TAG  = 'founditchea09-20';
 const MIN_DISCOUNT   = 10;   // % off
 const MAX_PRICE      = 0;    // 0 = no price cap
 const PAGES_TO_FETCH = 5;    // 5 API credits per run; 500 total deals, ~30/page

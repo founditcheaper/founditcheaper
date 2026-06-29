@@ -16,7 +16,7 @@ exports.handler = async function (event) {
   if (!clientId || !clientSecret) return resp(out);
 
   const q    = event.queryStringParameters || {};
-  const tag  = q.tag  || 'founditcheaper-20';
+  const tag  = q.tag  || 'founditchea09-20';
   const asin = q.asin || 'B08C1W5N87';
   out.tagTested  = tag;
   out.asinTested = asin;

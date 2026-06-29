@@ -7,7 +7,7 @@
 - **Brand voice:** Deadpan, blue-collar, no hype words, no exclamation points
 - **Audience:** Male, ~30–45, blue-collar, deal-hunters
 - **Social:** ~855K Instagram followers, ~2,900 Beehiiv email subscribers
-- **Monetization:** Amazon affiliate commissions (tag: `founditcheaper-20`), Creator Connections, Mavely
+- **Monetization:** Amazon affiliate commissions (tag: `founditchea09-20`), Creator Connections, Mavely
 
 ## What This Project Is
 A fully automated deals aggregation website that pulls real deals via APIs, stores them in Supabase, and displays them on a dark navy/gold branded frontend. The goal is **zero manual deal uploading** except for manually curated "Top Picks."
@@ -136,7 +136,7 @@ updated_at timestamptz default now()
 - Approval expected in 24–48 hours
 - Once approved: replace Rainforest as primary deal source
 - Rainforest stays as backup/fallback only
-- Amazon affiliate tag: `founditcheaper-20`
+- Amazon affiliate tag: `founditchea09-20`
 
 ### 2. Self-Hosted Deep Linking (replace Joylink)
 - Currently using Joylink (~$300/month) for affiliate deep linking

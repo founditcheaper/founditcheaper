@@ -2,14 +2,14 @@
 //
 // A shopper clicks /go/<ASIN> and this function:
 //   1. Validates the ASIN (so the endpoint can't be abused as an open redirect)
-//   2. Builds the Amazon product URL with the founditcheaper-20 affiliate tag
+//   2. Builds the Amazon product URL with the founditchea09-20 affiliate tag
 //   3. Logs the click to Supabase (fire-and-forget — never blocks the redirect)
 //   4. 302-redirects the shopper to Amazon
 //
 // Only Amazon is wired up for now. Other stores can be added later once their
 // affiliate programs are connected — see the `store` handling below.
 
-const AFFILIATE_TAG = process.env.AFFILIATE_TAG || 'founditcheaper-20';
+const AFFILIATE_TAG = process.env.AFFILIATE_TAG || 'founditchea09-20';
 
 // Amazon ASINs are always 10 chars: a digit or capital letters/digits.
 const ASIN_RE = /^[A-Z0-9]{10}$/;
