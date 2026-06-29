@@ -84,6 +84,7 @@ async function getCreatorsToken() {
 }
 
 // ── Search Amazon for discounted items (one keyword) ───────────────────────
+let _loggedShape = false;
 async function searchAmazon(keywords, token, retry = true) {
   const ctrl  = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
@@ -119,7 +120,9 @@ async function searchAmazon(keywords, token, retry = true) {
     const text = await res.text();
     let data = null; try { data = JSON.parse(text); } catch {}
     if (res.status !== 200) { console.error(`[sync-deals] search "${keywords}" -> HTTP ${res.status}: ${text.slice(0, 160)}`); return { items: [] }; }
-    return { items: (data && (data.searchResult?.items || data.itemsResult?.items)) || [], data };
+    if (!_loggedShape) { _loggedShape = true; console.log(`[sync-deals] 200 keys: ${Object.keys(data || {}).join(',')} | body: ${text.slice(0, 400)}`); }
+    const items = (data && (data.searchResult?.items || data.itemsResult?.items || data.items || data.searchResult?.Items)) || [];
+    return { items, data };
   } catch (e) {
     clearTimeout(timer);
     console.error(`[sync-deals] search "${keywords}" failed: ${e.message}`);
