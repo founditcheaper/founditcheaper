@@ -1,12 +1,17 @@
 // Scheduled daily at 6 AM UTC (configured in netlify.toml).
-// Uses Rainforest API type=deals to pull Amazon's live deal pages.
-// Only inserts products not already in Supabase (deduplicates by ASIN).
+//
+// Pulls Amazon deals, dedupes by ASIN against Supabase, enriches each with
+// images + ratings via the Amazon Creators API, then inserts the new rows.
 // Historical rows are never deleted — the grid accumulates over time.
+//
+// ⚠️  DEAL DISCOVERY IS NOT WIRED UP YET.
+// Rainforest (the previous deal source) was removed for Amazon Associates
+// compliance. The Amazon-native deal-finder still needs to be built — see
+// discoverDeals() below. Until then this function pulls nothing and inserts 0.
 
-const AFFILIATE_TAG  = 'founditchea09-20';
-const MIN_DISCOUNT   = 10;   // % off
-const MAX_PRICE      = 0;    // 0 = no price cap
-const PAGES_TO_FETCH = 5;    // 5 API credits per run; 500 total deals, ~30/page
+const AFFILIATE_TAG = 'founditchea09-20';
+const MIN_DISCOUNT  = 10;   // % off — minimum discount a deal must have to qualify
+const MAX_PRICE     = 0;    // 0 = no price cap
 
 function baseNameKey(name) {
   // Strip trailing color/variant qualifiers then keep first 7 words as dedup key
@@ -29,7 +34,7 @@ function inferCategory(title) {
   return 'Home';
 }
 
-// In-process Creators API token cache
+// ── Amazon Creators API token (cached across warm invocations) ────────────
 let _creatorsToken = null;
 let _creatorsTokenExp = 0;
 
@@ -55,12 +60,74 @@ async function getCreatorsToken() {
   return _creatorsToken;
 }
 
-exports.handler = async function (event) {
-  const apiKey = process.env.RAINFOREST_API_KEY;
-  const sbUrl  = process.env.SUPABASE_URL;
-  const sbKey  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// ── Deal discovery ────────────────────────────────────────────────────────
+// TODO: implement Amazon-native deal discovery here, via the Amazon Creators /
+// PA-API SearchItems endpoint with a minimum-discount filter (MIN_DISCOUNT)
+// across the target categories. Should return an array of:
+//   { asin, name, category, price, was, off, img, url }
+// `seenAsins` holds ASINs already in the DB — skip those. Honor MAX_PRICE.
+// Returns [] until the Amazon search piece is built.
+async function discoverDeals(seenAsins) {
+  console.log(
+    '[sync-deals] No Amazon deal-discovery source is configured yet ' +
+    '(Rainforest was removed for compliance). Nothing to pull — build ' +
+    'discoverDeals() on the Amazon API.'
+  );
+  return [];
+}
 
-  if (!apiKey || !sbUrl || !sbKey) {
+// ── Enrich a single ASIN with images + rating via the Amazon Creators API ──
+let _creatorsEligible = true;
+
+async function fetchProductData(asin) {
+  if (!_creatorsEligible) return { images: [], rating: 0, reviews: 0 };
+  try {
+    const token = await getCreatorsToken();
+    const res   = await fetch('https://creatorsapi.amazon/catalog/v1/getItems', {
+      method:  'POST',
+      headers: {
+        Authorization:   `Bearer ${token}`,
+        'Content-Type':  'application/json',
+        'x-marketplace': 'www.amazon.com',
+      },
+      body: JSON.stringify({
+        itemIds:     [asin],
+        itemIdType:  'ASIN',
+        resources:   ['images.primary.large', 'images.variants.large', 'customerReviews.starRating', 'customerReviews.count'],
+        partnerTag:  AFFILIATE_TAG,
+        partnerType: 'Associates',
+        marketplace: 'www.amazon.com',
+      }),
+    });
+    const data = await res.json();
+
+    // AssociateNotEligible can arrive at the top level OR inside errors[].
+    const reason = data.reason || data.errors?.[0]?.reason;
+    if (reason === 'AssociateNotEligible') {
+      _creatorsEligible = false;
+      console.log('[sync-deals] Amazon Creators API not eligible yet — storing deals without enrichment');
+      return { images: [], rating: 0, reviews: 0 };
+    }
+
+    const item = data.itemsResult?.items?.[0];
+    if (!item) return { images: [], rating: 0, reviews: 0 };
+    const primary  = item.images?.primary?.large?.url;
+    const variants = (item.images?.variants || []).map(v => v.large?.url).filter(Boolean);
+    return {
+      images:  primary ? [primary, ...variants] : variants,
+      rating:  item.customerReviews?.starRating?.value || 0,
+      reviews: item.customerReviews?.count || 0,
+    };
+  } catch {
+    return { images: [], rating: 0, reviews: 0 };
+  }
+}
+
+exports.handler = async function (event) {
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!sbUrl || !sbKey) {
     console.error('[sync-deals] Missing required environment variables');
     return { statusCode: 500, body: 'Configuration error' };
   }
@@ -88,63 +155,8 @@ exports.handler = async function (event) {
     // Non-fatal — worst case a few duplicates get in
   }
 
-  // ── 2. Fetch pages of Amazon deals in parallel ───────────────────────────
-  async function fetchPage(page) {
-    const url =
-      `https://api.rainforestapi.com/request?api_key=${apiKey}` +
-      `&type=deals&amazon_domain=amazon.com&page=${page}`;
-
-    const ctrl  = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 10000);
-
-    try {
-      const res  = await fetch(url, { signal: ctrl.signal });
-      const data = await res.json();
-      clearTimeout(timer);
-
-      if (data.request_info?.success === false) {
-        console.error(`[sync-deals] API error page ${page}:`, data.request_info.message);
-        return [];
-      }
-
-      const hits = [];
-      for (const d of (data.deals_results || [])) {
-        const asin = d.asin;
-        if (!asin || seenAsins.has(asin)) continue;
-
-        const price = d.deal_price?.value ?? d.current_price?.value ?? 0;
-        const was   = d.list_price?.value ?? d.regular_price?.value ?? 0;
-        const off   = typeof d.percent_off === 'number' ? d.percent_off : 0;
-
-        if (price <= 0) continue;
-        if (MAX_PRICE > 0 && price > MAX_PRICE) continue;
-        if (off < MIN_DISCOUNT) continue;
-
-        seenAsins.add(asin);
-        hits.push({
-          asin,
-          name:     (d.title || '').slice(0, 250),
-          category: inferCategory(d.title),
-          price,
-          was:      was > price ? was : price,
-          off,
-          img:      d.image ?? '',
-          url:      `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`,
-        });
-      }
-
-      console.log(`[sync-deals] Page ${page}: ${hits.length} qualifying deals`);
-      return hits;
-    } catch (e) {
-      clearTimeout(timer);
-      console.error(`[sync-deals] Page ${page} failed:`, e.message);
-      return [];
-    }
-  }
-
-  const pages   = Array.from({ length: PAGES_TO_FETCH }, (_, i) => i + 1);
-  const batches = await Promise.all(pages.map(fetchPage));
-  let   newDeals = batches.flat();
+  // ── 2. Discover new Amazon deals (not yet implemented — see discoverDeals) ─
+  let newDeals = await discoverDeals(seenAsins);
 
   // Dedup variants: same base product name → keep highest-discount entry only
   const _bestByKey = {};
@@ -160,73 +172,7 @@ exports.handler = async function (event) {
     return { statusCode: 200, body: JSON.stringify({ ok: true, added: 0 }) };
   }
 
-  // ── 3. Enrich each deal with images + rating via Creators API / Rainforest ──
-  // Returns { images, rating, reviews } for each ASIN.
-  // Tries Creators first (free, images only); falls back to Rainforest type=product
-  // which returns both images AND rating data in one call.
-  let creatorsEligible = true;
-
-  async function fetchProductData(asin) {
-    const ctrl  = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 7000);
-
-    if (creatorsEligible) {
-      try {
-        const token = await getCreatorsToken();
-        const res   = await fetch('https://creatorsapi.amazon/catalog/v1/getItems', {
-          method:  'POST',
-          headers: {
-            Authorization:   `Bearer ${token}`,
-            'Content-Type':  'application/json',
-            'x-marketplace': 'www.amazon.com',
-          },
-          body: JSON.stringify({
-            itemIds:     [asin],
-            itemIdType:  'ASIN',
-            resources:   ['images.primary.large', 'images.variants.large'],
-            partnerTag:  AFFILIATE_TAG,
-            partnerType: 'Associates',
-            marketplace: 'www.amazon.com',
-          }),
-          signal: ctrl.signal,
-        });
-        clearTimeout(timer);
-        const data       = await res.json();
-        const firstError = data.errors?.[0];
-        if (firstError?.reason === 'AssociateNotEligible') {
-          creatorsEligible = false;
-          console.log('[sync-deals] Creators API not yet eligible — switching to Rainforest');
-        } else {
-          const item    = data.itemsResult?.items?.[0];
-          if (item) {
-            const primary  = item.images?.primary?.large?.url;
-            const variants = (item.images?.variants || []).map(v => v.large?.url).filter(Boolean);
-            return { images: primary ? [primary, ...variants] : variants, rating: 0, reviews: 0 };
-          }
-          return { images: [], rating: 0, reviews: 0 };
-        }
-      } catch {
-        clearTimeout(timer);
-      }
-    }
-
-    // Fallback: Rainforest type=product — returns images AND rating in one call
-    if (!apiKey) return { images: [], rating: 0, reviews: 0 };
-    try {
-      const url  = `https://api.rainforestapi.com/request?api_key=${apiKey}&type=product&asin=${asin}&amazon_domain=amazon.com`;
-      const res  = await fetch(url);
-      const data = await res.json();
-      const p    = data.product || {};
-      return {
-        images:  (p.images || []).map(img => img.link).filter(Boolean),
-        rating:  p.rating        ?? 0,
-        reviews: p.ratings_total ?? 0,
-      };
-    } catch {
-      return { images: [], rating: 0, reviews: 0 };
-    }
-  }
-
+  // ── 3. Enrich each deal with images + rating via the Amazon Creators API ──
   const IMG_BATCH   = 20;
   const enrichStart = Date.now();
   for (let b = 0; b < newDeals.length; b += IMG_BATCH) {

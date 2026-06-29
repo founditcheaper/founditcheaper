@@ -789,7 +789,7 @@ async function fetchProduct(idx) {
   deals[idx].url = url;
   document.getElementById('url-input-' + idx).value = url;
 
-  showMsg(msg, 'Fetching product info from Rainforest API…', 'muted');
+  showMsg(msg, 'Fetching product info from Amazon…', 'muted');
   var fetchBtn = document.querySelector('[onclick="fetchProduct(' + idx + ')"]');
   if (fetchBtn) fetchBtn.disabled = true;
 

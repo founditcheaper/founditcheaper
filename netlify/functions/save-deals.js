@@ -35,8 +35,8 @@ async function getCreatorsToken() {
   return _creatorsToken;
 }
 
-async function fetchImages(asin, rainforestApiKey) {
-  // Try Creators API first (free); fall back to Rainforest on ineligibility
+async function fetchImages(asin) {
+  // Amazon Creators API only — Rainforest removed for Associates compliance.
   if (_creatorsEligible) {
     try {
       const token = await getCreatorsToken();
@@ -50,8 +50,8 @@ async function fetchImages(asin, rainforestApiKey) {
         }),
       });
       const data       = await res.json();
-      const firstError = data.errors?.[0];
-      if (firstError?.reason === 'AssociateNotEligible') {
+      const reason = data.reason || data.errors?.[0]?.reason;
+      if (reason === 'AssociateNotEligible') {
         _creatorsEligible = false;
       } else {
         const item    = data.itemsResult?.items?.[0];
@@ -65,17 +65,7 @@ async function fetchImages(asin, rainforestApiKey) {
     } catch {}
   }
 
-  // Rainforest fallback
-  if (!rainforestApiKey) return [];
-  try {
-    const res  = await fetch(
-      `https://api.rainforestapi.com/request?api_key=${rainforestApiKey}&type=product&asin=${asin}&amazon_domain=amazon.com`
-    );
-    const data = await res.json();
-    return (data.product?.images || []).map(img => img.link).filter(Boolean);
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 exports.handler = async function (event) {
@@ -101,7 +91,6 @@ exports.handler = async function (event) {
 
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const rainforestKey = process.env.RAINFOREST_API_KEY;
   const date        = activeDate || new Date().toISOString().split('T')[0];
   const headers     = {
     apikey:          supabaseKey,
@@ -136,7 +125,7 @@ exports.handler = async function (event) {
   await Promise.all(rows.map(async (row) => {
     const asin = (row.url || '').match(/\/dp\/([A-Z0-9]{10})/i)?.[1];
     if (!asin) return;
-    const imgs = await fetchImages(asin, rainforestKey);
+    const imgs = await fetchImages(asin);
     if (imgs.length >= 2) row.images = JSON.stringify(imgs);
   }));
 

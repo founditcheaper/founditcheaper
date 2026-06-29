@@ -7,8 +7,8 @@
   # SUPABASE_URL and SUPABASE_ANON_KEY are public, browser-side values — they
   # MUST live in the frontend HTML for the site to talk to Supabase, so they are
   # safe to appear in committed files. Tell Netlify's secret scanner to ignore
-  # these two. The real secrets (SERVICE_ROLE, RAINFOREST, AMAZON_*,
-  # ADMIN_PASSWORD) are never in code and stay scanned/protected.
+  # these two. The real secrets (SERVICE_ROLE, AMAZON_*, ADMIN_PASSWORD) are
+  # never in code and stay scanned/protected.
   SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL,SUPABASE_ANON_KEY"
 
 [functions]

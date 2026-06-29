@@ -55,8 +55,9 @@ exports.handler = async function (event) {
     existingAsins = [],
   } = p;
 
-  const apiKey = process.env.RAINFOREST_API_KEY;
-  if (!apiKey) return { statusCode: 500, body: JSON.stringify({ error: 'RAINFOREST_API_KEY not configured' }) };
+  // Auto-picker is dormant: its deal search ran on Rainforest, which was removed
+  // for Amazon Associates compliance. Rebuild searchTerm() on the Amazon API to revive it.
+  console.log('[auto-pick] Dormant — no Amazon deal-search source wired up yet (Rainforest removed).');
 
   const seen = new Set(existingAsins);
 
@@ -65,57 +66,12 @@ exports.handler = async function (event) {
     return ccBrands.some(b => b && low.includes(b.toLowerCase()));
   }
 
+  // eslint-disable-next-line no-unused-vars
   async function searchTerm(term) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 7000);
-    try {
-      const url = `https://api.rainforestapi.com/request?api_key=${apiKey}&type=search&amazon_domain=amazon.com&search_term=${encodeURIComponent(term)}&sort_by=featured`;
-      const res  = await fetch(url, { signal: controller.signal });
-      const data = await res.json();
-      clearTimeout(timer);
-
-      const results = [];
-      for (const item of (data.search_results || [])) {
-        if (!item.asin || seen.has(item.asin)) continue;
-
-        const rating  = item.rating ?? 0;
-        const reviews = item.ratings_total ?? 0;
-        if (rating < minRating || reviews < minReviews) continue;
-
-        // Require a confirmed, genuine discount at or above the threshold
-        const price    = item.price?.value ?? 0;
-        const was      = item.price?.before_price?.value ?? 0;
-        const pctMatch = item.percentage_off ? String(item.percentage_off).match(/(\d+)/) : null;
-
-        let off = 0;
-        if (pctMatch) {
-          off = parseInt(pctMatch[1]);
-        } else if (was > 0 && price > 0 && was > price) {
-          off = Math.round(((was - price) / was) * 100);
-        }
-
-        // Skip if no confirmed discount or below minimum threshold
-        if (off < minDiscount || off === 0) continue;
-
-        seen.add(item.asin);
-        const bigBrand = isBigBrand(item.title);
-        results.push({
-          id: item.asin,      asin: item.asin,
-          name:    item.title ?? '',
-          store:   'Amazon',
-          price,   was: was || price,   off,
-          rating,  reviews,
-          img:     item.image ?? '',
-          url:     `https://www.amazon.com/dp/${item.asin}?tag=founditchea09-20`,
-          code: '', useCodeUrl: true,
-          creator: bigBrand, brand: bigBrand, brandName: '', rank: 0,
-        });
-      }
-      return results;
-    } catch {
-      clearTimeout(timer);
-      return [];
-    }
+    // TODO: rebuild on the Amazon Creators / PA-API SearchItems endpoint, filtering
+    // by minDiscount / minRating / minReviews and tagging URLs with founditchea09-20.
+    // Returns [] until the Amazon search piece is built (Rainforest was removed).
+    return [];
   }
 
   const maleTarget   = Math.round(needed * malePercent / 100);

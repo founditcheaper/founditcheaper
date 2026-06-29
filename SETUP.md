@@ -1,4 +1,4 @@
-# Supabase + Rainforest API Setup
+# Supabase + Amazon Creators API Setup
 
 ## Step 1 — Create Supabase tables
 
@@ -15,7 +15,8 @@ Go to your Netlify site → Site Settings → Environment variables and add:
 | `SUPABASE_URL`            | Supabase → Settings → API → Project URL                  |
 | `SUPABASE_ANON_KEY`       | Supabase → Settings → API → anon public key              |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → service_role key (secret) |
-| `RAINFOREST_API_KEY`      | Your Rainforest API dashboard                             |
+| `AMAZON_CREATORS_CLIENT_ID` | Amazon Associates → Creators API → your app credential   |
+| `AMAZON_CREATORS_CLIENT_SECRET` | Amazon Associates → Creators API → your app credential |
 | `ADMIN_PASSWORD`          | Choose any strong password — this replaces the old one    |
 
 After saving, trigger a new deploy (Deploys → Trigger deploy).
@@ -35,13 +36,13 @@ Use your **Project URL** and **anon public** key (NOT the service role key — t
 
 1. Go to `founditcheaper-admin.html`
 2. Sign in with the password you set in `ADMIN_PASSWORD`
-3. Edit deals as needed, or paste an Amazon URL and click **Fetch** to auto-fill from Rainforest API
+3. Edit deals as needed, or paste an Amazon URL and click **Fetch** to auto-fill from the Amazon Creators API
 4. Click **🚀 Publish to Site** — deals save to Supabase and go live instantly
 
 ## How it works
 
 - **Main page** loads deals from Supabase on every visit (falls back to hardcoded data if Supabase is unreachable)
-- **Admin → Fetch** calls `/.netlify/functions/fetch-product` (Rainforest API key stays server-side)
+- **Admin → Fetch** calls `/.netlify/functions/fetch-product` (Amazon API credentials stay server-side)
 - **Admin → Publish** calls `/.netlify/functions/save-deals` (validates your password server-side)
 - **Email signups** (menu, game, grid) call `/.netlify/functions/subscribe` → stored in `email_subscribers`
 - **Dice game leaderboard** is now shared across all users via Supabase `game_scores` table

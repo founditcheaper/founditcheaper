@@ -21,9 +21,9 @@ A fully automated deals aggregation website that pulls real deals via APIs, stor
 | Frontend | Single HTML file (`index.html`) — vanilla JS, no framework |
 | Hosting | Netlify (connected to GitHub, auto-deploys on push) |
 | Database | Supabase (PostgreSQL) |
-| Deal Data | Amazon PA-API (primary — pending approval, ~24–48hrs) |
-| Deal Data Backup | Rainforest API (temporary fallback only until Amazon PA-API approved) |
-| Deep Linking | Joylink (current) — plan to replace with self-hosted solution at deal.founditcheaper.net |
+| Deal Data | Amazon Creators API (PA-API) — sole source. Account eligible on sales, awaiting the post-credential review window (created 2026-06-28). Deal-discovery still needs building on the Amazon search endpoint. |
+| Deal Data (removed) | Rainforest API — REMOVED 2026-06-29 for Amazon Associates compliance. Do not re-add. |
+| Deep Linking | Self-hosted: `/go/<ASIN>` Netlify function adds the affiliate tag and redirects. (Joylink retired for Amazon.) |
 | Email | Beehiiv (~2,900 subscribers) |
 | Repo | GitHub: `founditcheaper/founditcheaper` |
 | Functions | Netlify Functions (`netlify/functions/sync-deals.js`) |
@@ -60,7 +60,7 @@ founditcheaper/
 SUPABASE_URL=https://kvscvenwhdfwiswcfmxq.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<secret>
 SUPABASE_ANON_KEY=<public — also in frontend HTML>
-RAINFOREST_API_KEY=<secret>
+# RAINFOREST_API_KEY — REMOVED 2026-06-29 (delete this env var in Netlify; cancel the subscription)
 AMAZON_CREATORS_CLIENT_ID=<secret>
 AMAZON_CREATORS_CLIENT_SECRET=<secret>
 ADMIN_PASSWORD=<secret>
@@ -124,18 +124,18 @@ updated_at timestamptz default now()
 ### Infrastructure — COMPLETE
 - GitHub repo connected to Netlify (auto-deploy on push)
 - Supabase `deals` table created
-- Netlify environment variables set (Supabase, Rainforest)
-- `sync-deals.js` Netlify Function deployed (hourly cron)
+- Netlify environment variables set (Supabase, Amazon Creators)
+- `sync-deals.js` Netlify Function deployed (daily cron, 6 AM UTC)
 
 ---
 
 ## What's Pending (Priority Order)
 
-### 1. Amazon PA-API (HIGHEST PRIORITY — waiting on approval)
-- Applied for Amazon Product Advertising API
-- Approval expected in 24–48 hours
-- Once approved: replace Rainforest as primary deal source
-- Rainforest stays as backup/fallback only
+### 1. Amazon Creators API / PA-API (HIGHEST PRIORITY — sole deal source)
+- Credential ACTIVE (created 2026-06-28). Token works; getItems returns `AssociateNotEligible` (HTTP 403).
+- Account meets all criteria (17,602 sales/30d, Platinum) — only the post-credential review window (up to 48h) remains; expected to clear ~2026-06-30.
+- Rainforest REMOVED 2026-06-29 (compliance). There is now NO fallback — the site rides entirely on Amazon.
+- **Still to build:** Amazon-native deal *discovery* (search by min discount) to replace what Rainforest did — `discoverDeals()` stub in `sync-deals.js`. Without it, no new deals flow in even once eligible.
 - Amazon affiliate tag: `founditchea09-20`
 
 ### 2. Self-Hosted Deep Linking (replace Joylink)
@@ -175,22 +175,21 @@ updated_at timestamptz default now()
 
 ## API Notes
 
-### Amazon PA-API (Primary — Pending)
-- Applied, awaiting approval
-- Will replace Rainforest for Amazon deal data
-- Returns: ASIN, title, image, price, discount, rating, reviews
+### Amazon Creators API / PA-API (Sole deal source)
+- Auth: OAuth client-credentials (`AMAZON_CREATORS_CLIENT_ID`/`_SECRET`) → token → `getItems`
+- getItems endpoint: `https://creatorsapi.amazon/catalog/v1/getItems`; token endpoint: `https://api.amazon.com/auth/o2/token`
+- Returns: ASIN, title, image(s), price, discount/dealDetails, rating, reviews
+- `AssociateNotEligible` arrives as a top-level `reason` on a 403 (NOT in `errors[]`) — handle both
+- Used in: `fetch-product.js`, `save-deals.js`, `sync-deals.js` enrichment
 
-### Rainforest API (Backup)
-- Account: mm.founditcheaper@gmail.com
-- Key endpoint: `type=deals` with category_id, discount, minimum_rating filters
-- Also available under account: BlueCart (Walmart), BigBox (Home Depot), RedCircle (Target), Countdown (eBay)
-- Keep as fallback if Amazon PA-API has downtime
+### Rainforest API — REMOVED 2026-06-29
+- Removed entirely for Amazon Associates compliance (third-party scraping of Amazon price/availability is a TOS risk). Do NOT re-add.
+- Deleted: `backfill-images-background.js`, `backfill-ratings-background.js`. Stripped from all other functions.
+- Action items: delete `RAINFOREST_API_KEY` from Netlify env vars; cancel the Rainforest subscription.
 
-### Joylink (Current — To Be Replaced)
-- Used for affiliate deep link generation only
-- Does NOT expose Deal Finder data via API (confirmed with Joylink contact)
-- Cost: ~$300/month
-- Plan: replace with self-hosted deep linker at deal.founditcheaper.net
+### Deep Linking — Self-hosted (Joylink retired for Amazon)
+- `/go/<ASIN>` Netlify function (`go.js`) validates the ASIN, adds the `founditchea09-20` tag, logs the click, and 302-redirects to Amazon
+- No Joylink for Amazon links
 
 ### Supabase
 - RLS is ON for `deals` (public read only; no public write — verified live 2026-06-28)

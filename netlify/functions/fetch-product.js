@@ -59,9 +59,10 @@ async function fetchViaCreators(asin, clientId, clientSecret) {
   });
   const data = await res.json();
 
-  // Account not yet eligible — cache result so subsequent warm calls skip Creators entirely
-  const firstError = data.errors?.[0];
-  if (firstError?.type === 'AccessDeniedException' && firstError?.reason === 'AssociateNotEligible') {
+  // Account not yet eligible — cache result so subsequent warm calls skip Creators entirely.
+  // Amazon returns this at the top level OR inside errors[].
+  const reason = data.reason || data.errors?.[0]?.reason;
+  if (reason === 'AssociateNotEligible') {
     _creatorsEligible = false;
     return null;
   }
@@ -95,34 +96,6 @@ async function fetchViaCreators(asin, clientId, clientSecret) {
   };
 }
 
-async function fetchViaRainforest(asin, apiKey) {
-  const url  = `https://api.rainforestapi.com/request?api_key=${apiKey}&type=product&asin=${encodeURIComponent(asin)}&amazon_domain=amazon.com`;
-  const res  = await fetch(url);
-  const data = await res.json();
-  if (!data.product) return null;
-
-  const p     = data.product;
-  const price = p.buybox_winner?.price?.value ?? p.price?.value ?? 0;
-  const rrp   = p.buybox_winner?.rrp?.value   ?? p.rrp?.value   ?? 0;
-  const off   = rrp > price ? Math.round((1 - price / rrp) * 100) : 0;
-  const images = Array.isArray(p.images)
-    ? p.images.map(img => img.link).filter(Boolean)
-    : (p.main_image?.link ? [p.main_image.link] : []);
-
-  return {
-    name:    p.title ?? '',
-    price,
-    was:     rrp || price,
-    off,
-    img:     p.main_image?.link ?? '',
-    images,
-    rating:  p.rating ?? 0,
-    reviews: p.ratings_total ?? 0,
-    coupon:  null,
-    asin,
-  };
-}
-
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
@@ -141,18 +114,11 @@ exports.handler = async function (event) {
   try {
     let result = null;
 
-    // Prefer Creators API (free); fall back to Rainforest when not yet eligible
+    // Amazon Creators API only — Rainforest removed for Associates compliance.
     const clientId     = process.env.AMAZON_CREATORS_CLIENT_ID;
     const clientSecret = process.env.AMAZON_CREATORS_CLIENT_SECRET;
     if (clientId && clientSecret) {
       result = await fetchViaCreators(asin, clientId, clientSecret).catch(() => null);
-    }
-
-    if (!result) {
-      const apiKey = process.env.RAINFOREST_API_KEY;
-      if (apiKey) {
-        result = await fetchViaRainforest(asin, apiKey).catch(() => null);
-      }
     }
 
     if (!result) {
