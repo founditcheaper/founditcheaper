@@ -9,6 +9,8 @@ const crypto = require('crypto');
 
 const BASE         = 'https://developer.api.walmart.com/api-proxy/service/affil/product/v2';
 const MIN_DISCOUNT = 20;   // % off
+const MAX_DISCOUNT = 75;   // brand trust: above this is usually a fake/inflated MSRP
+const MIN_PRICE    = 5;    // skip sub-$5 junk
 const MIN_RATING   = 3.5;  // skip junk (0 rating = unknown, allowed)
 const MIN_REVIEWS  = 3;
 
@@ -86,6 +88,18 @@ exports.handler = async function () {
   }
   const sbHeaders = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
 
+  // 0. Trust cleanup: purge existing Walmart rows that fail the quality bar
+  //    (fake-looking discounts above MAX_DISCOUNT, or sub-floor prices).
+  try {
+    const del = await fetch(
+      `${sbUrl}/rest/v1/deals?store=eq.Walmart&or=(off.gt.${MAX_DISCOUNT},price.lt.${MIN_PRICE})`,
+      { method: 'DELETE', headers: { ...sbHeaders, Prefer: 'return=minimal' } }
+    );
+    console.log(`[sync-walmart] quality cleanup (off>${MAX_DISCOUNT} or price<${MIN_PRICE}) -> HTTP ${del.status}`);
+  } catch (e) {
+    console.error('[sync-walmart] cleanup failed:', e.message);
+  }
+
   // 1. Existing Walmart item ids (dedupe) — itemId is embedded in the /ip/<id> url
   const seen = new Set();
   try {
@@ -114,9 +128,9 @@ exports.handler = async function () {
       if (!id || seen.has(id) || found[id]) continue;
       const price = Number(it.salePrice) || 0;
       const was   = Number(it.msrp) || 0;
-      if (price <= 0 || was <= price) continue;            // require a real markdown
+      if (price < MIN_PRICE || was <= price) continue;     // real markdown + skip sub-$5 junk
       const off = Math.round((1 - price / was) * 100);
-      if (off < MIN_DISCOUNT) continue;
+      if (off < MIN_DISCOUNT || off > MAX_DISCOUNT) continue;  // trust: no fake-looking mega-discounts
       const rating  = parseFloat(it.customerRating) || 0;
       const reviews = Number(it.numReviews) || 0;
       if (rating > 0 && rating < MIN_RATING) continue;
