@@ -60,13 +60,46 @@ exports.handler = async function () {
     out.catalogsRaw = cat.raw;
   }
 
-  out.verdict = (camp.status === 200)
-    ? 'AUTH OK — Impact credentials work. See campaigns/catalogs for Walmart IDs.'
-    : (camp.status === 401 || camp.status === 403)
-      ? `AUTH FAILED (${camp.status}) — check IMPACT_ACCOUNT_SID / IMPACT_AUTH_TOKEN`
-      : `Unexpected status ${camp.status} — see *Raw fields`;
+  out.authOk = camp.status === 200;
+
+  // 3. Probe the actual data endpoints for the Walmart campaign to see what's available.
+  const walmart = (out.walmartCampaigns || [])[0];
+  if (walmart && walmart.campaignId) {
+    const cid = walmart.campaignId;
+    out.walmartCampaignId = cid;
+
+    const deals  = await getJson(`/Mediapartners/${sid}/Campaigns/${cid}/Deals?PageSize=20`, sid, token);
+    out.walmartDeals = summarize(deals);
+
+    const promos = await getJson(`/Mediapartners/${sid}/Promotions?CampaignId=${cid}&PageSize=20`, sid, token);
+    out.walmartPromotions = summarize(promos);
+
+    const codes  = await getJson(`/Mediapartners/${sid}/PromoCodes?CampaignId=${cid}&PageSize=20`, sid, token);
+    out.walmartPromoCodes = summarize(codes);
+  }
+
+  // 4. Marketplace products search (account-level — see if Walmart products are searchable)
+  const prods = await getJson(`/Mediapartners/${sid}/Marketplace/Products?PageSize=5`, sid, token);
+  out.marketplaceProducts = summarize(prods);
+
+  out.verdict = out.authOk
+    ? 'AUTH OK — see walmartDeals / walmartPromotions / marketplaceProducts for what Walmart data is available.'
+    : `AUTH issue on campaigns (${camp.status})`;
   return resp(out);
 };
+
+// Summarize a list response without assuming exact field names: find the first
+// array in the JSON, report its length and a truncated first item.
+function summarize(r) {
+  if (r.status !== 200) return { status: r.status, raw: r.raw };
+  if (!r.json) return { status: r.status, note: 'non-JSON', raw: r.raw };
+  let arr = null, key = null;
+  for (const k of Object.keys(r.json)) {
+    if (Array.isArray(r.json[k])) { arr = r.json[k]; key = k; break; }
+  }
+  if (!arr) return { status: r.status, keys: Object.keys(r.json), sample: JSON.stringify(r.json).slice(0, 500) };
+  return { status: r.status, arrayKey: key, count: arr.length, firstItem: JSON.stringify(arr[0] || null).slice(0, 800) };
+}
 
 function resp(o) {
   return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o, null, 2) };
