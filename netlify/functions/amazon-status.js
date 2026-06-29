@@ -61,8 +61,11 @@ exports.handler = async function (event) {
         marketplace: MARKETPLACE,
       }),
     });
-    const d   = await r.json();
+    const rawText = await r.text();
     out.getItemsHttpStatus = r.status;
+    out.rawBody = rawText.slice(0, 700);
+    let d = {};
+    try { d = JSON.parse(rawText); } catch {}
     const err = d.errors && d.errors[0];
     if (err) {
       out.errorType    = err.type;
