@@ -11,8 +11,8 @@ const MIN_DISCOUNT  = 20;   // % off
 const MAX_DISCOUNT  = 75;   // brand trust: above this is usually an inflated list price
 const BRAND_MAX     = 90;   // hard sanity ceiling even for brands
 const MIN_PRICE     = 5;    // skip sub-$5 junk
-const MIN_RATING    = 3.5;
-const MIN_REVIEWS   = 3;
+const MIN_RATING    = 3.0;  // only cut clearly-bad rated items; 0/unknown is KEPT
+const MIN_REVIEWS   = 0;    // KEEP no-name / low-review products (promo-code sources)
 const MAX_PRICE_CAP = 0;    // 0 = no price cap
 
 const SEARCH_TERMS = [

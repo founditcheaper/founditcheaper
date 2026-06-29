@@ -11,8 +11,8 @@ const BASE         = 'https://developer.api.walmart.com/api-proxy/service/affil/
 const MIN_DISCOUNT = 20;   // % off
 const MAX_DISCOUNT = 75;   // brand trust: above this is usually a fake/inflated MSRP
 const MIN_PRICE    = 5;    // skip sub-$5 junk
-const MIN_RATING   = 3.5;  // skip junk (0 rating = unknown, allowed)
-const MIN_REVIEWS  = 3;
+const MIN_RATING   = 3.0;  // only cut clearly-bad rated items; 0/unknown is KEPT
+const MIN_REVIEWS  = 0;    // KEEP no-name / low-review products (promo-code sources)
 const BRAND_MAX    = 90;   // hard sanity ceiling even for brands (above = likely a price error)
 
 // Recognized brands: a >MAX_DISCOUNT deal is trustworthy if it's a real brand
