@@ -207,16 +207,29 @@ exports.handler = async function () {
     if (!bestByKey[k] || d.off > bestByKey[k].off) bestByKey[k] = d;
   }
   deals = Object.values(bestByKey);
-  console.log(`[sync-deals] ${deals.length} qualifying Amazon deals (after variant dedup)`);
+
+  // Priority: a promo-code deal (from sync-codes) always wins over an auto-found one.
+  // Skip discovering any ASIN that already has a coded deal so we never duplicate it.
+  try {
+    const res = await fetch(`${sbUrl}/rest/v1/deals?store=eq.Amazon&code=not.is.null&select=url`, { headers: sbHeaders });
+    const coded = await res.json();
+    if (Array.isArray(coded) && coded.length) {
+      const codedAsins = new Set(coded.map(d => (d.url.match(/\/dp\/([A-Z0-9]{10})/i) || [])[1]).filter(Boolean));
+      deals = deals.filter(d => !codedAsins.has(d.asin));
+    }
+  } catch (e) { console.error('[sync-deals] coded-ASIN check failed:', e.message); }
+
+  console.log(`[sync-deals] ${deals.length} qualifying Amazon deals (after variant + coded dedup)`);
 
   // Safety: if discovery returned nothing (API hiccup), leave the existing grid alone.
   if (deals.length === 0) {
     return { statusCode: 200, body: JSON.stringify({ ok: true, added: 0, stats: disc.stats }) };
   }
 
-  // 2. Replace the auto-pulled Amazon set (preserve manual Top Picks)
+  // 2. Replace the auto-pulled Amazon set (preserve manual Top Picks AND coded deals).
+  //    code=is.null scopes the delete to ONLY this function's own auto-found deals.
   try {
-    const del = await fetch(`${sbUrl}/rest/v1/deals?store=eq.Amazon&is_top_pick=eq.false`, {
+    const del = await fetch(`${sbUrl}/rest/v1/deals?store=eq.Amazon&is_top_pick=eq.false&code=is.null`, {
       method: 'DELETE', headers: { ...sbHeaders, Prefer: 'return=minimal' },
     });
     console.log(`[sync-deals] cleared previous Amazon deals -> HTTP ${del.status}`);

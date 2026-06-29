@@ -31,6 +31,13 @@
   schedule = "40 7,19 * * *"
   timeout = 26
 
+# Promo-code deals from the VA's Google Sheet — pulled every 15 minutes so codes
+# appear within minutes of being entered. Incremental + time-capped; no-ops until
+# CODES_SHEET_CSV_URL is set. 5-day auto-expiry; sheet is the source of truth.
+[functions."sync-codes"]
+  schedule = "*/15 * * * *"
+  timeout = 26
+
 # promote-top-picks is intentionally NOT scheduled. Top Daily Deal Picks are
 # curated manually by Erik (he features specific products for videos), so nothing
 # auto-touches them. The function remains available to run on demand if wanted.
