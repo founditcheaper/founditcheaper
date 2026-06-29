@@ -78,9 +78,14 @@ exports.handler = async function () {
     out.walmartPromoCodes = summarize(codes);
   }
 
-  // 4. Marketplace products search (account-level — see if Walmart products are searchable)
+  // 4. Marketplace products — full first item (to see price fields), plus a Walmart-filtered try
   const prods = await getJson(`/Mediapartners/${sid}/Marketplace/Products?PageSize=5`, sid, token);
-  out.marketplaceProducts = summarize(prods);
+  out.marketplaceProducts = summarize(prods, 2500);
+  // Try to narrow the marketplace to Walmart via campaign and advertiser filters
+  const prodsCid = await getJson(`/Mediapartners/${sid}/Marketplace/Products?CampaignId=16662&PageSize=5`, sid, token);
+  out.marketplaceWalmartByCampaign = summarize(prodsCid, 1200);
+  const prodsAdv = await getJson(`/Mediapartners/${sid}/Marketplace/Products?AdvertiserId=3530262&PageSize=5`, sid, token);
+  out.marketplaceWalmartByAdvertiser = summarize(prodsAdv, 1200);
 
   out.verdict = out.authOk
     ? 'AUTH OK — see walmartDeals / walmartPromotions / marketplaceProducts for what Walmart data is available.'
@@ -90,7 +95,8 @@ exports.handler = async function () {
 
 // Summarize a list response without assuming exact field names: find the first
 // array in the JSON, report its length and a truncated first item.
-function summarize(r) {
+function summarize(r, chars) {
+  const cap = chars || 800;
   if (r.status !== 200) return { status: r.status, raw: r.raw };
   if (!r.json) return { status: r.status, note: 'non-JSON', raw: r.raw };
   let arr = null, key = null;
@@ -98,7 +104,7 @@ function summarize(r) {
     if (Array.isArray(r.json[k])) { arr = r.json[k]; key = k; break; }
   }
   if (!arr) return { status: r.status, keys: Object.keys(r.json), sample: JSON.stringify(r.json).slice(0, 500) };
-  return { status: r.status, arrayKey: key, count: arr.length, firstItem: JSON.stringify(arr[0] || null).slice(0, 800) };
+  return { status: r.status, arrayKey: key, count: arr.length, firstItem: JSON.stringify(arr[0] || null).slice(0, cap) };
 }
 
 function resp(o) {
