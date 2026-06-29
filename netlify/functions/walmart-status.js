@@ -76,16 +76,21 @@ exports.handler = async function () {
   out.taxonomyStatus = tax.status;
   if (tax.status !== 200) out.taxonomyRaw = tax.raw;
 
-  // 2. Rollback special feed — Walmart's discounted items (our deals)
-  const roll = await wmGet('/feeds?feedType=rollback');
-  out.rollbackFeed = summarize(roll);
+  // 2. Catalog Product (paginated/items) — the real deals endpoint. Uses the
+  //    Impact Publisher ID (4077610). Can filter by special offers (rollback/clearance).
+  const PUB = process.env.WALMART_PUBLISHER_ID || '4077610';
+  const cat = await wmGet(`/paginated/items?publisherId=${PUB}`);
+  out.catalogStatus = cat.status;
+  out.catalogSample = summarize(cat, 1400);
 
-  // 3. Clearance special feed
-  const clr = await wmGet('/feeds?feedType=clearance');
-  out.clearanceFeed = summarize(clr);
+  const roll = await wmGet(`/paginated/items?publisherId=${PUB}&specialOffers=rollback`);
+  out.rollbackSample = summarize(roll, 1400);
+
+  const clr = await wmGet(`/paginated/items?publisherId=${PUB}&specialOffers=clearance`);
+  out.clearanceSample = summarize(clr, 600);
 
   out.verdict = tax.status === 200
-    ? 'AUTH OK — Walmart signed requests work. See rollbackFeed / clearanceFeed for deal data.'
+    ? 'AUTH OK — Walmart signed requests work. See catalogSample / rollbackSample for deal data.'
     : `AUTH issue (${tax.status}) — see taxonomyRaw`;
   return resp(out);
 };
