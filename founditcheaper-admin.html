@@ -189,9 +189,9 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
     <!-- TABS -->
     <div class="tabs">
       <button class="tab active" onclick="switchTab('picks')">📋 Today's Picks</button>
+      <button class="tab" onclick="switchTab('promocodes')">🏷️ All Deals</button>
       <button class="tab" onclick="switchTab('autopicker')">🤖 Auto-Picker</button>
       <button class="tab" onclick="switchTab('schedule')">📅 Schedule</button>
-      <button class="tab" onclick="switchTab('promocodes')">🏷️ All Deals</button>
     </div>
 
     <!-- TAB: TODAY'S PICKS -->
@@ -399,7 +399,7 @@ async function syncCodes() {
 // ── TABS ─────────────────────────────────────────────────────────────
 function switchTab(id) {
   document.querySelectorAll('.tab').forEach(function(t,i) {
-    t.classList.toggle('active', ['picks','autopicker','schedule','promocodes'][i] === id);
+    t.classList.toggle('active', ['picks','promocodes','autopicker','schedule'][i] === id);
   });
   document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
   document.getElementById('tab-' + id).classList.add('active');
