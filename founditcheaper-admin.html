@@ -537,8 +537,8 @@ function dealCardHtml(d, idx) {
   card += '</div>';
   card += '<div class="edit-grid">';
   card += '<div class="field-group full"><label class="field-label">Product Name</label><input class="field-input" id="name-' + idx + '" value="' + d.name + '" onchange="deals[' + idx + '].name=this.value"></div>';
-  card += '<div class="field-group"><label class="field-label">Sale Price ($)</label><input class="field-input" id="price-' + idx + '" type="number" value="' + d.price + '" onchange="deals[' + idx + '].price=parseFloat(this.value)"></div>';
-  card += '<div class="field-group"><label class="field-label">Original Price ($)</label><input class="field-input" id="was-' + idx + '" type="number" value="' + d.was + '" onchange="deals[' + idx + '].was=parseFloat(this.value)"></div>';
+  card += '<div class="field-group"><label class="field-label">Sale Price ($)</label><input class="field-input no-spin" id="price-' + idx + '" type="number" value="' + d.price + '" onchange="deals[' + idx + '].price=parseFloat(this.value)"></div>';
+  card += '<div class="field-group"><label class="field-label">Original Price ($)</label><input class="field-input no-spin" id="was-' + idx + '" type="number" value="' + d.was + '" onchange="deals[' + idx + '].was=parseFloat(this.value)"></div>';
   card += '<div class="field-group"><label class="field-label">Promo Code</label><input class="field-input" id="code-' + idx + '" value="' + d.code + '" placeholder="Leave blank if none" onchange="deals[' + idx + '].code=this.value"></div>';
   card += '<div class="field-group"><label class="field-label">Store</label>';
   card += '<select class="field-input" id="store-' + idx + '" onchange="deals[' + idx + '].store=this.value">';
