@@ -188,7 +188,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
     <div class="tabs">
       <button class="tab active" onclick="switchTab('picks')">📋 Today's Top Deal Picks</button>
       <button class="tab" onclick="switchTab('promocodes')">🏷️ All Deals</button>
-      <button class="tab" onclick="switchTab('autopicker')">🤖 Auto-Fill / Randomizer</button>
+      <button class="tab" onclick="switchTab('autopicker')">🤖 Auto-Fill / Randomizer Settings</button>
       <button class="tab" onclick="switchTab('schedule')">📅 Schedule</button>
     </div>
 
@@ -241,13 +241,13 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       <div class="section-title" style="margin-bottom:16px">Daily Top Picks Refresh</div>
       <div class="settings-card">
         <div class="settings-title">How it works</div>
-        <div style="font-size:13px;color:var(--text-soft);line-height:1.6;margin-bottom:8px">Every day at <strong style="color:#f5c842">~2:50 AM Central</strong> (right after the morning deal sync), your Top Deal Picks are automatically replaced with a <strong>fresh, randomized set of 10 deals</strong> from your catalog — a mix of Amazon &amp; Walmart that favors promo-code deals and big brands.</div>
+        <div style="font-size:13px;color:var(--text-soft);line-height:1.6;margin-bottom:8px">Every day at <strong style="color:#f5c842">~2:30 AM Central</strong> (right after the morning deal sync), your Top Deal Picks are automatically replaced with a <strong>fresh, randomized set of 10 deals</strong> from your catalog — a mix of Amazon &amp; Walmart that favors promo-code deals and big brands.</div>
         <div style="font-size:12px;color:var(--muted);line-height:1.6">You can hand-edit the picks anytime after the refresh — promote from All Deals, remove, reorder, or randomize. Your changes stay live until the next morning's run.</div>
       </div>
 
       <div class="settings-card">
         <div class="settings-title">Generate a fresh set now</div>
-        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Don't want to wait until 2:50 AM? Generate today's fresh set right now. This replaces the current Top Picks with a new random 10 — live immediately.</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Don't want to wait until 2:30 AM? Generate today's fresh set right now. This replaces the current Top Picks with a new random 10 — live immediately.</div>
         <button class="btn btn-primary" id="genNowBtn" onclick="generatePicksNow()">🎲 Generate fresh picks now</button>
       </div>
     </div>

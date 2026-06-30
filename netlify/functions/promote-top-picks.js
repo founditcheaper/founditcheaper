@@ -10,7 +10,8 @@
 // deleting them, so nothing is lost — yesterday's picks just rejoin the pool.
 
 const PICKS = 10;
-const MIN_OFF = 15;   // quality floor
+const PROMO_TARGET = 5;   // include up to this many promo-code deals (if available)
+const MIN_OFF = 15;       // quality floor
 
 function score(d) {
   const off     = Number(d.off) || 0;
@@ -38,28 +39,33 @@ exports.handler = async function () {
   const today = new Date().toISOString().split('T')[0];
 
   // Candidates come from the GRID only (is_top_pick=false), so each day's set
-  // rotates instead of re-picking the same deals.
-  async function topFor(store) {
-    const res  = await fetch(`${sbUrl}/rest/v1/deals?select=id,name,off,rating,reviews,brand,code&store=eq.${store}&is_top_pick=eq.false&limit=5000`, { headers: H });
-    const rows = await res.json();
-    const best = {};                                   // variant dedup, keep best-scoring
-    for (const r of (rows || [])) {
-      if ((Number(r.off) || 0) < MIN_OFF) continue;
-      const k = baseNameKey(r.name);
-      const s = score(r);
-      if (!best[k] || s > best[k]._s) { r._s = s; best[k] = r; }
-    }
-    return Object.values(best).sort((a, b) => b._s - a._s);
+  // rotates instead of re-picking the same deals. Variant-dedup, keep best score.
+  const cres = await fetch(`${sbUrl}/rest/v1/deals?select=id,name,off,rating,reviews,brand,code,store&is_top_pick=eq.false&limit=5000`, { headers: H });
+  const rows = await cres.json();
+  const best = {};
+  for (const r of (rows || [])) {
+    if ((Number(r.off) || 0) < MIN_OFF) continue;
+    const k = baseNameKey(r.name);
+    r._s = score(r);
+    if (!best[k] || r._s > best[k]._s) best[k] = r;
   }
+  const all = Object.values(best);
 
-  const [amz, wmt] = await Promise.all([topFor('Amazon'), topFor('Walmart')]);
+  // Promo codes get priority: take up to PROMO_TARGET coded deals (if available),
+  // then fill the remaining slots with a store-mixed set of regular deals.
+  const promo   = all.filter(d => d.code).sort((a, b) => b._s - a._s);
+  const regular = all.filter(d => !d.code).sort((a, b) => b._s - a._s);
+  const regAmz  = regular.filter(d => d.store === 'Amazon');
+  const regWmt  = regular.filter(d => d.store !== 'Amazon');
 
-  // Interleave A,W,A,W… for a balanced mix, up to PICKS total.
-  const ordered = [];
-  for (let i = 0; ordered.length < PICKS && (i < amz.length || i < wmt.length); i++) {
-    if (amz[i] && ordered.length < PICKS) ordered.push(amz[i]);
-    if (wmt[i] && ordered.length < PICKS) ordered.push(wmt[i]);
+  const ordered = promo.slice(0, PROMO_TARGET);
+  let ai = 0, wi = 0;
+  while (ordered.length < PICKS && (ai < regAmz.length || wi < regWmt.length)) {
+    if (ai < regAmz.length && ordered.length < PICKS) ordered.push(regAmz[ai++]);
+    if (wi < regWmt.length && ordered.length < PICKS) ordered.push(regWmt[wi++]);
   }
+  // Thin catalog? Top up from any leftover promo deals.
+  for (let i = PROMO_TARGET; i < promo.length && ordered.length < PICKS; i++) ordered.push(promo[i]);
 
   // Safety: if the grid is empty (a sync failed), leave the existing picks alone
   // rather than blanking the carousel.

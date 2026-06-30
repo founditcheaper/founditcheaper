@@ -20,15 +20,16 @@
 [functions."save-deals"]
   timeout = 26
 
-# All Deals grid refreshes twice a day — 7:30 & 19:30 UTC = 2:30 AM & 2:30 PM CDT.
-# Both syncs REPLACE their store's auto-pulled deals (is_top_pick=false) and
+# All Deals grid refreshes twice a day — 7:00 & 19:00 UTC = 2:00 AM & 2:00 PM CDT.
+# Runs BEFORE the 2:30 Top Picks refresh so the picks draw from a freshly synced
+# grid. Both syncs REPLACE their store's auto-pulled deals (is_top_pick=false) and
 # preserve manually curated Top Picks (is_top_pick=true).
 [functions."sync-deals"]
-  schedule = "30 7,19 * * *"
+  schedule = "0 7,19 * * *"
   timeout = 26
 
 [functions."sync-walmart"]
-  schedule = "40 7,19 * * *"
+  schedule = "10 7,19 * * *"
   timeout = 26
 
 # Promo-code deals from the VA's Google Sheet — pulled every 15 minutes so codes
@@ -38,11 +39,11 @@
   schedule = "*/15 * * * *"
   timeout = 26
 
-# Daily Top Deal Picks refresh — 7:50 UTC = 2:50 AM CDT, just AFTER the morning
-# grid syncs (2:30/2:40) so it picks from the freshest deals. Replaces the picks
-# with a randomized set of 10; Erik can hand-edit afterward until the next run.
+# Daily Top Deal Picks refresh — 7:30 UTC = 2:30 AM CDT, just AFTER the morning
+# grid syncs (2:00/2:10) so it picks from the freshest deals. Replaces the picks
+# with a randomized set of 10 (favoring promo-code deals); hand-editable after.
 [functions."promote-top-picks"]
-  schedule = "50 7 * * *"
+  schedule = "30 7 * * *"
   timeout = 26
 
 # Self-hosted deep linker: /go/<ASIN> runs the go function, which adds the
