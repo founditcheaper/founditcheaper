@@ -39,11 +39,12 @@
   schedule = "*/15 * * * *"
   timeout = 26
 
-# Daily Top Deal Picks refresh — 7:30 UTC = 2:30 AM CDT, just AFTER the morning
-# grid syncs (2:00/2:10) so it picks from the freshest deals. Replaces the picks
-# with a randomized set of 10 (favoring promo-code deals); hand-editable after.
+# Daily Top Deal Picks refresh. Runs every 15 min but the function self-gates:
+# it fires ONCE per day at/after the admin-configured run time (Central), reading
+# `settings.pick_run_time` (default 2:30 AM) so the time is editable without a
+# redeploy. Replaces the picks with a randomized set of 10 (favoring promo codes).
 [functions."promote-top-picks"]
-  schedule = "30 7 * * *"
+  schedule = "*/15 * * * *"
   timeout = 26
 
 # Self-hosted deep linker: /go/<ASIN> runs the go function, which adds the

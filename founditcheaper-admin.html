@@ -223,6 +223,13 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <div class="slider-row"><div class="slider-row-top"><span class="slider-name">Min Discount %</span><span class="slider-val" id="sv2">30%</span></div><input id="afMinDiscount" type="range" min="10" max="70" step="5" value="30" oninput="document.getElementById('sv2').textContent=this.value+'%'"></div>
       </div>
 
+      <!-- Promo Codes -->
+      <div class="settings-card">
+        <div class="settings-title">Promo Codes</div>
+        <div class="slider-row"><div class="slider-row-top"><span class="slider-name">Promo-code deals in the daily picks</span><span class="slider-val" id="svPromo">5</span></div><input id="promoTargetSlider" type="range" min="0" max="10" step="1" value="5" oninput="document.getElementById('svPromo').textContent=this.value" onchange="savePromoTarget(this.value)"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6">Of the 10 daily Top Picks, prioritize up to this many promo-code deals (when available). The rest fill in store-mixed. Default 5.</div>
+      </div>
+
       <!-- Creator Connections Brands -->
       <div class="settings-card">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;flex-wrap:wrap"><div class="settings-title" style="margin-bottom:0">Big Brand Names</div><div style="display:flex;gap:6px"><button id="brandEditBtn" onclick="toggleBrandEdit()" class="btn btn-ghost" style="font-size:11px;padding:5px 10px">✏️ Edit</button><button onclick="resetBrandList()" class="btn btn-ghost" style="font-size:11px;padding:5px 10px">↺ Reset</button></div></div>
@@ -240,8 +247,16 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
     <div class="tab-content" id="tab-schedule">
       <div class="section-title" style="margin-bottom:16px">Daily Top Picks Refresh</div>
       <div class="settings-card">
+        <div class="settings-title">Run Time</div>
+        <div class="field-group" style="margin-bottom:6px">
+          <label class="field-label">Refresh the Top Picks each day at (Central Time)</label>
+          <input type="time" id="schedRunTime" class="field-input" value="02:30" style="max-width:160px" onchange="saveRunTime(this.value)">
+        </div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.6">Grid syncs run at 2:00/2:10 AM, so a time just after that gives the freshest deals. (Runs within ~15 min of the time you set.)</div>
+      </div>
+      <div class="settings-card">
         <div class="settings-title">How it works</div>
-        <div style="font-size:13px;color:var(--text-soft);line-height:1.6;margin-bottom:8px">Every day at <strong style="color:#f5c842">~2:30 AM Central</strong> (right after the morning deal sync), your Top Deal Picks are automatically replaced with a <strong>fresh, randomized set of 10 deals</strong> from your catalog — a mix of Amazon &amp; Walmart that favors promo-code deals and big brands.</div>
+        <div style="font-size:13px;color:var(--text-soft);line-height:1.6;margin-bottom:8px">Every day at the time you set above, your Top Deal Picks are automatically replaced with a <strong>fresh, randomized set of 10 deals</strong> from your catalog — a mix of Amazon &amp; Walmart that favors promo-code deals and big brands.</div>
         <div style="font-size:12px;color:var(--muted);line-height:1.6">You can hand-edit the picks anytime after the refresh — promote from All Deals, remove, reorder, or randomize. Your changes stay live until the next morning's run.</div>
       </div>
 
@@ -825,12 +840,39 @@ async function confirmRandomize() {
   if (deals.length >= 10) { renderDeals(); showToast('Kept all 10 — nothing to randomize'); return; }
   await autoFill(true);
 }
+async function loadSettings() {
+  try {
+    var res = await fetch(_ADMIN_SB_URL + '/rest/v1/settings?select=key,value', { headers: { apikey: _ADMIN_SB_KEY, Authorization: 'Bearer ' + _ADMIN_SB_KEY } });
+    var rows = await res.json();
+    if (!Array.isArray(rows)) return;
+    var m = {}; rows.forEach(function (r) { m[r.key] = r.value; });
+    if (m.pick_run_time && document.getElementById('schedRunTime')) document.getElementById('schedRunTime').value = m.pick_run_time;
+    if (m.promo_target != null && document.getElementById('promoTargetSlider')) {
+      document.getElementById('promoTargetSlider').value = m.promo_target;
+      document.getElementById('svPromo').textContent = m.promo_target;
+    }
+  } catch (e) { /* settings table may not exist yet */ }
+}
+async function saveRunTime(v) {
+  try {
+    var res = await fetch('/.netlify/functions/save-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, runTime: v }) });
+    var d = await res.json();
+    showToast(d.ok ? 'Run time saved — ' + v + ' CT' : 'Save failed' + (d.error ? ': ' + d.error : ''));
+  } catch (e) { showToast('Network error'); }
+}
+async function savePromoTarget(v) {
+  try {
+    var res = await fetch('/.netlify/functions/save-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, promoTarget: v }) });
+    var d = await res.json();
+    showToast(d.ok ? 'Saved — up to ' + v + ' promo deals/day' : 'Save failed' + (d.error ? ': ' + d.error : ''));
+  } catch (e) { showToast('Network error'); }
+}
 async function generatePicksNow() {
   if (!confirm('Replace your current Top Deal Picks with a fresh random set of 10? This goes live immediately.')) return;
   var btn = document.getElementById('genNowBtn');
   btn.textContent = 'Generating…'; btn.disabled = true;
   try {
-    var res = await fetch('/.netlify/functions/promote-top-picks');
+    var res = await fetch('/.netlify/functions/promote-top-picks?force=1');
     var data = await res.json();
     if (res.ok && data.ok && data.picked) {
       showToast('Fresh picks generated — ' + data.picked + ' deals live');
@@ -1092,6 +1134,7 @@ async function initAdmin() {
   var grid = document.getElementById('dealsGrid');
   grid.innerHTML = '<div style="padding:28px;text-align:center;color:rgba(255,255,255,0.4);font-size:13px">Loading published deals…</div>';
   await loadPicks();
+  loadSettings();
   initTouchDrag();
 }
 </script>

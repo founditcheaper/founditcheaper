@@ -31,12 +31,54 @@ function baseNameKey(name) {
     .split(' ').slice(0, 8).join(' ');
 }
 
-exports.handler = async function () {
+// Current Central-Time date + minutes-since-midnight (handles CST/CDT).
+function ctParts() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date());
+  const p = {}; for (const x of parts) p[x.type] = x.value;
+  let hour = parseInt(p.hour, 10); if (hour === 24) hour = 0;
+  return { date: `${p.year}-${p.month}-${p.day}`, minutes: hour * 60 + parseInt(p.minute, 10) };
+}
+
+exports.handler = async function (event) {
   const sbUrl = process.env.SUPABASE_URL;
   const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!sbUrl || !sbKey) { console.error('[promote-top-picks] missing env'); return { statusCode: 500, body: 'Configuration error' }; }
   const H = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
-  const today = new Date().toISOString().split('T')[0];
+  const force = !!(event && event.queryStringParameters && event.queryStringParameters.force);
+  const nowCT = ctParts();
+  const today = nowCT.date;
+
+  // Editable settings (run time + promo count); defaults if the table is missing.
+  let runTime = '02:30', promoTarget = PROMO_TARGET, lastRun = '';
+  try {
+    const sres = await fetch(`${sbUrl}/rest/v1/settings?select=key,value`, { headers: H });
+    const srows = await sres.json();
+    if (Array.isArray(srows)) {
+      const m = {}; srows.forEach(s => { m[s.key] = s.value; });
+      if (m.pick_run_time) runTime = m.pick_run_time;
+      if (m.promo_target != null && m.promo_target !== '') promoTarget = Math.max(0, Math.min(10, parseInt(m.promo_target, 10) || PROMO_TARGET));
+      lastRun = m.pick_last_run || '';
+    }
+  } catch (e) { /* settings table missing -> defaults */ }
+
+  // Scheduled runs fire once per day at/after the configured time. The manual
+  // "Generate now" button passes ?force=1 to bypass this gate.
+  if (!force) {
+    const [hh, mm] = String(runTime).split(':').map(n => parseInt(n, 10));
+    const runMin = (hh || 0) * 60 + (mm || 0);
+    if (lastRun === today) return { statusCode: 200, body: JSON.stringify({ ok: true, skipped: 'already ran today' }) };
+    if (nowCT.minutes < runMin) return { statusCode: 200, body: JSON.stringify({ ok: true, skipped: 'before run time' }) };
+    // Claim today's run by stamping last-run; if this write fails the settings
+    // table doesn't exist yet, so abort (avoids re-running every tick).
+    const claim = await fetch(`${sbUrl}/rest/v1/settings`, {
+      method: 'POST', headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ key: 'pick_last_run', value: today }),
+    });
+    if (!claim.ok) return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'settings table missing — run the setup SQL to enable the schedule' }) };
+  }
 
   // Candidates come from the GRID only (is_top_pick=false), so each day's set
   // rotates instead of re-picking the same deals. Variant-dedup, keep best score.
@@ -59,14 +101,14 @@ exports.handler = async function () {
   const regAmz  = regular.filter(d => d.store === 'Amazon');
   const regWmt  = regular.filter(d => d.store !== 'Amazon');
 
-  const ordered = promo.slice(0, PROMO_TARGET);
+  const ordered = promo.slice(0, promoTarget);
   let ai = 0, wi = 0;
   while (ordered.length < PICKS && (ai < regAmz.length || wi < regWmt.length)) {
     if (ai < regAmz.length && ordered.length < PICKS) ordered.push(regAmz[ai++]);
     if (wi < regWmt.length && ordered.length < PICKS) ordered.push(regWmt[wi++]);
   }
   // Thin catalog? Top up from any leftover promo deals.
-  for (let i = PROMO_TARGET; i < promo.length && ordered.length < PICKS; i++) ordered.push(promo[i]);
+  for (let i = promoTarget; i < promo.length && ordered.length < PICKS; i++) ordered.push(promo[i]);
 
   // Safety: if the grid is empty (a sync failed), leave the existing picks alone
   // rather than blanking the carousel.
