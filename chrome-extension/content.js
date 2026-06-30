@@ -70,7 +70,8 @@
         var hasPrice = /\$\s?\d/.test(txt);
         var isPromo = /promo\s*code/i.test(txt);
         var w = node.getBoundingClientRect().width;
-        if (hasPrice && isPromo && w > 120 && w < window.innerWidth * 0.6) return node;
+        var pc = productPrices(txt).length; // one card ≈ 1–2 prices; a multi-card wrapper has more
+        if (hasPrice && isPromo && pc >= 1 && pc <= 3 && w > 120 && w < window.innerWidth * 0.45) return node;
       }
       node = node.parentNode; depth++;
     }
@@ -100,15 +101,21 @@
     }
 
     // Promo code: prefer the "Promo Code XXXX" text revealed on hover.
-    var re = /promo\s*code[:\s]*([A-Za-z0-9]{5,18})/gi, mm;
-    while ((mm = re.exec(text))) {
-      var c = cleanCode(mm[1]);
-      if (c.length >= 5 && /[0-9]/.test(c) && /[A-Z]/.test(c) && !/^B0[A-Z0-9]{8}$/.test(c)) { out.code = c; break; }
+    // Read the code from the dedicated "Promo Code XXXX" box ONLY — scanning the
+    // whole card merges the store name + rating and grabs the wrong thing.
+    var boxRe = /^promo\s*code\s*:?\s*([A-Za-z0-9]{5,14})(?:\s*copy)?$/i;
+    var els = card.querySelectorAll('div,span,p,b,strong,code,button');
+    for (var j = 0; j < els.length; j++) {
+      var raw = (els[j].textContent || '').replace(/\s+/g, ' ').trim();
+      var bm = raw.match(boxRe);
+      if (bm) {
+        var cc = cleanCode(bm[1]);
+        if (cc.length >= 5 && /[0-9]/.test(cc) && /[A-Z]/.test(cc) && !/^B0[A-Z0-9]{8}$/.test(cc)) { out.code = cc; break; }
+      }
     }
-    if (!out.code) {
-      var els = card.querySelectorAll('div,span,b,strong,code,p,button');
-      for (var j = 0; j < els.length; j++) {
-        var t = cleanCode((els[j].textContent || '').trim());
+    if (!out.code) { // fallback: an element that is just the bare code token
+      for (var k = 0; k < els.length; k++) {
+        var t = cleanCode((els[k].textContent || '').trim());
         if (/^[A-Z0-9]{6,14}$/.test(t) && /[A-Z]/.test(t) && /[0-9]/.test(t) && !/^B0[A-Z0-9]{8}$/.test(t)) { out.code = t; break; }
       }
     }
