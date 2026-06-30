@@ -399,7 +399,7 @@ async function loadPromoCodeDeals() {
   var list = document.getElementById('pcList');
   if (list) list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Loading…</div>';
   try {
-    var res = await fetch(_ADMIN_SB_URL + '/rest/v1/deals?is_top_pick=eq.false&code=not.is.null&select=id,name,price,was,off,code,img,url,store&order=name', {
+    var res = await fetch(_ADMIN_SB_URL + '/rest/v1/deals?code=not.is.null&select=id,name,price,was,off,code,img,url,store,is_top_pick&order=name', {
       headers: { apikey: _ADMIN_SB_KEY, Authorization: 'Bearer ' + _ADMIN_SB_KEY }
     });
     _pcDeals = await res.json();
@@ -414,14 +414,22 @@ function renderPromoCodeDeals() {
   if (!items.length) { list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No promo code deals' + (q ? ' match your search' : ' yet — your VA\'s sheet feeds these in') + '.</div>'; return; }
   list.innerHTML = items.map(function(d) {
     var asin = _asinFromUrl(d.url);
-    return '<div style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid rgba(255,255,255,0.08);border-radius:8px;margin-bottom:8px">'
+    var inPicks = !!d.is_top_pick;
+    var border = inPicks ? 'rgba(245,200,66,0.45)' : 'rgba(255,255,255,0.08)';
+    var status = inPicks
+      ? '<span style="font-size:11px;font-weight:800;color:#f5c842;background:rgba(245,200,66,0.12);border:1px solid rgba(245,200,66,0.35);padding:2px 8px;border-radius:4px;white-space:nowrap">★ In Top Deal Picks</span>'
+      : '';
+    var actions = inPicks
+      ? '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="demoteFromPicks(\'' + asin + '\')">Move back to All Deals</button>'
+      : '<button class="abtn abtn-gold" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="promoteToPicks(\'' + asin + '\')">Move to Today\'s Top Deal Picks</button>'
+        + '<button class="abtn abtn-red" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="removePromoDeal(\'' + asin + '\', this)">Remove</button>';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid ' + border + ';border-radius:8px;margin-bottom:8px">'
       + (d.img ? '<img src="' + d.img + '" style="width:48px;height:48px;object-fit:contain;background:#fff;border-radius:6px;flex-shrink:0" onerror="this.style.display=\'none\'">' : '')
       + '<div style="flex:1;min-width:0">'
         + '<div style="font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + d.name + '</div>'
-        + '<div style="font-size:12px;color:var(--muted)"><span style="color:#4ade80;font-weight:800">$' + d.price + '</span> · code <span style="color:#f5c842;font-weight:700">' + (d.code || '') + '</span> · ' + d.store + '</div>'
+        + '<div style="font-size:12px;color:var(--muted)"><span style="color:#4ade80;font-weight:800">$' + d.price + '</span> · code <span style="color:#f5c842;font-weight:700">' + (d.code || '') + '</span> · ' + d.store + (inPicks ? ' &nbsp;' + status : '') + '</div>'
       + '</div>'
-      + '<button class="abtn abtn-gold" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="promoteToPicks(\'' + asin + '\')">★ Top Pick</button>'
-      + '<button class="abtn abtn-red" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="removePromoDeal(\'' + asin + '\', this)">Remove</button>'
+      + actions
     + '</div>';
   }).join('');
 }
@@ -451,22 +459,29 @@ async function addPromoDeal() {
   btn.textContent = '+ Add Deal'; btn.disabled = false;
 }
 async function promoteToPicks(asin) {
-  var d = _pcDeals.find(function (x) { return _asinFromUrl(x.url) === asin; });
-  if (!d) { showToast('Deal not found'); return; }
-  if (deals.some(function (p) { return _asinFromUrl(p.url) === asin; })) { showToast('Already in Top Picks'); return; }
-  if (deals.length >= 10) { showToast('Top Picks is full (10) — remove one first'); return; }
-  saveHistory('Promoted to Top Picks');
-  deals.push({
-    id: String(d.id), rank: deals.length + 1, name: d.name, store: d.store || 'Amazon',
-    price: d.price || 0, was: d.was || 0, off: d.off || 0, rating: 0, code: d.code || '',
-    useCodeUrl: false, creator: false, brand: false, brandName: '', img: d.img || '', url: d.url || ''
-  });
-  _pcDeals = _pcDeals.filter(function (x) { return _asinFromUrl(x.url) !== asin; });
-  renderPromoCodeDeals();
-  renderDeals();
-  await saveAll();                 // publish so it's live in Top Picks + hidden from the grid
-  showToast('Added to Top Deal Picks');
-  switchTab('picks');
+  if (deals.length >= 10) { showToast('Top Deal Picks is full (10) — remove one first'); return; }
+  showToast('Moving to Top Deal Picks…');
+  try {
+    var res = await fetch('/.netlify/functions/manage-code', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass, action: 'promote', asin: asin })
+    });
+    var data = await res.json();
+    if (res.ok && data.ok) { await loadPicks(); await loadPromoCodeDeals(); showToast('Moved to Today\'s Top Deal Picks'); }
+    else { showToast('Failed: ' + (data.error || ('HTTP ' + res.status))); }
+  } catch (e) { showToast('Network error'); }
+}
+async function demoteFromPicks(asin) {
+  showToast('Moving back to All Deals…');
+  try {
+    var res = await fetch('/.netlify/functions/manage-code', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass, action: 'demote', asin: asin })
+    });
+    var data = await res.json();
+    if (res.ok && data.ok) { await loadPicks(); await loadPromoCodeDeals(); showToast('Moved back to All Deals'); }
+    else { showToast('Failed: ' + (data.error || ('HTTP ' + res.status))); }
+  } catch (e) { showToast('Network error'); }
 }
 async function removePromoDeal(asin, btn) {
   if (!asin) { showToast('No Amazon ID found for this deal'); return; }
@@ -1024,49 +1039,34 @@ function showMsg(el, text, type) {
   el.textContent = text;
 }
 
-async function initAdmin() {
-  renderBrands();
-  updateUndoBtn();
-
-  // Show loading state while fetching
-  var grid = document.getElementById('dealsGrid');
-  grid.innerHTML = '<div style="padding:28px;text-align:center;color:rgba(255,255,255,0.4);font-size:13px">Loading published deals…</div>';
-
+async function loadPicks() {
   try {
     var res = await fetch(
       _ADMIN_SB_URL + '/rest/v1/deals?is_top_pick=eq.true&order=rank.asc',
       { headers: { 'apikey': _ADMIN_SB_KEY, 'Authorization': 'Bearer ' + _ADMIN_SB_KEY } }
     );
     var rows = await res.json();
-    if (Array.isArray(rows) && rows.length > 0) {
-      deals = rows.map(function(r) {
-        return {
-          id:         String(r.id),
-          rank:       r.rank || 1,
-          name:       r.name || '',
-          store:      r.store || 'Amazon',
-          price:      r.price || 0,
-          was:        r.was   || 0,
-          off:        r.off   || 0,
-          rating:     r.rating || 0,
-          code:       r.code  || '',
-          useCodeUrl: r.use_code_url || false,
-          creator:    r.creator    || false,
-          brand:      r.brand      || false,
-          brandName:  r.brand_name || '',
-          img:        r.img || '',
-          url:        r.url || '',
-        };
-      });
-    } else {
-      deals = [];
-    }
+    deals = (Array.isArray(rows) ? rows : []).map(function(r) {
+      return {
+        id: String(r.id), rank: r.rank || 1, name: r.name || '', store: r.store || 'Amazon',
+        price: r.price || 0, was: r.was || 0, off: r.off || 0, rating: r.rating || 0,
+        code: r.code || '', useCodeUrl: r.use_code_url || false, creator: r.creator || false,
+        brand: r.brand || false, brandName: r.brand_name || '', img: r.img || '', url: r.url || '',
+      };
+    });
   } catch (e) {
-    console.error('Failed to load deals from Supabase:', e);
+    console.error('Failed to load picks:', e);
     deals = [];
   }
-
   renderDeals();
+}
+
+async function initAdmin() {
+  renderBrands();
+  updateUndoBtn();
+  var grid = document.getElementById('dealsGrid');
+  grid.innerHTML = '<div style="padding:28px;text-align:center;color:rgba(255,255,255,0.4);font-size:13px">Loading published deals…</div>';
+  await loadPicks();
   initTouchDrag();
 }
 </script>

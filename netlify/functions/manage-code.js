@@ -146,6 +146,22 @@ exports.handler = async function (event) {
       return { statusCode: res.ok ? 200 : 502, body: JSON.stringify({ ...res, asin }) };
     }
 
+    if (action === 'promote' || action === 'demote') {
+      const asin = (body.asin ? String(body.asin) : asinFromUrl(amazon_link)).toUpperCase();
+      if (!/^[A-Z0-9]{10}$/.test(asin)) return { statusCode: 400, body: JSON.stringify({ error: 'Invalid ASIN' }) };
+      const sbUrl = process.env.SUPABASE_URL, sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!sbUrl || !sbKey) return { statusCode: 500, body: JSON.stringify({ error: 'Config error' }) };
+      const sb = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
+      const today = new Date().toISOString().split('T')[0];
+      // Flip the existing row in place — no delete/insert, so no duplicate row.
+      const from = action === 'promote' ? 'false' : 'true';
+      const patch = action === 'promote' ? { is_top_pick: true, active_date: today } : { is_top_pick: false };
+      const r = await fetch(`${sbUrl}/rest/v1/deals?url=like.*${asin}*&is_top_pick=eq.${from}`, {
+        method: 'PATCH', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(patch),
+      });
+      return { statusCode: r.ok ? 200 : 502, body: JSON.stringify({ ok: r.ok, action, asin }) };
+    }
+
     return { statusCode: 400, body: JSON.stringify({ error: 'Unknown action' }) };
   } catch (e) {
     return { statusCode: 500, body: JSON.stringify({ error: 'manage-code failed', detail: String(e).slice(0, 200) }) };
