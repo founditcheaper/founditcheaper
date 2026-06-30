@@ -17,6 +17,15 @@
   prompt.style.cssText = 'position:absolute;z-index:2147483647;display:none;background:#f5c842;color:#0a1f33;font:800 12px Inter,Arial,sans-serif;border:none;border-radius:6px;padding:7px 11px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.4);white-space:nowrap';
   document.documentElement.appendChild(prompt);
 
+  // Keep the prompt on screen long enough to move to it and click (the code on
+  // the card disappears the moment you move off it, but we already captured it).
+  var hideTimer = null;
+  function scheduleHide(ms) { clearTimeout(hideTimer); hideTimer = setTimeout(function () { prompt.style.display = 'none'; lastCard = null; }, ms); }
+  prompt.addEventListener('mouseenter', function () { clearTimeout(hideTimer); });
+  prompt.addEventListener('mouseleave', function () { scheduleHide(2500); });
+
+  function cleanCode(c) { return (c || '').toUpperCase().replace(/COPY$/, ''); }
+
   var toastEl = document.createElement('div');
   toastEl.style.cssText = 'position:fixed;bottom:14px;right:14px;z-index:2147483647;display:none;background:#0a1f33;color:#fff;font:600 12px Inter,Arial,sans-serif;border:1px solid #4ade80;border-radius:8px;padding:9px 12px;max-width:320px;line-height:1.4;box-shadow:0 4px 16px rgba(0,0,0,.4)';
   document.documentElement.appendChild(toastEl);
@@ -84,15 +93,15 @@
     }
 
     // Promo code: prefer the "Promo Code XXXX" text revealed on hover.
-    var re = /promo\s*code[:\s]*([A-Za-z0-9]{5,14})/gi, mm;
+    var re = /promo\s*code[:\s]*([A-Za-z0-9]{5,18})/gi, mm;
     while ((mm = re.exec(text))) {
-      var c = mm[1].toUpperCase();
-      if (/[0-9]/.test(c) && /[A-Z]/.test(c) && !/^B0[A-Z0-9]{8}$/.test(c)) { out.code = c; break; }
+      var c = cleanCode(mm[1]);
+      if (c.length >= 5 && /[0-9]/.test(c) && /[A-Z]/.test(c) && !/^B0[A-Z0-9]{8}$/.test(c)) { out.code = c; break; }
     }
     if (!out.code) {
       var els = card.querySelectorAll('div,span,b,strong,code,p,button');
       for (var j = 0; j < els.length; j++) {
-        var t = (els[j].textContent || '').trim();
+        var t = cleanCode((els[j].textContent || '').trim());
         if (/^[A-Z0-9]{6,14}$/.test(t) && /[A-Z]/.test(t) && /[0-9]/.test(t) && !/^B0[A-Z0-9]{8}$/.test(t)) { out.code = t; break; }
       }
     }
@@ -128,6 +137,7 @@
     if (left < window.scrollX + 4) left = window.scrollX + 4;
     prompt.style.top = (window.scrollY + r.top + 8) + 'px';
     prompt.style.left = left + 'px';
+    scheduleHide(4000);
   }
 
   function tryCapture(card, attempt) {
@@ -142,10 +152,9 @@
     if (panel.style.display === 'block') return;
     if (e.target === prompt) return;
     var card = findCard(e.target);
-    if (!card) { prompt.style.display = 'none'; lastCard = null; return; }
+    if (!card) return;            // moved off a card — let the timer hide it
     if (card === lastCard) return;
     lastCard = card;
-    prompt.style.display = 'none';
     tryCapture(card, 0);
   }, true);
 
