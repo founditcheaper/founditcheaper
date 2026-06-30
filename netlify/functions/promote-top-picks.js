@@ -40,7 +40,7 @@ exports.handler = async function () {
 
   // Candidates come from the GRID only (is_top_pick=false), so each day's set
   // rotates instead of re-picking the same deals. Variant-dedup, keep best score.
-  const cres = await fetch(`${sbUrl}/rest/v1/deals?select=id,name,off,rating,reviews,brand,code,store&is_top_pick=eq.false&limit=5000`, { headers: H });
+  const cres = await fetch(`${sbUrl}/rest/v1/deals?select=id,name,off,rating,reviews,brand,code,store,is_top_pick&limit=5000`, { headers: H });
   const rows = await cres.json();
   const best = {};
   for (const r of (rows || [])) {
@@ -51,10 +51,11 @@ exports.handler = async function () {
   }
   const all = Object.values(best);
 
-  // Promo codes get priority: take up to PROMO_TARGET coded deals (if available),
-  // then fill the remaining slots with a store-mixed set of regular deals.
+  // Promo codes get priority: take up to PROMO_TARGET coded deals (eligible
+  // regardless of current state, so ~5 can be featured daily). Then fill the rest
+  // with regular GRID deals (is_top_pick=false) so they rotate for freshness.
   const promo   = all.filter(d => d.code).sort((a, b) => b._s - a._s);
-  const regular = all.filter(d => !d.code).sort((a, b) => b._s - a._s);
+  const regular = all.filter(d => !d.code && !d.is_top_pick).sort((a, b) => b._s - a._s);
   const regAmz  = regular.filter(d => d.store === 'Amazon');
   const regWmt  = regular.filter(d => d.store !== 'Amazon');
 
