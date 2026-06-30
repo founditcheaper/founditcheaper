@@ -91,6 +91,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
 .field-input { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 8px 10px; color: var(--text); font-size: 13px; font-family: 'Inter', sans-serif; outline: none; width: 100%; transition: border-color .15s; }
 .no-spin::-webkit-outer-spin-button, .no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .no-spin { -moz-appearance: textfield; appearance: textfield; }
+.field-input option { background: #0a1f33; color: #fff; }
 .field-input:focus { border-color: rgba(245,200,66,0.4); }
 .field-input::placeholder { color: var(--muted); }
 
@@ -446,8 +447,8 @@ function dealCardHtml(d, idx) {
   // Button row
   card += '<div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr auto;gap:8px;padding:0 14px 14px;align-items:stretch">';
   card += '<div style="display:flex;gap:6px">';
+  card += '<button onclick="event.stopPropagation();moveToSpot(' + idx + ')" title="Move to this spot" style="padding:0 12px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#fff;white-space:nowrap">Move to</button>';
   card += '<input type="number" min="1" max="' + deals.length + '" id="spot-' + idx + '" class="field-input no-spin" placeholder="#" draggable="false" style="width:46px;padding:0 4px;text-align:center" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();moveToSpot(' + idx + ')}">';
-  card += '<button onclick="event.stopPropagation();moveToSpot(' + idx + ')" title="Move to this spot" style="padding:0 12px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#fff;white-space:nowrap">Move</button>';
   card += '</div>';
   card += '<button onclick="event.stopPropagation();moveUp(' + idx + ')" class="abtn">▲ Move Up</button>';
   card += '<button onclick="event.stopPropagation();moveDown(' + idx + ')" class="abtn">▼ Move Down</button>';
