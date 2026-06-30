@@ -63,7 +63,7 @@
   var inS = 'width:100%;padding:7px 8px;margin-top:3px;border-radius:6px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;font-size:12px;box-sizing:border-box;outline:none';
   var lbS = 'display:block;font-size:10px;font-weight:700;color:#8aa0b4;text-transform:uppercase;letter-spacing:.4px;margin-top:9px';
   var panel = document.createElement('div');
-  panel.style.cssText = 'position:fixed;top:14px;right:14px;z-index:2147483647;display:none;background:#0a1f33;color:#fff;font-family:Inter,Arial,sans-serif;border:1px solid #f5c842;border-radius:10px;padding:14px;width:300px;box-shadow:0 6px 26px rgba(0,0,0,.55)';
+  panel.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:2147483647;display:none;background:#0a1f33;color:#fff;font-family:Inter,Arial,sans-serif;border:2px solid #f5c842;border-radius:10px;padding:16px;width:320px;box-shadow:0 8px 40px rgba(0,0,0,.7)';
   panel.innerHTML =
     '<div style="font-weight:800;color:#f5c842;font-size:13px;margin-bottom:2px">Review this deal</div>' +
     '<div style="font-size:11px;color:#8aa0b4">Fix anything, then Save.</div>' +
