@@ -22,7 +22,7 @@
   var hideTimer = null;
   function scheduleHide(ms) { clearTimeout(hideTimer); hideTimer = setTimeout(function () { prompt.style.display = 'none'; lastCard = null; }, ms); }
   prompt.addEventListener('mouseenter', function () { clearTimeout(hideTimer); });
-  prompt.addEventListener('mouseleave', function () { scheduleHide(5000); });
+  prompt.addEventListener('mouseleave', function () { scheduleHide(10000); });
 
   function cleanCode(c) { return (c || '').toUpperCase().replace(/COPY$/, ''); }
 
@@ -153,7 +153,7 @@
     if (e.target === prompt) return;
     var card = findCard(e.target);
     if (!card) {                              // moved off the card → start the countdown
-      if (prompt.style.display === 'block') scheduleHide(5000);
+      if (prompt.style.display === 'block') scheduleHide(10000);
       return;
     }
     if (card === lastCard) { clearTimeout(hideTimer); return; } // still on it → keep showing
