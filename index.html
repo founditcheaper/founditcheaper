@@ -1363,6 +1363,22 @@ function toggleFilters() {
   if (label) label.textContent = isOpen ? 'Less filters' : 'More filters';
   if (!isOpen) { /* nothing to lock — sliders are always interactive */ }
 }
+function collapseFilters() {
+  var body = document.getElementById('filterBody');
+  if (!body || !body.classList.contains('open')) return;
+  body.classList.remove('open');
+  var chev = document.getElementById('filterChevron');
+  var label = document.getElementById('filterToggleLabel');
+  if (chev) chev.style.transform = '';
+  if (label) label.textContent = 'More filters';
+}
+// Click anywhere outside the filter panel collapses the expanded filters.
+document.addEventListener('click', function(e) {
+  var body = document.getElementById('filterBody');
+  if (!body || !body.classList.contains('open')) return;
+  if (e.target && e.target.closest && e.target.closest('.filter-panel')) return;
+  collapseFilters();
+});
 
 // ── HAMBURGER MENU ────────────────────────────────────────────────────
 function closePicksAndScroll() {
