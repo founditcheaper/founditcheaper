@@ -1,19 +1,19 @@
-// Scan mode: injected into a deal page on demand. Hovering a deal card shows a
-// gold "Add" button; clicking it opens a small REVIEW panel pre-filled with the
-// code + price + Amazon link it grabbed, so you can fix anything (e.g. a wrong
-// price) before saving. Save submits via the background worker. Heuristic — it
-// finds, for the card under the cursor, a price + an Amazon link + a code token.
+// Scan mode: injected on demand. As your mouse moves over deals, it scans the
+// card under the cursor and — the moment it detects a promo code (which on sites
+// like DealSeek only exists in the page WHILE you're hovering) — captures the
+// code + price + link right then and pops an "add this deal" prompt over that
+// deal. Capturing at hover-time means moving to the button can't lose the code.
+// Clicking the prompt opens a small review panel so you can fix the price first.
 
 (function () {
   if (window.__ficScanOn) { window.__ficToast && window.__ficToast('Scan already on — hover a deal.'); return; }
   window.__ficScanOn = true;
 
-  var btn = document.createElement('button');
-  btn.textContent = '➕ Add to founditcheaper';
-  btn.style.cssText = 'position:absolute;z-index:2147483647;display:none;background:#f5c842;color:#0a1f33;font:800 12px Inter,Arial,sans-serif;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.35)';
-  document.documentElement.appendChild(btn);
+  // The "add this deal" prompt that floats over a deal once a code is found
+  var prompt = document.createElement('button');
+  prompt.style.cssText = 'position:absolute;z-index:2147483647;display:none;background:#f5c842;color:#0a1f33;font:800 12px Inter,Arial,sans-serif;border:none;border-radius:6px;padding:7px 11px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.4);white-space:nowrap';
+  document.documentElement.appendChild(prompt);
 
-  // Brief auto-hiding status (for "scan on" / "already on")
   var toastEl = document.createElement('div');
   toastEl.style.cssText = 'position:fixed;bottom:14px;right:14px;z-index:2147483647;display:none;background:#0a1f33;color:#fff;font:600 12px Inter,Arial,sans-serif;border:1px solid #4ade80;border-radius:8px;padding:9px 12px;max-width:300px;line-height:1.4;box-shadow:0 4px 16px rgba(0,0,0,.4)';
   document.documentElement.appendChild(toastEl);
@@ -40,7 +40,8 @@
   document.documentElement.appendChild(panel);
   var $ = function (id) { return panel.querySelector('#' + id); };
 
-  var currentCard = null;
+  var lastCard = null;   // card the cursor is currently on
+  var hoverDeal = null;  // data captured WHILE hovering (so it survives the click)
 
   function findCard(el) {
     var node = el, depth = 0;
@@ -79,36 +80,55 @@
     return out;
   }
 
+  function showPrompt(card, d) {
+    hoverDeal = d;
+    prompt.textContent = '➕ Add — code ' + d.code;
+    prompt.style.display = 'block';
+    var r = card.getBoundingClientRect();
+    var pw = prompt.offsetWidth || 160;
+    var left = window.scrollX + r.left + (r.width - pw) / 2;
+    if (left < window.scrollX + 4) left = window.scrollX + 4;
+    prompt.style.top = (window.scrollY + r.top + 8) + 'px';
+    prompt.style.left = left + 'px';
+  }
+
+  // Re-read the card a few times — the code is often revealed by the site's own
+  // hover handler a beat after our mouseover fires.
+  function tryCapture(card, attempt) {
+    if (lastCard !== card || panel.style.display === 'block') return;
+    var d = extract(card);
+    if (d.code && d.link) { showPrompt(card, d); return; }
+    if (attempt < 5) setTimeout(function () { tryCapture(card, attempt + 1); }, 160);
+    else { hoverDeal = d; prompt.style.display = 'none'; } // no code on this card — no prompt
+  }
+
+  document.addEventListener('mouseover', function (e) {
+    if (panel.style.display === 'block') return;
+    if (e.target === prompt) return; // moving onto the prompt — keep it
+    var card = findCard(e.target);
+    if (!card) { prompt.style.display = 'none'; lastCard = null; return; }
+    if (card === lastCard) return;   // same card — keep what we captured
+    lastCard = card;
+    prompt.style.display = 'none';
+    tryCapture(card, 0);
+  }, true);
+
   function openReview(d) {
     $('ficLink').value = d.link || '';
     $('ficCode').value = d.code || '';
     $('ficPrice').value = d.price || '';
     $('ficHint').textContent = (d.allPrices && d.allPrices.length > 1) ? 'Prices found on this card: $' + d.allPrices.join(', $') + ' — make sure the after-code price is right.' : '';
     $('ficResult').textContent = '';
-    btn.style.display = 'none';
+    prompt.style.display = 'none';
     panel.style.display = 'block';
   }
 
-  document.addEventListener('mouseover', function (e) {
-    if (panel.style.display === 'block') return;
-    if (e.target === btn) return;
-    var card = findCard(e.target);
-    if (card) {
-      currentCard = card;
-      var r = card.getBoundingClientRect();
-      btn.style.top = (window.scrollY + r.top + 6) + 'px';
-      btn.style.left = (window.scrollX + r.left + 6) + 'px';
-      btn.style.display = 'block';
-    }
-  }, true);
-
-  btn.addEventListener('click', function (e) {
+  prompt.addEventListener('click', function (e) {
     e.preventDefault(); e.stopPropagation();
-    if (!currentCard) return;
-    openReview(extract(currentCard));
+    if (hoverDeal) openReview(hoverDeal);
   });
 
-  $('ficCancel').addEventListener('click', function () { panel.style.display = 'none'; });
+  $('ficCancel').addEventListener('click', function () { panel.style.display = 'none'; lastCard = null; });
 
   $('ficSave').addEventListener('click', function () {
     var link = ($('ficLink').value || '').trim();
@@ -125,7 +145,7 @@
       if (resp && resp.ok) {
         resEl.style.color = '#4ade80';
         resEl.textContent = '✓ Added' + (resp.instant ? ' — live on the site now' : ' — will appear shortly');
-        setTimeout(function () { panel.style.display = 'none'; }, 1500);
+        setTimeout(function () { panel.style.display = 'none'; lastCard = null; }, 1500);
       } else {
         resEl.style.color = '#f87171';
         resEl.textContent = 'Failed: ' + ((resp && resp.error) || 'no response from worker');
@@ -133,5 +153,5 @@
     });
   });
 
-  toast('Scan on — hover a deal, click the gold button.');
+  toast('Scan on — move your mouse over deals; a prompt appears when a code is found.');
 })();

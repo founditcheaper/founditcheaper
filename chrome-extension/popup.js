@@ -85,8 +85,6 @@ function grabFromPage(auto) {
   });
 }
 
-$('grabBtn').addEventListener('click', function () { grabFromPage(false); });
-
 $('scanBtn').addEventListener('click', function () {
   if (!currentTab || !currentTab.id) { setStatus('No active tab to scan.', 'err'); return; }
   chrome.scripting.executeScript({ target: { tabId: currentTab.id }, files: ['content.js'] }, function () {
