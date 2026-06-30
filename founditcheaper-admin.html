@@ -399,7 +399,7 @@ async function loadPromoCodeDeals() {
   var list = document.getElementById('pcList');
   if (list) list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Loading…</div>';
   try {
-    var res = await fetch(_ADMIN_SB_URL + '/rest/v1/deals?code=not.is.null&select=id,name,price,was,off,code,img,url,store,is_top_pick&order=name', {
+    var res = await fetch(_ADMIN_SB_URL + '/rest/v1/deals?code=not.is.null&select=id,name,price,was,off,code,img,url,store,is_top_pick,created_at&order=created_at.desc', {
       headers: { apikey: _ADMIN_SB_KEY, Authorization: 'Bearer ' + _ADMIN_SB_KEY }
     });
     _pcDeals = await res.json();
@@ -407,7 +407,7 @@ async function loadPromoCodeDeals() {
     // Dedup by ASIN (guards against transient duplicate rows), keeping the Top-Pick copy if any.
     var _byA = {};
     _pcDeals.forEach(function (d) { var a = _asinFromUrl(d.url) || d.id; if (!_byA[a] || d.is_top_pick) _byA[a] = d; });
-    _pcDeals = Object.keys(_byA).map(function (k) { return _byA[k]; });
+    _pcDeals = Object.keys(_byA).map(function (k) { return _byA[k]; }).sort(function (a, b) { return String(b.created_at || '').localeCompare(String(a.created_at || '')); });
   } catch (e) { _pcDeals = []; }
   renderPromoCodeDeals();
 }
@@ -898,6 +898,10 @@ async function saveAll() {
     var data = await res.json();
     if (res.ok) {
       showToast('✓ Published — ' + data.saved + ' deals live on site');
+      // Keep any coded Top Picks recorded in the promo sheet so the two stay in sync.
+      deals.filter(function (d) { return d.code && /\/(dp|gp\/product)\//.test(d.url || ''); }).forEach(function (d) {
+        fetch('/.netlify/functions/manage-code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, action: 'addsheet', amazon_link: d.url, promo_code: d.code, discount_price: d.price }) }).catch(function () {});
+      });
     } else {
       showToast('✗ Error: ' + (data.error || 'Unknown error'));
     }

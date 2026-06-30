@@ -146,6 +146,15 @@ exports.handler = async function (event) {
       return { statusCode: res.ok ? 200 : 502, body: JSON.stringify({ ...res, asin }) };
     }
 
+    if (action === 'addsheet') {
+      // Append to the sheet only (no grid insert) — used to keep coded Top Picks
+      // recorded in the promo sheet so the two stay in sync.
+      const asin = asinFromUrl(amazon_link);
+      if (!asin) return { statusCode: 400, body: JSON.stringify({ error: 'No ASIN' }) };
+      const res = await callGateway({ action: 'append', amazon_link: String(amazon_link), promo_code: String(promo_code || ''), discount_price: String(discount_price || '') });
+      return { statusCode: res.ok ? 200 : 502, body: JSON.stringify({ ...res, asin }) };
+    }
+
     if (action === 'promote' || action === 'demote') {
       const asin = (body.asin ? String(body.asin) : asinFromUrl(amazon_link)).toUpperCase();
       if (!/^[A-Z0-9]{10}$/.test(asin)) return { statusCode: 400, body: JSON.stringify({ error: 'Invalid ASIN' }) };
