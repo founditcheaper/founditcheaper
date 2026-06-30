@@ -61,8 +61,10 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
 .section-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
 /* DEAL CARDS */
-.deals-grid { display: flex; flex-direction: column; gap: 12px; }
+.deals-grid { display: flex; flex-direction: column; gap: 12px; position: relative; }
 .deal-card { background: rgba(10,31,51,0.7); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.deal-card.dragging { opacity: 0.4; }
+#dropLine { position: absolute; left: 0; right: 0; height: 3px; background: var(--accent); border-radius: 2px; box-shadow: 0 0 8px rgba(245,200,66,0.9); z-index: 50; pointer-events: none; display: none; }
 .deal-card.creator { border-color: rgba(245,200,66,0.4); }
   .deal-card-header { display: block; width: 100%; }
 .deal-rank { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 900; color: var(--accent); width: 28px; flex-shrink: 0; }
@@ -613,9 +615,14 @@ function dealCardHtml(d, idx) {
   // Info row
   card += '<div style="padding:14px 14px 10px;display:flex;align-items:flex-start;gap:12px">';
   card += '<div style="font-family:Barlow Condensed,sans-serif;font-size:26px;font-weight:900;color:#f5c842;line-height:1;min-width:38px">#' + d.rank + '</div>';
-  if (d.img) card += '<img src="' + d.img + '" alt="" style="width:56px;height:56px;object-fit:contain;border-radius:6px;background:#fff;flex-shrink:0" onerror="this.style.display=\'none\'">';
+  var au = d.url || '';
+  if (d.img) {
+    var imgTag = '<img src="' + d.img + '" alt="" draggable="false" style="width:56px;height:56px;object-fit:contain;border-radius:6px;background:#fff;flex-shrink:0' + (au ? ';cursor:pointer' : '') + '" onerror="this.style.display=\'none\'">';
+    card += au ? '<a href="' + au + '" target="_blank" rel="noopener" draggable="false" title="Open on Amazon" onclick="event.stopPropagation()">' + imgTag + '</a>' : imgTag;
+  }
   card += '<div style="flex:1;min-width:0">';
-  card += '<div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;margin-bottom:6px">' + d.name + '</div>';
+  var nameInner = au ? '<a href="' + au + '" target="_blank" rel="noopener" draggable="false" title="Open on Amazon" onclick="event.stopPropagation()" style="color:#fff;text-decoration:none">' + d.name + ' <span style="color:#f5c842">&#8599;</span></a>' : d.name;
+  card += '<div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;margin-bottom:6px">' + nameInner + '</div>';
   card += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
   card += '<span style="font-size:18px;font-weight:900;color:#4ade80">$' + d.price + '</span>';
   card += '<span style="font-size:12px;color:rgba(255,255,255,0.4);text-decoration:line-through">$' + d.was + '</span>';
@@ -1193,42 +1200,59 @@ async function fetchProduct(idx) {
 
 // ── DRAG & DROP ───────────────────────────────────────────────────────
 var dragSrcIdx = null;
+var dropIdx = null;
+
+function getDropLine() {
+  var grid = document.getElementById('dealsGrid');
+  var line = document.getElementById('dropLine');
+  if (!line) { line = document.createElement('div'); line.id = 'dropLine'; grid.appendChild(line); }
+  return line;
+}
+function cleanupDrag() {
+  dragSrcIdx = null; dropIdx = null;
+  var line = document.getElementById('dropLine'); if (line) line.style.display = 'none';
+  document.querySelectorAll('.deal-card.dragging').forEach(function(c) { c.classList.remove('dragging'); });
+}
 
 function dragStart(e, idx) {
   dragSrcIdx = idx;
-  e.currentTarget.classList.add('dragging');
+  var card = e.currentTarget.closest('.deal-card');
+  if (card) card.classList.add('dragging');
   e.dataTransfer.effectAllowed = 'move';
 }
 function dragOver(e) {
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
-  document.querySelectorAll('.deal-card-header').forEach(function(h) { h.classList.remove('drag-over'); });
-  e.currentTarget.classList.add('drag-over');
+  var grid = document.getElementById('dealsGrid');
+  var card = e.currentTarget.closest('.deal-card');
+  if (!card) return;
+  var idx = Array.prototype.indexOf.call(grid.children, card);
+  var rect = e.currentTarget.getBoundingClientRect();
+  var after = (e.clientY - rect.top) > rect.height / 2;   // bottom half → drop below
+  dropIdx = after ? idx + 1 : idx;
+  // Show the line exactly where it will land (top or bottom edge of this card)
+  var line = getDropLine();
+  line.style.top = ((after ? card.offsetTop + card.offsetHeight : card.offsetTop) - 2) + 'px';
+  line.style.display = 'block';
   // Auto-scroll when near top or bottom
-  var scrollZone = 100;
-  var scrollSpeed = 8;
-  if (e.clientY < scrollZone) {
-    window.scrollBy(0, -scrollSpeed);
-  } else if (e.clientY > window.innerHeight - scrollZone) {
-    window.scrollBy(0, scrollSpeed);
-  }
+  var scrollZone = 100, scrollSpeed = 8;
+  if (e.clientY < scrollZone) window.scrollBy(0, -scrollSpeed);
+  else if (e.clientY > window.innerHeight - scrollZone) window.scrollBy(0, scrollSpeed);
 }
-function dragDrop(e, targetIdx) {
+function dragDrop(e) {
   e.preventDefault();
-  if (dragSrcIdx === null || dragSrcIdx === targetIdx) return;
+  if (dragSrcIdx === null || dropIdx === null) { cleanupDrag(); return; }
+  var insertAt = dropIdx > dragSrcIdx ? dropIdx - 1 : dropIdx; // account for removing the dragged item
+  if (insertAt === dragSrcIdx) { cleanupDrag(); return; }      // dropped in its own spot — no change
+  saveHistory('Reordered deals');
   var moved = deals.splice(dragSrcIdx, 1)[0];
-  deals.splice(targetIdx, 0, moved);
+  deals.splice(insertAt, 0, moved);
   deals.forEach(function(d, i) { d.rank = i + 1; });
-  dragSrcIdx = null;
+  cleanupDrag();
   renderDeals();
   showToast('Order updated');
 }
-function dragEnd() {
-  document.querySelectorAll('.deal-card-header').forEach(function(h) {
-    h.classList.remove('dragging'); h.classList.remove('drag-over');
-  });
-  dragSrcIdx = null;
-}
+function dragEnd() { cleanupDrag(); }
 
 function initTouchDrag() {} // placeholder
 
