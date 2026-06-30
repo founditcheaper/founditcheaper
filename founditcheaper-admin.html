@@ -280,6 +280,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-ghost" onclick="loadPromoCodeDeals()" title="Reload this list to see deals you just added">↻ Refresh List</button>
           <button id="syncCodesBtn" class="btn btn-ghost" onclick="syncCodes()" title="Pull the latest sheet deals onto the site now">🔄 Sync Spreadsheet Now</button>
+          <button class="btn btn-ghost" onclick="recategorizeAll()" title="Re-tag every deal's category from its title (runs in the background)">🏷️ Re-categorize all</button>
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:12px;border:1px solid rgba(245,200,66,0.25);border-radius:8px;margin-bottom:14px">
@@ -543,6 +544,18 @@ async function removePromoDeal(asin, btn) {
       btn.textContent = 'Remove'; btn.disabled = false;
     }
   } catch (e) { showToast('Network error'); btn.textContent = 'Remove'; btn.disabled = false; }
+}
+
+// ── RE-CATEGORIZE ALL DEALS (one-time backfill to new Amazon categories) ──
+async function recategorizeAll() {
+  if (!confirm('Re-tag every deal\'s category from its title using the new Amazon categories?\n\nThis runs in the background and may take a few minutes. Refresh the page afterward to see the results.')) return;
+  try {
+    await fetch('/.netlify/functions/recategorize-background', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass }),
+    });
+    showToast('Re-categorizing in the background — refresh in a few minutes.');
+  } catch (e) { showToast('Could not start re-categorize'); }
 }
 
 // ── EDIT A DEAL (fix a wrong price/title/code after it's in) ───────────
