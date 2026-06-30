@@ -85,6 +85,19 @@ function grabFromPage(auto) {
   });
 }
 
+// Auto-scan toggle — remembered across sessions.
+chrome.storage.local.get(['ficAutoScan'], function (res) { $('autoScan').checked = !!res.ficAutoScan; });
+$('autoScan').addEventListener('change', function () {
+  var on = $('autoScan').checked;
+  chrome.storage.local.set({ ficAutoScan: on });
+  if (on) {
+    setStatus('Auto-scan on — every page you open will be scanned.', 'ok');
+    if (currentTab && currentTab.id) chrome.scripting.executeScript({ target: { tabId: currentTab.id }, files: ['content.js'] }, function () { if (chrome.runtime.lastError) {} });
+  } else {
+    setStatus('Auto-scan off — use the Scan button when you need it.', 'ok');
+  }
+});
+
 $('scanBtn').addEventListener('click', function () {
   if (!currentTab || !currentTab.id) { setStatus('No active tab to scan.', 'err'); return; }
   chrome.scripting.executeScript({ target: { tabId: currentTab.id }, files: ['content.js'] }, function () {

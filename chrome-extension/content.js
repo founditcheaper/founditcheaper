@@ -221,5 +221,8 @@
     });
   });
 
-  toast('Scan on — move your mouse over deals; a prompt appears when a code is found.');
+  // Only announce when manually started; auto-scan runs silently in the background.
+  chrome.storage.local.get(['ficAutoScan'], function (r) {
+    if (!r.ficAutoScan) toast('Scan on — move your mouse over deals; a prompt appears when a code is found.');
+  });
 })();

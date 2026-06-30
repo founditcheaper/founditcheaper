@@ -28,6 +28,21 @@ async function resolveAmazon(link, dealUrl) {
   return '';
 }
 
+// Auto-scan: when the toggle is on, inject the scanner into each page as it
+// finishes loading. The scanner is passive — on pages with no promo deals it
+// shows nothing — so it's harmless, and the toggle turns it off entirely.
+chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
+  if (changeInfo.status !== 'complete') return;
+  var url = (tab && tab.url) || '';
+  if (!/^https?:/i.test(url)) return; // skip chrome:// , extension pages, etc.
+  chrome.storage.local.get(['ficAutoScan'], function (r) {
+    if (!r.ficAutoScan) return;
+    chrome.scripting.executeScript({ target: { tabId: tabId }, files: ['content.js'] }, function () {
+      if (chrome.runtime.lastError) { /* some pages block injection — ignore */ }
+    });
+  });
+});
+
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (!msg || msg.type !== 'ficAdd') return;
   (async function () {
