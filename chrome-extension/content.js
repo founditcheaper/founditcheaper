@@ -74,6 +74,23 @@
   document.documentElement.appendChild(panel);
   var $ = function (id) { return panel.querySelector('#' + id); };
 
+  // On a DealSeek deal page (URL carries a dealHash with all the info), show a
+  // PERMANENT Add button — no hovering needed, so it can never vanish on you.
+  var detailBtn = document.createElement('button');
+  detailBtn.textContent = '➕ Add this deal to founditcheaper';
+  detailBtn.style.cssText = 'position:fixed;top:14px;left:14px;z-index:2147483647;display:none;background:#f5c842;color:#0a1f33;font:800 13px Inter,Arial,sans-serif;border:none;border-radius:8px;padding:10px 14px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)';
+  document.documentElement.appendChild(detailBtn);
+  detailBtn.addEventListener('click', function () {
+    var dh = parseDealHash(location.href);
+    if (!dh.asin) { toast('No deal found in this page link.'); return; }
+    openReview({ link: 'https://www.amazon.com/dp/' + dh.asin, code: dh.code || '', price: dh.price || '', dealUrl: location.href, prices: dh.price ? [dh.price] : [] });
+  });
+  // Re-check as you move between deals (DealSeek swaps the URL without reloading).
+  setInterval(function () {
+    if (panel.style.display === 'block') return;
+    detailBtn.style.display = /dealHash=/i.test(location.href) ? 'block' : 'none';
+  }, 700);
+
   var lastCard = null;
   var hoverDeal = null;
   var reviewDealUrl = '';
@@ -208,6 +225,7 @@
       : (d.link ? '' : 'Link will be resolved by following the deal link.');
     $('ficResult').textContent = '';
     prompt.style.display = 'none';
+    detailBtn.style.display = 'none';
     panel.style.display = 'block';
   }
 
