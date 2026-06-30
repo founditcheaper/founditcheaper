@@ -58,7 +58,7 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
       var res = await fetch(ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: pw, action: 'add', amazon_link: amazon, promo_code: msg.code || '', discount_price: msg.price || '' }),
+        body: JSON.stringify({ password: pw, action: 'add', amazon_link: amazon, promo_code: msg.code || '', discount_price: msg.price || '', retail_price: msg.retail || '', title: msg.title || '' }),
       });
       var d = await res.json().catch(function () { return {}; });
       if (res.status === 401) { sendResponse({ ok: false, error: 'Wrong saved password' }); return; }

@@ -95,39 +95,48 @@ exports.handler = async function (event) {
     if (action === 'add') {
       const asin = asinFromUrl(amazon_link);
       if (!asin) return { statusCode: 400, body: JSON.stringify({ error: 'No Amazon ASIN found in that link' }) };
+      const retailIn = parseFloat(String(body.retail_price || '').replace(/[^0-9.]/g, '')) || 0;
+      const titleIn = String(body.title || '').trim();
       const res = await callGateway({
         action: 'append',
         amazon_link: String(amazon_link || ''),
         promo_code: String(promo_code || ''),
         discount_price: String(discount_price || ''),
       });
-      // Insert into the grid right away so it appears instantly (the published CSV
-      // is cached, so the sheet-based sync would otherwise lag a few minutes).
+      // Insert into the grid right away so it appears instantly. Use the Amazon
+      // API for the best data, but fall back to the price/retail/title the caller
+      // supplied so the deal still shows up even if the API lookup comes back empty.
       let instant = false;
       try {
         const sbUrl = process.env.SUPABASE_URL, sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        const token = await getToken();
-        const prod = await fetchProduct(asin, token);
-        if (prod && prod.apiPrice && sbUrl && sbKey) {
-          const regular = prod.apiPrice;
-          const dp = parseFloat(String(discount_price || '').replace(/[^0-9.]/g, ''));
-          const price = (dp > 0 && dp < regular) ? dp : regular;
-          const off = regular > price ? Math.round((1 - price / regular) * 100) : 0;
-          const today = new Date().toISOString().split('T')[0];
-          const sb = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
-          await fetch(`${sbUrl}/rest/v1/deals?url=like.*${asin}*&is_top_pick=eq.false`, { method: 'DELETE', headers: { ...sb, Prefer: 'return=minimal' } }).catch(() => {});
-          const row = {
-            rank: 900, name: prod.name.slice(0, 250), store: 'Amazon', category: inferCategory(prod.name),
-            price, was: regular, off, rating: prod.rating || 0, reviews: prod.reviews || 0,
-            img: prod.img, images: null, url: `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`,
-            code: String(promo_code || ''), use_code_url: false, creator: false, brand: false,
-            brand_name: prod.brandName || null, active_date: today, is_top_pick: false,
-          };
-          const insRes = await fetch(`${sbUrl}/rest/v1/deals`, { method: 'POST', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(row) });
-          instant = insRes.ok;
+        let prod = null;
+        try { prod = await fetchProduct(asin, await getToken()); } catch (e) { /* API may be unavailable */ }
+        if (sbUrl && sbKey) {
+          const dp = parseFloat(String(discount_price || '').replace(/[^0-9.]/g, '')) || 0;
+          const apiPrice = (prod && prod.apiPrice) || 0;
+          const price = dp > 0 ? dp : apiPrice;                                  // deal/after-code price
+          let regular = Math.max(apiPrice, retailIn, price);                     // "was" = highest known price
+          if (!(regular > 0)) regular = price;
+          if (price > 0) {
+            const off = regular > price ? Math.round((1 - price / regular) * 100) : 0;
+            const name = (prod && prod.name) ? prod.name : (titleIn || ('Amazon deal ' + asin));
+            const today = new Date().toISOString().split('T')[0];
+            const sb = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
+            await fetch(`${sbUrl}/rest/v1/deals?url=like.*${asin}*&is_top_pick=eq.false`, { method: 'DELETE', headers: { ...sb, Prefer: 'return=minimal' } }).catch(() => {});
+            const row = {
+              rank: 900, name: name.slice(0, 250), store: 'Amazon', category: inferCategory(name),
+              price, was: regular, off, rating: (prod && prod.rating) || 0, reviews: (prod && prod.reviews) || 0,
+              img: (prod && prod.img) || '', images: null, url: `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`,
+              code: String(promo_code || ''), use_code_url: false, creator: false, brand: false,
+              brand_name: (prod && prod.brandName) || null, active_date: today, is_top_pick: false,
+            };
+            const insRes = await fetch(`${sbUrl}/rest/v1/deals`, { method: 'POST', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(row) });
+            instant = insRes.ok;
+          }
         }
       } catch (e) { /* sheet has it; the scheduled sync will pull it in even if this failed */ }
-      return { statusCode: res.ok ? 200 : 502, body: JSON.stringify({ ...res, asin, instant }) };
+      // Success if EITHER the sheet append or the instant insert worked.
+      return { statusCode: (res.ok || instant) ? 200 : 502, body: JSON.stringify({ ok: !!(res.ok || instant), asin, instant }) };
     }
 
     if (action === 'remove') {

@@ -65,6 +65,7 @@
     '<label style="' + lbS + '">Amazon link</label><input id="ficLink" style="' + inS + '" placeholder="(resolved from the deal link)">' +
     '<label style="' + lbS + '">Promo code</label><input id="ficCode" style="' + inS + '" placeholder="(none)">' +
     '<label style="' + lbS + '">After-code price</label><input id="ficPrice" style="' + inS + '" placeholder="19.99">' +
+    '<label style="' + lbS + '">Retail price (was)</label><input id="ficWas" style="' + inS + '" placeholder="optional">' +
     '<div id="ficHint" style="font-size:10px;color:#f5c842;margin-top:5px;line-height:1.4"></div>' +
     '<div style="display:flex;gap:8px;margin-top:11px">' +
       '<button id="ficSave" style="flex:1;padding:9px;border:none;border-radius:7px;background:#f5c842;color:#0a1f33;font-weight:800;font-size:12px;cursor:pointer">Save to site</button>' +
@@ -78,22 +79,40 @@
   // PERMANENT Add button — no hovering needed, so it can never vanish on you.
   var detailBtn = document.createElement('button');
   detailBtn.textContent = '➕ Add this deal to founditcheaper';
-  detailBtn.style.cssText = 'position:fixed;top:14px;left:14px;z-index:2147483647;display:none;background:#f5c842;color:#0a1f33;font:800 13px Inter,Arial,sans-serif;border:none;border-radius:8px;padding:10px 14px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)';
+  detailBtn.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:2147483647;display:none;background:#f5c842;color:#0a1f33;font:800 13px Inter,Arial,sans-serif;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)';
   document.documentElement.appendChild(detailBtn);
   detailBtn.addEventListener('click', function () {
     var dh = parseDealHash(location.href);
     if (!dh.asin) { toast('No deal found in this page link.'); return; }
-    openReview({ link: 'https://www.amazon.com/dp/' + dh.asin, code: dh.code || '', price: dh.price || '', dealUrl: location.href, prices: dh.price ? [dh.price] : [] });
+    openReview({ link: 'https://www.amazon.com/dp/' + dh.asin, code: dh.code || '', price: dh.price || '', was: scrapeRetail(), title: scrapeTitle(), dealUrl: location.href, prices: dh.price ? [dh.price] : [] });
   });
   // Re-check as you move between deals (DealSeek swaps the URL without reloading).
   setInterval(function () {
     if (panel.style.display === 'block') return;
-    detailBtn.style.display = /dealHash=/i.test(location.href) ? 'block' : 'none';
+    if (/dealHash=/i.test(location.href)) {
+      var dh = parseDealHash(location.href);
+      detailBtn.textContent = '➕ Add this deal' + (dh.code ? ' — code ' + dh.code : '');
+      detailBtn.style.display = 'block';
+    } else { detailBtn.style.display = 'none'; }
   }, 700);
+
+  // Best-effort scrapes for the detail page (fill the review panel + give the
+  // server a retail price and title even when the Amazon API is unavailable).
+  function scrapeRetail() {
+    var els = document.querySelectorAll('s,del,[style*="line-through"]');
+    for (var i = 0; i < els.length; i++) { var m = (els[i].textContent || '').match(/\$\s?(\d{1,4}(?:\.\d{1,2})?)/); if (m) return m[1]; }
+    return '';
+  }
+  function scrapeTitle() {
+    var els = document.querySelectorAll('h1,h2,h3');
+    for (var i = 0; i < els.length; i++) { var t = (els[i].textContent || '').replace(/\s+/g, ' ').trim(); if (t.length >= 20 && t.length <= 250 && !/\$/.test(t)) return t; }
+    return '';
+  }
 
   var lastCard = null;
   var hoverDeal = null;
   var reviewDealUrl = '';
+  var reviewTitle = '';
 
   function findCard(el) {
     var node = el, depth = 0;
@@ -177,6 +196,17 @@
     if (dh.asin) out.link = 'https://www.amazon.com/dp/' + dh.asin;
     if (dh.price) out.price = dh.price;
     if (dh.code) out.code = dh.code;
+
+    // Retail (was) = highest price on the card; title = longest leaf text.
+    if (out.prices.length > 1) out.was = String(Math.max.apply(null, out.prices.map(parseFloat)));
+    var best = '';
+    var tels = card.querySelectorAll('a,span,div,p,h1,h2,h3,strong,b');
+    for (var ti = 0; ti < tels.length; ti++) {
+      if (tels[ti].children.length) continue; // leaf nodes only
+      var tt = (tels[ti].textContent || '').replace(/\s+/g, ' ').trim();
+      if (tt.length > best.length && tt.length <= 250 && !/\$/.test(tt) && !/promo\s*code|view deal|view variants|share deal|budget/i.test(tt)) best = tt;
+    }
+    if (best.length >= 15) out.title = best;
     return out;
   }
 
@@ -217,9 +247,11 @@
 
   function openReview(d) {
     reviewDealUrl = d.dealUrl || '';
+    reviewTitle = d.title || '';
     $('ficLink').value = d.link || '';
     $('ficCode').value = d.code || '';
     $('ficPrice').value = d.price || '';
+    $('ficWas').value = d.was || '';
     $('ficHint').textContent = (d.prices && d.prices.length > 1)
       ? 'Prices on card: $' + d.prices.join(', $') + ' — lowest is used as the deal price.'
       : (d.link ? '' : 'Link will be resolved by following the deal link.');
@@ -240,6 +272,7 @@
     var link = ($('ficLink').value || '').trim();
     var code = ($('ficCode').value || '').trim();
     var price = ($('ficPrice').value || '').trim();
+    var was = ($('ficWas').value || '').trim();
     var resEl = $('ficResult');
     var hasLink = /\/dp\/[A-Z0-9]{10}|\/gp\/product\/[A-Z0-9]{10}|[?&]asin=[A-Z0-9]{10}|\bB0[A-Z0-9]{8}\b/i.test(link);
     if (!hasLink && !reviewDealUrl) {
@@ -247,7 +280,7 @@
     }
     var sv = $('ficSave'); sv.disabled = true; sv.textContent = 'Saving…';
     resEl.style.color = '#8aa0b4'; resEl.textContent = hasLink ? 'Adding…' : 'Following the deal link to Amazon…';
-    chrome.runtime.sendMessage({ type: 'ficAdd', link: hasLink ? link : '', dealUrl: reviewDealUrl, code: code, price: price }, function (resp) {
+    chrome.runtime.sendMessage({ type: 'ficAdd', link: hasLink ? link : '', dealUrl: reviewDealUrl, code: code, price: price, retail: was, title: reviewTitle }, function (resp) {
       sv.disabled = false; sv.textContent = 'Save to site';
       if (chrome.runtime.lastError) { resEl.style.color = '#f87171'; resEl.textContent = 'Error: ' + chrome.runtime.lastError.message; return; }
       if (resp && resp.ok) {
