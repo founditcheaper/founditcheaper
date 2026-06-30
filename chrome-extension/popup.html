@@ -3,16 +3,19 @@
 <head>
 <meta charset="utf-8">
 <style>
-  :root { --navy:#0a1f33; --surface:#0f2a44; --accent:#f5c842; --green:#4ade80; --muted:#8aa0b4; --border:rgba(255,255,255,0.12); }
+  :root { --navy:#0a1f33; --accent:#f5c842; --green:#4ade80; --muted:#8aa0b4; --border:rgba(255,255,255,0.12); }
   * { box-sizing:border-box; font-family:'Segoe UI',Inter,sans-serif; }
   body { width:330px; margin:0; padding:14px; background:var(--navy); color:#fff; }
   .title { font-size:15px; font-weight:800; color:var(--accent); margin-bottom:2px; }
-  .sub { font-size:11px; color:var(--muted); margin-bottom:12px; }
-  label { display:block; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin:10px 0 4px; }
+  .sub { font-size:11px; color:var(--muted); margin-bottom:8px; }
+  .hint { font-size:11px; color:var(--accent); background:rgba(245,200,66,0.08); border:1px solid rgba(245,200,66,0.25); border-radius:6px; padding:7px 9px; line-height:1.45; margin-bottom:8px; min-height:14px; }
+  label { display:block; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin:9px 0 4px; }
   input { width:100%; padding:9px 10px; border-radius:7px; border:1px solid var(--border); background:rgba(255,255,255,0.06); color:#fff; font-size:13px; outline:none; }
   input:focus { border-color:rgba(245,200,66,0.5); }
   input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
-  button { width:100%; margin-top:14px; padding:11px; border:none; border-radius:8px; background:var(--accent); color:var(--navy); font-size:14px; font-weight:800; cursor:pointer; }
+  button { width:100%; padding:10px; border:none; border-radius:8px; font-size:13px; font-weight:800; cursor:pointer; }
+  .primary { margin-top:12px; background:var(--accent); color:var(--navy); }
+  .secondary { margin-top:8px; background:transparent; border:1px solid var(--border); color:var(--muted); }
   button:hover { opacity:.9; }
   button:disabled { opacity:.5; cursor:default; }
   .row2 { display:flex; gap:8px; }
@@ -20,14 +23,14 @@
   .status { font-size:12px; margin-top:10px; text-align:center; min-height:16px; line-height:1.4; }
   .status.ok { color:var(--green); }
   .status.err { color:#f87171; }
-  .pwrow { margin-top:6px; }
   .pwrow.saved { display:none; }
   .changepw { font-size:10px; color:var(--muted); text-decoration:underline; cursor:pointer; margin-top:8px; display:inline-block; }
 </style>
 </head>
 <body>
   <div class="title">🍌 Add Promo Deal</div>
-  <div class="sub">Goes straight to founditcheaper.net + your sheet.</div>
+  <div class="sub">Deal site → grabs code + price. Amazon → grabs the link.</div>
+  <div class="hint" id="hint"></div>
 
   <div id="pwRow" class="pwrow">
     <label>Admin password (saved on this device)</label>
@@ -35,7 +38,7 @@
   </div>
 
   <label>Amazon link</label>
-  <input type="text" id="link" placeholder="https://www.amazon.com/dp/...">
+  <input type="text" id="link" placeholder="open the deal on Amazon to grab this">
 
   <div class="row2">
     <div>
@@ -48,7 +51,8 @@
     </div>
   </div>
 
-  <button id="addBtn">+ Add to founditcheaper</button>
+  <button class="secondary" id="grabBtn">📋 Grab code &amp; price from this page</button>
+  <button class="primary" id="addBtn">+ Add to founditcheaper</button>
   <div class="status" id="status"></div>
   <span class="changepw" id="changePw" style="display:none">change saved password</span>
 
