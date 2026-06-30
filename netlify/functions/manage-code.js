@@ -176,6 +176,29 @@ exports.handler = async function (event) {
       return { statusCode: r.ok ? 200 : 502, body: JSON.stringify({ ok: r.ok, action, asin }) };
     }
 
+    if (action === 'edit') {
+      // Edit a deal in place (fix a wrong price, title, code, etc.). Matches by
+      // row id so it touches exactly the one row. % off is recomputed here.
+      const id = String(body.id || '');
+      if (!id) return { statusCode: 400, body: JSON.stringify({ error: 'Missing deal id' }) };
+      const sbUrl = process.env.SUPABASE_URL, sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!sbUrl || !sbKey) return { statusCode: 500, body: JSON.stringify({ error: 'Config error' }) };
+      const sb = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
+      const patch = {};
+      if (body.name != null) patch.name = String(body.name).slice(0, 250);
+      if (body.code != null) patch.code = String(body.code);
+      const price = parseFloat(String(body.price ?? '').replace(/[^0-9.]/g, ''));
+      const was = parseFloat(String(body.was ?? '').replace(/[^0-9.]/g, ''));
+      if (price > 0) patch.price = price;
+      if (was > 0) patch.was = was;
+      if (price > 0 && was > 0) patch.off = was > price ? Math.round((1 - price / was) * 100) : 0;
+      if (!Object.keys(patch).length) return { statusCode: 400, body: JSON.stringify({ error: 'Nothing to update' }) };
+      const r = await fetch(`${sbUrl}/rest/v1/deals?id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(patch),
+      });
+      return { statusCode: r.ok ? 200 : 502, body: JSON.stringify({ ok: r.ok, action: 'edit', id }) };
+    }
+
     return { statusCode: 400, body: JSON.stringify({ error: 'Unknown action' }) };
   } catch (e) {
     return { statusCode: 500, body: JSON.stringify({ error: 'manage-code failed', detail: String(e).slice(0, 200) }) };

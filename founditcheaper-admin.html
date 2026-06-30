@@ -327,10 +327,12 @@ async function login() {
     });
     if (res.ok) {
       sessionPass = pass;
+      try { localStorage.setItem('ficAdminPass', pass); } catch (e) {}
       document.getElementById('loginWrap').style.display = 'none';
       document.getElementById('adminWrap').style.display = 'block';
       initAdmin();
     } else {
+      try { localStorage.removeItem('ficAdminPass'); } catch (e) {}
       document.getElementById('loginErr').style.display = 'block';
     }
   } catch (e) {
@@ -340,10 +342,19 @@ async function login() {
   btn.textContent = 'Sign In'; btn.disabled = false;
 }
 function logout() {
+  try { localStorage.removeItem('ficAdminPass'); } catch (e) {}
   document.getElementById('loginWrap').style.display = 'flex';
   document.getElementById('adminWrap').style.display = 'none';
   document.getElementById('loginPass').value = '';
 }
+
+// Stay logged in across refreshes — restore the saved password and sign in.
+window.addEventListener('DOMContentLoaded', function () {
+  try {
+    var saved = localStorage.getItem('ficAdminPass');
+    if (saved) { document.getElementById('loginPass').value = saved; login(); }
+  } catch (e) {}
+});
 
 // ── SYNC PROMO CODES (on-demand pull from the VA's Google Sheet) ───────
 async function syncCodes() {
@@ -413,6 +424,7 @@ function renderPromoCodeDeals() {
     var status = inPicks
       ? '<span style="font-size:11px;font-weight:800;color:#f5c842;background:rgba(245,200,66,0.12);border:1px solid rgba(245,200,66,0.35);padding:2px 8px;border-radius:4px;white-space:nowrap">★ In Top Deal Picks</span>'
       : '';
+    var editBtn = '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="openEditDeal(\'' + d.id + '\')">Edit</button>';
     var actions = inPicks
       ? '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="demoteFromPicks(\'' + asin + '\')">Move back to All Deals</button>'
         + '<button class="abtn abtn-red" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="removePromoDeal(\'' + asin + '\', this)">Remove</button>'
@@ -424,7 +436,7 @@ function renderPromoCodeDeals() {
         + '<div style="font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + d.name + '</div>'
         + '<div style="font-size:12px;color:var(--muted)"><span style="color:#4ade80;font-weight:800">$' + d.price + '</span> · code <span style="color:#f5c842;font-weight:700">' + (d.code || '') + '</span> · ' + d.store + (inPicks ? ' &nbsp;' + status : '') + '</div>'
       + '</div>'
-      + actions
+      + editBtn + actions
     + '</div>';
   }).join('');
 }
@@ -498,6 +510,60 @@ async function removePromoDeal(asin, btn) {
       btn.textContent = 'Remove'; btn.disabled = false;
     }
   } catch (e) { showToast('Network error'); btn.textContent = 'Remove'; btn.disabled = false; }
+}
+
+// ── EDIT A DEAL (fix a wrong price/title/code after it's in) ───────────
+function openEditDeal(id) {
+  var d = _pcDeals.find(function (x) { return x.id === id; });
+  if (!d) { showToast('Deal not found — try Refresh'); return; }
+  var existing = document.getElementById('editOverlay'); if (existing) existing.remove();
+  var inS = 'width:100%;padding:9px 10px;margin-top:4px;border-radius:7px;border:1px solid rgba(255,255,255,.18);background:#0e2842;color:#fff;font-size:13px;box-sizing:border-box';
+  var lbS = 'display:block;font-size:11px;font-weight:700;color:#8aa0b4;text-transform:uppercase;letter-spacing:.4px;margin-top:11px';
+  var ov = document.createElement('div');
+  ov.id = 'editOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = '<div style="background:#0a1f33;border:1px solid #f5c842;border-radius:12px;padding:18px;width:380px;max-width:100%">'
+    + '<div style="font-weight:800;color:#f5c842;font-size:15px;margin-bottom:2px">Edit deal</div>'
+    + '<div style="font-size:12px;color:#8aa0b4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (d.name || '') + '</div>'
+    + '<label style="' + lbS + '">Title</label><input id="edName" style="' + inS + '">'
+    + '<div style="display:flex;gap:10px"><div style="flex:1"><label style="' + lbS + '">Retail price</label><input id="edWas" type="number" step="0.01" style="' + inS + '"></div>'
+    + '<div style="flex:1"><label style="' + lbS + '">Deal price</label><input id="edPrice" type="number" step="0.01" style="' + inS + '"></div></div>'
+    + '<label style="' + lbS + '">Promo code</label><input id="edCode" style="' + inS + '" placeholder="(none)">'
+    + '<div id="edResult" style="font-size:12px;margin-top:10px;min-height:14px"></div>'
+    + '<div style="display:flex;gap:10px;margin-top:12px"><button id="edSave" class="abtn abtn-gold" style="flex:1">Save changes</button><button id="edCancel" class="abtn" style="width:auto;padding:10px 14px">Cancel</button></div>'
+    + '</div>';
+  document.body.appendChild(ov);
+  document.getElementById('edName').value = d.name || '';
+  document.getElementById('edWas').value = d.was || '';
+  document.getElementById('edPrice').value = d.price || '';
+  document.getElementById('edCode').value = d.code || '';
+  document.getElementById('edCancel').onclick = function () { ov.remove(); };
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  document.getElementById('edSave').onclick = function () { saveEditDeal(id); };
+}
+async function saveEditDeal(id) {
+  var btn = document.getElementById('edSave'), resEl = document.getElementById('edResult');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    var res = await fetch('/.netlify/functions/manage-code', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        password: sessionPass, action: 'edit', id: id,
+        name: document.getElementById('edName').value,
+        was: document.getElementById('edWas').value,
+        price: document.getElementById('edPrice').value,
+        code: document.getElementById('edCode').value,
+      })
+    });
+    var data = await res.json();
+    if (res.ok && data.ok) {
+      resEl.style.color = '#4ade80'; resEl.textContent = '✓ Saved';
+      var ov = document.getElementById('editOverlay');
+      setTimeout(function () { if (ov) ov.remove(); }, 700);
+      await loadPicks(); await loadPromoCodeDeals();
+    } else { resEl.style.color = '#f87171'; resEl.textContent = 'Failed: ' + (data.error || ('HTTP ' + res.status)); }
+  } catch (e) { resEl.style.color = '#f87171'; resEl.textContent = 'Network error'; }
+  btn.disabled = false; btn.textContent = 'Save changes';
 }
 
 // ── SUPABASE (read-only anon key — safe for admin panel reads) ─────────
