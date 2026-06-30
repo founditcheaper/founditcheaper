@@ -86,6 +86,15 @@ function grabFromPage(auto) {
 }
 
 $('grabBtn').addEventListener('click', function () { grabFromPage(false); });
+
+$('scanBtn').addEventListener('click', function () {
+  if (!currentTab || !currentTab.id) { setStatus('No active tab to scan.', 'err'); return; }
+  chrome.scripting.executeScript({ target: { tabId: currentTab.id }, files: ['content.js'] }, function () {
+    if (chrome.runtime.lastError) { setStatus("Can't scan this page: " + chrome.runtime.lastError.message, 'err'); return; }
+    setStatus('Scan on — hover a deal, click the gold button.', 'ok');
+    setTimeout(function () { window.close(); }, 700);
+  });
+});
 $('changePw').addEventListener('click', function () { $('pwRow').classList.remove('saved'); $('changePw').style.display = 'none'; $('pw').value = ''; $('pw').focus(); });
 
 $('addBtn').addEventListener('click', async function () {

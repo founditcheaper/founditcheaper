@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "founditcheaper — Quick Add Deal",
-  "version": "1.2.0",
-  "description": "Add a promo-code deal to founditcheaper.net fast — grabs the code, price, AND Amazon link right off a deal page.",
+  "version": "2.0.0",
+  "description": "Add promo-code deals to founditcheaper.net fast — one-click from a deal page, or turn on Scan mode and add each deal by hovering it.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "Add deal to founditcheaper"
   },
+  "background": { "service_worker": "background.js" },
   "permissions": ["tabs", "storage", "scripting", "activeTab", "clipboardRead"],
   "host_permissions": ["<all_urls>"]
 }
