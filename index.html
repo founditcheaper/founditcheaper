@@ -304,6 +304,18 @@
   .chip { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; border: 1px solid rgba(255,255,255,0.14); background: transparent; color: var(--muted); cursor: pointer; transition: all .15s; }
   .chip:hover { border-color: var(--accent); color: var(--accent); }
   .chip.active { background: var(--accent); border-color: var(--accent); color: #0a1f33; font-weight: 800; }
+  /* ── Filter bar (tap a name to expand its options) ─────────────── */
+  .fbar { display: flex; gap: 8px; padding: 12px 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .fbar::-webkit-scrollbar { display: none; }
+  .fbar-btn { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid var(--border-gold); background: rgba(255,255,255,0.04); color: var(--text); cursor: pointer; white-space: nowrap; font-family: Inter, sans-serif; transition: all .15s; }
+  .fbar-btn:hover { border-color: var(--accent); }
+  .fbar-btn.showing { border-color: var(--accent); background: rgba(245,200,66,0.1); }
+  .fbar-btn.active { background: var(--accent); border-color: var(--accent); color: #0a1f33; }
+  .fbar-chev { width: 13px; height: 13px; transition: transform .2s; }
+  .fbar-btn.showing .fbar-chev { transform: rotate(180deg); }
+  .fbar-clear { margin-left: auto; color: var(--muted); border-style: dashed; }
+  .fdrop { display: none; padding: 13px 15px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .fdrop.open { display: block; }
   .slider-wrap { display: flex; flex-direction: column; gap: 7px; }
   .slider-value { font-size: 14px; font-weight: 700; color: var(--accent); }
   /* ── Dual-handle range slider ─────────────────────────────────── */
@@ -632,93 +644,76 @@
 
 
     <div class="filter-panel">
-      <div onclick="toggleFilters()" class="filter-header-row" style="padding:12px 15px;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
-        <h3 style="font-size:11px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:var(--accent)">Filters</h3>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span id="filterToggleLabel" style="font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap">More filters</span>
-          <svg id="filterChevron" style="width:16px;height:16px;color:var(--muted);transition:transform .25s;flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
+      <div class="fbar">
+        <button type="button" class="fbar-btn" id="fbtnDiscount" onclick="toggleDrop('dDiscount', this, event)">Discount<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+        <button type="button" class="fbar-btn" id="fbtnStore" onclick="toggleDrop('dStore', this, event)">Store<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+        <button type="button" class="fbar-btn" id="fbtnCategory" onclick="toggleDrop('dCategory', this, event)">Category<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+        <button type="button" class="fbar-btn" id="fbtnPrice" onclick="toggleDrop('dPrice', this, event)">Price Range<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+        <button type="button" class="fbar-btn" id="fbtnBrand" onclick="toggleBrand()">Name Brands Only</button>
+        <button type="button" class="fbar-btn" id="chipPromo" onclick="togglePromo(this)">🏷️ Promo Codes Only</button>
+        <button type="button" class="fbar-btn fbar-clear" onclick="clearFilters()">Clear all</button>
       </div>
-      <div style="padding:6px 15px 10px;border-bottom:1px solid rgba(255,255,255,0.06)">
-        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Discount %</div>
-        <div id="quickChipsInline" style="display:flex;gap:4px">
-          <button type="button" class="quick-chip active" onclick="setQuickDiscount(10, this, event)" style="flex:1;text-align:center;padding:3px 2px">10%+</button>
-          <button type="button" class="quick-chip" onclick="setQuickDiscount(20, this, event)" style="flex:1;text-align:center;padding:3px 2px">20%+</button>
-          <button type="button" class="quick-chip" onclick="setQuickDiscount(30, this, event)" style="flex:1;text-align:center;padding:3px 2px">30%+</button>
-          <button type="button" class="quick-chip" onclick="setQuickDiscount(40, this, event)" style="flex:1;text-align:center;padding:3px 2px">40%+</button>
-          <button type="button" class="quick-chip" onclick="setQuickDiscount(50, this, event)" style="flex:1;text-align:center;padding:3px 2px">50%+</button>
-        </div>
-      </div>
-      <div id="filterBody">
-        <div class="filter-section">
-          <span class="filter-label">Quick Filters</span>
-          <div class="chip-grid">
-            <button class="chip" id="chipPromo" onclick="togglePromo(this)">🏷️ Promo Codes Only</button>
-          </div>
-        </div>
-        <div class="filter-section">
-          <span class="filter-label">Store</span>
-          <div class="chip-grid" id="storeChips">
-            <button class="chip active" data-store="all" onclick="setStore(this,'all')">All</button>
-            <button class="chip" data-store="Amazon" onclick="setStore(this,'Amazon')">Amazon</button>
-            <button class="chip" data-store="Walmart" onclick="setStore(this,'Walmart')">Walmart</button>
-            <button class="chip" data-store="HomeDepot" onclick="setStore(this,'HomeDepot')">Home Depot</button>
-            <button class="chip" data-store="BestBuy" onclick="setStore(this,'BestBuy')">Best Buy</button>
-            <button class="chip" data-store="Lowes" onclick="setStore(this,'Lowes')">Lowe's</button>
-          </div>
-        </div>
-        <div class="filter-section">
-          <span class="filter-label">Category</span>
-          <div class="chip-grid" id="catChips">
-            <button class="chip active" data-cat="all" onclick="setCategory(this,'all')">All</button>
-            <button class="chip" data-cat="Tools" onclick="setCategory(this,'Tools')">Tools</button>
-            <button class="chip" data-cat="Kitchen" onclick="setCategory(this,'Kitchen')">Kitchen</button>
-            <button class="chip" data-cat="Electronics" onclick="setCategory(this,'Electronics')">Electronics</button>
-            <button class="chip" data-cat="Outdoors" onclick="setCategory(this,'Outdoors')">Outdoors</button>
-            <button class="chip" data-cat="Sports" onclick="setCategory(this,'Sports')">Sports</button>
-            <button class="chip" data-cat="Auto" onclick="setCategory(this,'Auto')">Auto</button>
-            <button class="chip" data-cat="Home" onclick="setCategory(this,'Home')">Home</button>
-            <button class="chip" data-cat="Garden" onclick="setCategory(this,'Garden')">Garden</button>
-          </div>
-        </div>
 
-        <div class="filter-section">
-          <span class="filter-label">Price Range</span>
-          <div id="priceWrap">
-            <div class="dual-slider-outer" id="dualSliderOuter">
-              <div class="dual-slider-bg"></div>
-              <div class="dual-slider-fill" id="priceFill"></div>
-              <div class="range-bubble" id="priceMinBubble">$0</div>
-              <div class="range-bubble" id="priceMaxBubble">$500+</div>
-              <input type="range" class="dual-slider" id="priceMinSlider" min="0" max="500" step="5" value="0" oninput="updateDualPrice()">
-              <input type="range" class="dual-slider" id="priceMaxSlider" min="0" max="500" step="5" value="500" oninput="updateDualPrice()">
+      <div class="fdrop" id="dDiscount">
+        <div id="quickChipsInline" style="display:flex;gap:6px;flex-wrap:wrap">
+          <button type="button" class="quick-chip active" onclick="setQuickDiscount(10, this, event)" style="flex:1;min-width:58px;text-align:center;padding:7px 4px">10%+</button>
+          <button type="button" class="quick-chip" onclick="setQuickDiscount(20, this, event)" style="flex:1;min-width:58px;text-align:center;padding:7px 4px">20%+</button>
+          <button type="button" class="quick-chip" onclick="setQuickDiscount(30, this, event)" style="flex:1;min-width:58px;text-align:center;padding:7px 4px">30%+</button>
+          <button type="button" class="quick-chip" onclick="setQuickDiscount(40, this, event)" style="flex:1;min-width:58px;text-align:center;padding:7px 4px">40%+</button>
+          <button type="button" class="quick-chip" onclick="setQuickDiscount(50, this, event)" style="flex:1;min-width:58px;text-align:center;padding:7px 4px">50%+</button>
+        </div>
+      </div>
+
+      <div class="fdrop" id="dStore">
+        <div class="chip-grid" id="storeChips">
+          <button class="chip active" data-store="all" onclick="setStore(this,'all')">All</button>
+          <button class="chip" data-store="Amazon" onclick="setStore(this,'Amazon')">Amazon</button>
+          <button class="chip" data-store="Walmart" onclick="setStore(this,'Walmart')">Walmart</button>
+          <button class="chip" data-store="HomeDepot" onclick="setStore(this,'HomeDepot')">Home Depot</button>
+          <button class="chip" data-store="BestBuy" onclick="setStore(this,'BestBuy')">Best Buy</button>
+          <button class="chip" data-store="Lowes" onclick="setStore(this,'Lowes')">Lowe's</button>
+        </div>
+      </div>
+
+      <div class="fdrop" id="dCategory">
+        <div class="chip-grid" id="catChips">
+          <button class="chip active" data-cat="all" onclick="setCategory(this,'all')">All</button>
+          <button class="chip" data-cat="Tools" onclick="setCategory(this,'Tools')">Tools</button>
+          <button class="chip" data-cat="Kitchen" onclick="setCategory(this,'Kitchen')">Kitchen</button>
+          <button class="chip" data-cat="Electronics" onclick="setCategory(this,'Electronics')">Electronics</button>
+          <button class="chip" data-cat="Outdoors" onclick="setCategory(this,'Outdoors')">Outdoors</button>
+          <button class="chip" data-cat="Sports" onclick="setCategory(this,'Sports')">Sports</button>
+          <button class="chip" data-cat="Auto" onclick="setCategory(this,'Auto')">Auto</button>
+          <button class="chip" data-cat="Home" onclick="setCategory(this,'Home')">Home</button>
+          <button class="chip" data-cat="Garden" onclick="setCategory(this,'Garden')">Garden</button>
+        </div>
+      </div>
+
+      <div class="fdrop" id="dPrice">
+        <div id="priceWrap">
+          <div class="dual-slider-outer" id="dualSliderOuter">
+            <div class="dual-slider-bg"></div>
+            <div class="dual-slider-fill" id="priceFill"></div>
+            <div class="range-bubble" id="priceMinBubble">$0</div>
+            <div class="range-bubble" id="priceMaxBubble">$500+</div>
+            <input type="range" class="dual-slider" id="priceMinSlider" min="0" max="500" step="5" value="0" oninput="updateDualPrice()">
+            <input type="range" class="dual-slider" id="priceMaxSlider" min="0" max="500" step="5" value="500" oninput="updateDualPrice()">
+          </div>
+          <div class="slider-ends"><span>$0</span><span>$500+</span></div>
+          <div class="slider-input-row">
+            <div class="price-stepper">
+              <button class="stepper-btn" onclick="stepPrice('min',-5)">−</button>
+              <span class="stepper-label" id="priceMinLabel">Min $0</span>
+              <button class="stepper-btn" onclick="stepPrice('min',5)">+</button>
             </div>
-            <div class="slider-ends"><span>$0</span><span>$500+</span></div>
-            <div class="slider-input-row">
-              <div class="price-stepper">
-                <button class="stepper-btn" onclick="stepPrice('min',-5)">−</button>
-                <span class="stepper-label" id="priceMinLabel">Min $0</span>
-                <button class="stepper-btn" onclick="stepPrice('min',5)">+</button>
-              </div>
-              <div class="price-stepper">
-                <button class="stepper-btn" onclick="stepPrice('max',-5)">−</button>
-                <span class="stepper-label" id="priceMaxLabel">Max $500+</span>
-                <button class="stepper-btn" onclick="stepPrice('max',5)">+</button>
-              </div>
+            <div class="price-stepper">
+              <button class="stepper-btn" onclick="stepPrice('max',-5)">−</button>
+              <span class="stepper-label" id="priceMaxLabel">Max $500+</span>
+              <button class="stepper-btn" onclick="stepPrice('max',5)">+</button>
             </div>
           </div>
         </div>
-        <div class="filter-section">
-          <span class="filter-label">Brand Filter</span>
-          <label class="brand-toggle" onclick="toggleBrand()">
-            <span>Name brands only</span>
-            <div class="toggle-switch" id="brandToggle"></div>
-          </label>
-        </div>
-        <div class="filter-section" style="padding-top:10px;padding-bottom:10px">
-          <button onclick="clearFilters()" style="width:100%;padding:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">Clear all filters</button>
-        </div>
-      </div><!-- end filterBody -->
+      </div>
     </div>
 
     <div style="height:14px"></div>
@@ -1134,6 +1129,7 @@ function cardHtml(p) {
 }
 
 function resetAndRender() {
+  if (typeof updateFilterBars === 'function') updateFilterBars();
   var savedScroll = window.scrollY;
   filtered = getFiltered(); page = 0;
   window.promoShown = false;
@@ -1336,7 +1332,8 @@ function updateDiscount(v) {
 function updateStars(v) { state.minStars = parseFloat(v); resetAndRender(); }
 function toggleBrand() {
   state.brandOnly = !state.brandOnly;
-  document.getElementById('brandToggle').classList.toggle('on', state.brandOnly);
+  var b = document.getElementById('fbtnBrand');
+  if (b) b.classList.toggle('active', state.brandOnly);
   resetAndRender();
 }
 function sortDeals(v) { state.sort = v; resetAndRender(); }
@@ -1361,34 +1358,36 @@ function clearFilters() {
   document.getElementById('priceMaxBubble').textContent = '$500+';
   document.querySelectorAll('#catChips .chip').forEach(function(c) { c.classList.remove('active'); });
   document.querySelector('#catChips .chip[data-cat="all"]').classList.add('active');
-  document.querySelector('input[name="stars"][value="0"]').checked = true;
-  document.getElementById('brandToggle').classList.remove('on');
+  var starEl = document.querySelector('input[name="stars"][value="0"]'); if (starEl) starEl.checked = true;
+  var brandBtn = document.getElementById('fbtnBrand'); if (brandBtn) brandBtn.classList.remove('active');
+  collapseFilters();
   resetAndRender();
 }
 
-function toggleFilters() {
-  var body = document.getElementById('filterBody');
-  var chev = document.getElementById('filterChevron');
-  var label = document.getElementById('filterToggleLabel');
-  body.classList.toggle('open');
-  var isOpen = body.classList.contains('open');
-  chev.style.transform = isOpen ? 'rotate(180deg)' : '';
-  if (label) label.textContent = isOpen ? 'Less filters' : 'More filters';
-  if (!isOpen) { /* nothing to lock — sliders are always interactive */ }
+// Open/close a single filter dropdown (tap a name to expand its options).
+function toggleDrop(id, btn, evt) {
+  if (evt) evt.stopPropagation();
+  var target = document.getElementById(id);
+  if (!target) return;
+  var willOpen = !target.classList.contains('open');
+  document.querySelectorAll('.filter-panel .fdrop').forEach(function(d) { d.classList.remove('open'); });
+  document.querySelectorAll('.fbar-btn').forEach(function(b) { b.classList.remove('showing'); });
+  if (willOpen) { target.classList.add('open'); if (btn) btn.classList.add('showing'); }
 }
 function collapseFilters() {
-  var body = document.getElementById('filterBody');
-  if (!body || !body.classList.contains('open')) return;
-  body.classList.remove('open');
-  var chev = document.getElementById('filterChevron');
-  var label = document.getElementById('filterToggleLabel');
-  if (chev) chev.style.transform = '';
-  if (label) label.textContent = 'More filters';
+  document.querySelectorAll('.filter-panel .fdrop').forEach(function(d) { d.classList.remove('open'); });
+  document.querySelectorAll('.fbar-btn').forEach(function(b) { b.classList.remove('showing'); });
 }
-// Click anywhere outside the filter panel collapses the expanded filters.
+// Highlight bar buttons whose filter has a non-default selection.
+function updateFilterBars() {
+  var set = function(id, on) { var el = document.getElementById(id); if (el) el.classList.toggle('active', !!on); };
+  set('fbtnDiscount', state.minDiscount > 10);
+  set('fbtnStore', state.store !== 'all');
+  set('fbtnCategory', state.category !== 'all');
+  set('fbtnPrice', (typeof state_minPrice !== 'undefined' && state_minPrice > 0) || (state.maxPrice && state.maxPrice > 0));
+}
+// Click outside the filter panel closes any open dropdown.
 document.addEventListener('click', function(e) {
-  var body = document.getElementById('filterBody');
-  if (!body || !body.classList.contains('open')) return;
   if (e.target && e.target.closest && e.target.closest('.filter-panel')) return;
   collapseFilters();
 });
