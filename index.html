@@ -1686,6 +1686,18 @@ function openDrawer(productId) {
     html += '<div class="drawer-code-note">Paste at checkout · Copy the code above to use on ' + sName + '</div>';
     html += '</div>';
 
+    // How to use this code (collapsible step-by-step)
+    html += '<div class="drawer-why-wrap">';
+    html += '<button class="drawer-why-toggle" onclick="toggleWhy(this)"><span>🛒 How to use this code</span><svg style="width:16px;height:16px;transition:transform .2s" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>';
+    html += '<div class="drawer-why-body">';
+    html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num yellow">1</span><div><div class="why-title">Copy the code</div><div class="why-desc">Tap <strong>Copy Code</strong> above, then <strong>View Deal on ' + sName + '</strong> to open the product page.</div></div></div></div>';
+    html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num green">2</span><div><div class="why-title">Grab any on-page coupon</div><div class="why-desc">If the product page shows a clip-on coupon box, check it too &#8212; it can stack for extra savings.</div></div></div></div>';
+    html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num blue">3</span><div><div class="why-title">Add to cart and check out</div><div class="why-desc">Pick your options, add to cart, and start checkout.</div></div></div></div>';
+    html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num yellow">4</span><div><div class="why-title">Find the promo code box</div><div class="why-desc">At checkout, open <strong>&quot;Gift cards &amp; promotional codes&quot;</strong> (sometimes shown as &quot;Add a gift card or promo code&quot;).</div></div></div></div>';
+    html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num green">5</span><div><div class="why-title">Paste the code &amp; Apply</div><div class="why-desc">Paste <strong>' + p.code + '</strong>, tap <strong>Apply</strong>, and the discount comes off your total.</div></div></div></div>';
+    html += '<div class="why-item" style="border-bottom:none"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num" style="background:rgba(255,255,255,0.08);color:var(--accent)">★</span><div><div class="why-title">Tip</div><div class="why-desc">Codes sometimes need a second try &#8212; re-enter it or refresh the page. Works on the U.S. store.</div></div></div></div>';
+    html += '</div></div>';
+
     // Why not working
     html += '<div class="drawer-why-wrap">';
     html += '<button class="drawer-why-toggle" onclick="toggleWhy(this)"><span>🤔 Promo code not working?</span><svg style="width:16px;height:16px;transition:transform .2s" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>';
