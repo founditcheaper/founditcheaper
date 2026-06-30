@@ -405,7 +405,8 @@ function _fmtAdded(ts) {
   if (!ts) return 'unknown';
   var dt = new Date(ts);
   if (isNaN(dt.getTime())) return 'unknown';
-  return dt.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  // Always show Central Time (handles CDT/CST automatically), regardless of this device's clock.
+  return dt.toLocaleString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
 }
 async function loadPromoCodeDeals() {
   var list = document.getElementById('pcList');
