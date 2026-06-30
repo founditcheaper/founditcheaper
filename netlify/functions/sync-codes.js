@@ -212,6 +212,16 @@ exports.handler = async function (event) {
   } catch (e) { /* table missing/unreachable -> no blocks */ }
   if (blocked.size) sheet = sheet.filter(s => !blocked.has(s.asin));
 
+  // Don't re-add any ASIN that's currently a manual Top Pick — it lives in the
+  // picks carousel (hidden from the grid), so re-adding would duplicate it.
+  let topPicks = new Set();
+  try {
+    const tr = await fetch(`${sbUrl}/rest/v1/deals?is_top_pick=eq.true&select=url`, { headers: sbHeaders });
+    const tj = await tr.json();
+    if (Array.isArray(tj)) topPicks = new Set(tj.map(x => extractAsin(x.url)).filter(Boolean));
+  } catch (e) { /* ignore */ }
+  if (topPicks.size) sheet = sheet.filter(s => !topPicks.has(s.asin));
+
   const sheetByAsin = {};
   for (const s of sheet) sheetByAsin[s.asin] = s;
   const sheetAsins = new Set(Object.keys(sheetByAsin));

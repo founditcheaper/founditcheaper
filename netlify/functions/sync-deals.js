@@ -229,6 +229,17 @@ exports.handler = async function () {
     }
   } catch (e) { /* no block list -> nothing to skip */ }
 
+  // Skip ASINs that are currently manual Top Picks, so a promoted deal isn't
+  // duplicated back into the grid.
+  try {
+    const res = await fetch(`${sbUrl}/rest/v1/deals?is_top_pick=eq.true&select=url`, { headers: sbHeaders });
+    const tp = await res.json();
+    if (Array.isArray(tp) && tp.length) {
+      const tpSet = new Set(tp.map(d => (d.url.match(/\/dp\/([A-Z0-9]{10})/i) || [])[1]).filter(Boolean));
+      deals = deals.filter(d => !tpSet.has(d.asin));
+    }
+  } catch (e) { /* ignore */ }
+
   console.log(`[sync-deals] ${deals.length} qualifying Amazon deals (after variant + coded dedup)`);
 
   // Safety: if discovery returned nothing (API hiccup), leave the existing grid alone.

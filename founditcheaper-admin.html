@@ -180,13 +180,13 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
 
     <!-- STATS -->
     <div class="stats-bar">
-      <div class="stat-card"><div class="stat-val" id="statDeals">10</div><div class="stat-label">Today's Picks</div></div>
+      <div class="stat-card"><div class="stat-val" id="statDeals">10</div><div class="stat-label">Today's Top Deal Picks</div></div>
       <div class="stat-card"><div class="stat-val" id="statCodes">7</div><div class="stat-label">With Promo Codes</div></div>
     </div>
 
     <!-- TABS -->
     <div class="tabs">
-      <button class="tab active" onclick="switchTab('picks')">📋 Today's Picks</button>
+      <button class="tab active" onclick="switchTab('picks')">📋 Today's Top Deal Picks</button>
       <button class="tab" onclick="switchTab('promocodes')">🏷️ All Deals</button>
       <button class="tab" onclick="switchTab('autopicker')">🤖 Auto-Picker</button>
       <button class="tab" onclick="switchTab('schedule')">📅 Schedule</button>
@@ -431,6 +431,7 @@ function renderPromoCodeDeals() {
         + '<div style="font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + d.name + '</div>'
         + '<div style="font-size:12px;color:var(--muted)"><span style="color:#4ade80;font-weight:800">$' + d.price + '</span> · code <span style="color:#f5c842;font-weight:700">' + (d.code || '') + '</span> · ' + d.store + '</div>'
       + '</div>'
+      + '<button class="abtn abtn-gold" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="promoteToPicks(\'' + asin + '\')">★ Top Pick</button>'
       + '<button class="abtn abtn-red" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="removePromoDeal(\'' + asin + '\', this)">Remove</button>'
     + '</div>';
   }).join('');
@@ -459,6 +460,24 @@ async function addPromoDeal() {
     }
   } catch (e) { showToast('Network error'); }
   btn.textContent = '+ Add Deal'; btn.disabled = false;
+}
+async function promoteToPicks(asin) {
+  var d = _pcDeals.find(function (x) { return _asinFromUrl(x.url) === asin; });
+  if (!d) { showToast('Deal not found'); return; }
+  if (deals.some(function (p) { return _asinFromUrl(p.url) === asin; })) { showToast('Already in Top Picks'); return; }
+  if (deals.length >= 10) { showToast('Top Picks is full (10) — remove one first'); return; }
+  saveHistory('Promoted to Top Picks');
+  deals.push({
+    id: String(d.id), rank: deals.length + 1, name: d.name, store: d.store || 'Amazon',
+    price: d.price || 0, was: d.was || 0, off: d.off || 0, rating: 0, code: d.code || '',
+    useCodeUrl: false, creator: false, brand: false, brandName: '', img: d.img || '', url: d.url || ''
+  });
+  _pcDeals = _pcDeals.filter(function (x) { return _asinFromUrl(x.url) !== asin; });
+  renderPromoCodeDeals();
+  renderDeals();
+  await saveAll();                 // publish so it's live in Top Picks + hidden from the grid
+  showToast('Added to Top Deal Picks');
+  switchTab('picks');
 }
 async function removePromoDeal(asin, btn) {
   if (!asin) { showToast('No Amazon ID found for this deal'); return; }
