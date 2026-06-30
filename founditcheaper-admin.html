@@ -551,11 +551,13 @@ function removeDeal(idx) { deleteItem(idx); }
 function undoRemove() { undoHistory(); }
 
 function addDeal() {
-  deals.push({ id:'new-'+Date.now(), rank:deals.length+1, name:'New Deal', store:'Amazon', price:0, was:0, off:0, rating:4.5, code:'', useCodeUrl:true, creator:false, img:'', url:'' });
+  saveHistory('Added deal');
+  // Add to the TOP of the list (index 0) and renumber ranks so it's #1.
+  deals.unshift({ id:'new-'+Date.now(), rank:1, name:'New Deal', store:'Amazon', price:0, was:0, off:0, rating:4.5, code:'', useCodeUrl:true, creator:false, img:'', url:'' });
+  deals.forEach(function(d,i){ d.rank = i+1; });
   renderDeals();
-  var newIdx = deals.length - 1;
-  toggleEdit(newIdx);
-  var newCard = document.getElementById('dealsGrid').lastElementChild;
+  toggleEdit(0);
+  var newCard = document.getElementById('dealsGrid').firstElementChild;
   if (newCard) newCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function saveDeal(idx) {
@@ -843,8 +845,12 @@ async function fetchProduct(idx) {
     if (data.off     != null) deals[idx].off     = data.off;
     if (data.off)     { deals[idx].off = data.off; }
 
-    showMsg(msg, '✓ Product loaded — review and save.', 'green');
     renderDeals();
+    toggleEdit(idx);   // STAY in edit mode so a promo code can be added before saving
+    var msg2 = document.getElementById('fetch-msg-' + idx);
+    if (msg2) showMsg(msg2, '✓ Loaded — add a promo code if needed, then click Save Deal.', 'green');
+    var card2 = document.getElementById('dealsGrid').children[idx];
+    if (card2) card2.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (e) {
     showMsg(msg, '✗ Network error — try again', 'red');
   } finally {
