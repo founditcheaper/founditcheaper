@@ -8,8 +8,8 @@
 const crypto = require('crypto');
 
 const BASE         = 'https://developer.api.walmart.com/api-proxy/service/affil/product/v2';
-const MIN_DISCOUNT = 20;   // % off
-const MAX_DISCOUNT = 75;   // brand trust: above this is usually a fake/inflated MSRP
+const MIN_DISCOUNT = 10;   // % off — wide net per Erik
+const MAX_DISCOUNT = 80;   // cap fake/inflated-MSRP deals
 const MIN_PRICE    = 5;    // skip sub-$5 junk
 const MIN_RATING   = 3.0;  // only cut clearly-bad rated items; 0/unknown is KEPT
 const MIN_REVIEWS  = 0;    // KEEP no-name / low-review products (promo-code sources)
@@ -43,12 +43,14 @@ function baseNameKey(name) {
 
 // Blue-collar / male-skewed category terms (mirrors the old auto-picker intent)
 const SEARCH_TERMS = [
-  'cordless drill', 'power tools', 'tool set', 'impact driver', 'work boots',
-  'air fryer', 'coffee maker', 'bluetooth headphones', 'bluetooth speaker',
-  'smart tv', 'vacuum cleaner', 'gaming headset', 'kitchen appliances',
-  'home improvement', 'garden tools', 'car accessories', 'camping gear',
-  'fitness equipment', 'laptop', 'monitor', 'security camera', 'space heater',
-  'generator', 'air compressor', 'cooler',
+  'cordless drill', 'power tools', 'tool set', 'impact driver', 'work boots', 'wrench set', 'socket set', 'tool box', 'air compressor', 'generator', 'pressure washer', 'shop vac', 'work light', 'ladder',
+  'air fryer', 'coffee maker', 'blender', 'instant pot', 'cookware set', 'knife set', 'toaster oven', 'stand mixer', 'kitchen appliances', 'water bottle',
+  'bluetooth headphones', 'bluetooth speaker', 'wireless earbuds', 'gaming headset', 'smart tv', 'monitor', 'laptop', 'tablet', 'smartwatch', 'security camera', 'power bank', 'phone charger', 'keyboard', 'router', 'soundbar', 'streaming device',
+  'vacuum cleaner', 'robot vacuum', 'air purifier', 'space heater', 'humidifier', 'tower fan', 'led lights', 'mattress', 'pillow', 'bedding set', 'storage bins', 'area rug',
+  'camping gear', 'tent', 'sleeping bag', 'cooler', 'fishing rod', 'backpack', 'dumbbells', 'yoga mat', 'exercise bike', 'grill', 'flashlight',
+  'car accessories', 'car vacuum', 'jump starter', 'tire inflator', 'floor mats', 'phone mount',
+  'garden tools', 'lawn mower', 'string trimmer', 'leaf blower', 'garden hose',
+  'office chair', 'standing desk', 'hair dryer', 'beard trimmer', 'electric toothbrush',
 ];
 
 function getPrivateKeyPem() {
@@ -138,11 +140,9 @@ exports.handler = async function () {
       if (price < MIN_PRICE || was <= price) continue;     // real markdown + skip sub-$5 junk
       const off = Math.round((1 - price / was) * 100);
       if (off < MIN_DISCOUNT) continue;
-      // Trust rule: cap discounts at MAX_DISCOUNT — UNLESS it's a recognized brand
-      // (real brands rarely fake-inflate MSRP, so a big brand discount is a real deal).
+      // Cap everything at MAX_DISCOUNT (80%) — above that is usually an inflated MSRP.
       const brand = isBrand(it.name, it.brandName);
-      if (off > MAX_DISCOUNT && !brand) continue;
-      if (off > BRAND_MAX) continue;                       // sanity backstop even for brands
+      if (off > MAX_DISCOUNT) continue;
       const rating  = parseFloat(it.customerRating) || 0;
       const reviews = Number(it.numReviews) || 0;
       if (rating > 0 && rating < MIN_RATING) continue;
