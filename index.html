@@ -37,7 +37,6 @@
   /* HEADER */
   header {
     background: rgba(10,31,51,0.99);
-    border-bottom: 2px solid var(--accent);
     position: sticky; top: 0; z-index: 200;
     padding: 12px 16px;
   }
@@ -49,6 +48,12 @@
     header { padding: 12px 16px !important; }
     .header-row1 { margin-bottom: 12px !important; }
     .header-row2 { margin-top: 0 !important; }
+    /* On phones the filters collapse behind a single "Filters" button */
+    .filters-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-gold); border-radius: 8px; color: var(--text); font-size: 13px; font-weight: 800; cursor: pointer; font-family: 'Inter', sans-serif; }
+    .filters-toggle .fbar-chev { width: 15px; height: 15px; transition: transform .2s; }
+    .filters-toggle.open .fbar-chev { transform: rotate(180deg); }
+    #filterPanel { display: none; margin-top: 10px; }
+    #filterPanel.open { display: block; }
   }
 
   /* Desktop: single row */
@@ -192,7 +197,9 @@
 
   /* PICKS SECTION (full width) */
   .picks-outer { padding: 20px 24px 0; max-width: 1200px; margin: 0 auto; width: 100%; }
-  .filters-top { max-width: 1200px; margin: 0 auto; width: 100%; padding: 16px 24px 0; }
+  .filters-bar-outer { background: rgba(10,31,51,0.99); border-bottom: 2px solid var(--accent); }
+  .filters-top { max-width: 1200px; margin: 0 auto; width: 100%; padding: 10px 24px; box-sizing: border-box; }
+  .filters-toggle { display: none; }  /* shown only on phones */
   .picks-section-title { font-size: 11px; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
 
   /* Today card */
@@ -524,7 +531,7 @@
   @media (max-width: 820px) {
     .layout { padding: 14px; }
     .picks-outer { padding: 14px 14px 0; }
-    .filters-top { padding: 12px 14px 0; }
+    .filters-top { padding: 10px 14px; }
     .section-divider { padding: 14px 14px 0; }
     header { padding: 0 16px; }
     .hero-strip { padding: 7px 16px; }
@@ -564,8 +571,10 @@
 </header>
 
 <!-- FILTERS (top of page, under the search bar) -->
+<div class="filters-bar-outer">
 <div class="filters-top">
-  <div class="filter-panel">
+  <button class="filters-toggle" id="filtersToggle" onclick="toggleFilterBar()"><span>🎚️ Filters</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+  <div class="filter-panel" id="filterPanel">
     <div class="fbar">
       <button type="button" class="fbar-btn" id="chipPromo" onclick="togglePromo(this)">🏷️ Promo Codes Only</button>
       <button type="button" class="fbar-btn" id="fbtnDiscount" onclick="toggleDrop('dDiscount', this, event)">Discount<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
@@ -652,6 +661,7 @@
       </div>
     </div>
   </div>
+</div>
 </div>
 
 <!-- SLIDE-IN MENU OVERLAY -->
@@ -1392,6 +1402,16 @@ function clearFilters() {
   var brandBtn = document.getElementById('fbtnBrand'); if (brandBtn) brandBtn.classList.remove('active');
   collapseFilters();
   resetAndRender();
+}
+
+// Phones only: show/hide the whole filter bar behind the "Filters" button.
+function toggleFilterBar() {
+  var p = document.getElementById('filterPanel');
+  var t = document.getElementById('filtersToggle');
+  if (!p) return;
+  var open = p.classList.toggle('open');
+  if (t) t.classList.toggle('open', open);
+  if (!open) collapseFilters(); // also close any open dropdown when hiding the bar
 }
 
 // Open/close a single filter dropdown (tap a name to expand its options).
