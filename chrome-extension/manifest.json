@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "founditcheaper — Quick Add Deal",
+  "version": "1.0.0",
+  "description": "Add a promo-code deal to founditcheaper.net in one click — auto-grabs the Amazon link from the current tab.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Add deal to founditcheaper"
+  },
+  "permissions": ["tabs", "storage"],
+  "host_permissions": ["https://founditcheaper.netlify.app/*"]
+}
