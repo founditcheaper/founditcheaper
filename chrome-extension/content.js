@@ -84,21 +84,26 @@
   // PERMANENT Add button — no hovering needed, so it can never vanish on you.
   var detailBtn = document.createElement('button');
   detailBtn.textContent = '➕ Add this deal to founditcheaper';
-  detailBtn.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:2147483647;display:none;background:#f5c842;color:#0a1f33;font:800 13px Inter,Arial,sans-serif;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)';
+  detailBtn.style.cssText = 'position:fixed;top:122px;left:50%;transform:translateX(-50%);z-index:2147483647;display:none;background:#f5c842;color:#0a1f33;font:800 13px Inter,Arial,sans-serif;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)';
   document.documentElement.appendChild(detailBtn);
-  detailBtn.addEventListener('click', function () {
-    var dh = parseDealHash(location.href);
-    if (!dh.asin) { toast('No deal found in this page link.'); return; }
-    openReview({ link: 'https://www.amazon.com/dp/' + dh.asin, code: dh.code || '', price: dh.price || '', was: scrapeRetail(), title: scrapeTitle(), dealUrl: location.href, prices: dh.price ? [dh.price] : [] });
+  var currentDetailDeal = null;
+  detailBtn.addEventListener('click', function (e) {
+    e.preventDefault(); e.stopPropagation();
+    if (!currentDetailDeal) { toast('No deal found on this page.'); return; }
+    openReview(currentDetailDeal); // uses data captured while the pop-up was open
   });
-  // Re-check as you move between deals (DealSeek swaps the URL without reloading).
+  // Capture the deal from the URL + page WHILE the pop-up is open, so a click
+  // still works even if DealSeek closes the pop-up and clears the URL.
   setInterval(function () {
     if (panel.style.display === 'block') return;
     if (/dealHash=/i.test(location.href)) {
       var dh = parseDealHash(location.href);
-      detailBtn.textContent = '➕ Add this deal' + (dh.code ? ' — code ' + dh.code : '');
-      detailBtn.style.display = 'block';
-    } else { detailBtn.style.display = 'none'; }
+      if (dh.asin) {
+        currentDetailDeal = { link: 'https://www.amazon.com/dp/' + dh.asin, code: dh.code || '', price: dh.price || '', was: dh.was || scrapeRetail(), title: scrapeTitle(), dealUrl: location.href, prices: dh.price ? [dh.price] : [] };
+        detailBtn.textContent = '➕ Add this deal' + (dh.code ? ' — code ' + dh.code : '');
+        detailBtn.style.display = 'block';
+      } else { detailBtn.style.display = 'none'; currentDetailDeal = null; }
+    } else { detailBtn.style.display = 'none'; currentDetailDeal = null; }
   }, 700);
 
   // Best-effort scrapes for the detail page (fill the review panel + give the
@@ -239,6 +244,7 @@
 
   document.addEventListener('mouseover', function (e) {
     if (panel.style.display === 'block') return;
+    if (/dealHash=/i.test(location.href)) { prompt.style.display = 'none'; return; } // detail page → only the permanent button
     if (e.target === prompt) return;
     var card = findCard(e.target);
     if (!card) {                              // moved off the card → start the countdown
