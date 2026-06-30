@@ -135,10 +135,10 @@ exports.handler = async function (event) {
       if (!/^[A-Z0-9]{10}$/.test(asin)) return { statusCode: 400, body: JSON.stringify({ error: 'Invalid ASIN' }) };
       // 1) remove the row from the sheet (so the sync won't re-add it)
       const res = await callGateway({ action: 'remove', asin });
-      // 2) delete it from the grid now (don't wait for the next sync)
+      // 2) delete it from the site now (both the grid row AND any Top-Pick row)
       const sbUrl = process.env.SUPABASE_URL, sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       if (sbUrl && sbKey) {
-        await fetch(`${sbUrl}/rest/v1/deals?url=like.*${asin}*&is_top_pick=eq.false`, {
+        await fetch(`${sbUrl}/rest/v1/deals?url=like.*${asin}*`, {
           method: 'DELETE',
           headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}`, Prefer: 'return=minimal' },
         }).catch(() => {});

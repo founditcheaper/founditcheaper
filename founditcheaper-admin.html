@@ -425,6 +425,7 @@ function renderPromoCodeDeals() {
       : '';
     var actions = inPicks
       ? '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="demoteFromPicks(\'' + asin + '\')">Move back to All Deals</button>'
+        + '<button class="abtn abtn-red" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="removePromoDeal(\'' + asin + '\', this)">Remove</button>'
       : '<button class="abtn abtn-gold" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="promoteToPicks(\'' + asin + '\')">Move to Today\'s Top Deal Picks</button>'
         + '<button class="abtn abtn-red" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="removePromoDeal(\'' + asin + '\', this)">Remove</button>';
     return '<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid ' + border + ';border-radius:8px;margin-bottom:8px">'
@@ -499,9 +500,9 @@ async function removePromoDeal(asin, btn) {
     });
     var data = await res.json();
     if (res.ok && data.ok) {
-      _pcDeals = _pcDeals.filter(function(d) { return _asinFromUrl(d.url) !== asin; });
-      renderPromoCodeDeals();
       showToast('Removed from sheet and site');
+      await loadPicks();
+      await loadPromoCodeDeals();
     } else {
       showToast('Failed: ' + (data.error || ('HTTP ' + res.status)));
       btn.textContent = 'Remove'; btn.disabled = false;
