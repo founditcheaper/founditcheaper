@@ -288,6 +288,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <div style="flex:1;min-width:100px"><label class="field-label">After-code price</label><input class="field-input no-spin" id="pcPrice" type="number" placeholder="19.99"></div>
         <button class="btn btn-green" id="pcAddBtn" onclick="addPromoDeal()" style="flex-shrink:0">+ Add Deal</button>
       </div>
+      <div id="pcTodayStat" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
       <input class="field-input" id="pcSearch" placeholder="Search promo deals by name or code..." style="margin-bottom:12px" oninput="renderPromoCodeDeals()">
       <div id="pcList"></div>
     </div>
@@ -408,6 +409,12 @@ function _fmtAdded(ts) {
   // Always show Central Time (handles CDT/CST automatically), regardless of this device's clock.
   return dt.toLocaleString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
 }
+// Central-time calendar date (YYYY-MM-DD) for "added today" counting.
+function _ctDate(ts) { var d = new Date(ts); return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); }
+function _addedTodayCount() {
+  var today = _ctDate(new Date());
+  return _pcDeals.filter(function (d) { return d.created_at && _ctDate(d.created_at) === today; }).length;
+}
 async function loadPromoCodeDeals() {
   var list = document.getElementById('pcList');
   if (list) list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Loading…</div>';
@@ -426,6 +433,13 @@ async function loadPromoCodeDeals() {
 }
 function renderPromoCodeDeals() {
   var list = document.getElementById('pcList'); if (!list) return;
+  var stat = document.getElementById('pcTodayStat');
+  if (stat) {
+    var todayN = _addedTodayCount();
+    stat.innerHTML =
+      '<div style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.45);border-radius:8px;padding:10px 14px;font-size:13px;color:#fff"><span style="font-size:22px;font-weight:900;color:#4ade80">' + todayN + '</span> <span style="color:var(--muted)">added today (Central)</span></div>'
+      + '<div style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;color:#fff"><span style="font-size:22px;font-weight:900;color:#f5c842">' + _pcDeals.length + '</span> <span style="color:var(--muted)">total promo deals</span></div>';
+  }
   var q = (document.getElementById('pcSearch').value || '').toLowerCase();
   var items = _pcDeals.filter(function(d) { return !q || (d.name||'').toLowerCase().indexOf(q) >= 0 || (d.code||'').toLowerCase().indexOf(q) >= 0; });
   if (!items.length) { list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No promo code deals' + (q ? ' match your search' : ' yet — your VA\'s sheet feeds these in') + '.</div>'; return; }
