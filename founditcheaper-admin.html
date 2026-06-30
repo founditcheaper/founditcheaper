@@ -220,16 +220,13 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       <!-- Quality Filters -->
       <div class="settings-card">
         <div class="settings-title">Quality Filters</div>
-        <div class="slider-row"><div class="slider-row-top"><span class="slider-name">Min Star Rating</span><span class="slider-val" id="sv1">3.8★</span></div><input type="range" min="3" max="5" step="0.1" value="3.8" oninput="document.getElementById('sv1').textContent=parseFloat(this.value).toFixed(1)+'★'"></div>
-        <div class="slider-row"><div class="slider-row-top"><span class="slider-name">Min Discount %</span><span class="slider-val" id="sv2">30%</span></div><input type="range" min="10" max="70" step="5" value="30" oninput="document.getElementById('sv2').textContent=this.value+'%'"></div>
-        <div class="slider-row"><div class="slider-row-top"><span class="slider-name">Min Reviews</span><span class="slider-val" id="sv3">15</span></div><input type="range" min="0" max="500" step="25" value="15" oninput="document.getElementById('sv3').textContent=this.value"></div>
+        <div class="slider-row"><div class="slider-row-top"><span class="slider-name">Min Discount %</span><span class="slider-val" id="sv2">30%</span></div><input id="afMinDiscount" type="range" min="10" max="70" step="5" value="30" oninput="document.getElementById('sv2').textContent=this.value+'%'"></div>
       </div>
 
       <!-- Audience Split -->
       <div class="settings-card">
         <div class="settings-title">Audience Split</div>
         <div class="slider-row"><div class="slider-row-top"><span class="slider-name">Male-skewing %</span><span class="slider-val" id="sv4">80%</span></div><input type="range" min="50" max="100" step="5" value="80" oninput="document.getElementById('sv4').textContent=this.value+'%'"></div>
-        <div class="slider-row"><div class="slider-row-top"><span class="slider-name">Must have promo code %</span><span class="slider-val" id="sv5">60%</span></div><input type="range" min="0" max="100" step="10" value="60" oninput="document.getElementById('sv5').textContent=this.value+'%'"></div>
         <div class="slider-row"><div class="slider-row-top"><span class="slider-name">Big brand minimum</span><span class="slider-val" id="sv6">2</span></div><input type="range" min="0" max="5" step="1" value="2" oninput="document.getElementById('sv6').textContent=this.value"></div>
       </div>
 
@@ -683,10 +680,8 @@ async function autoFill(randomize) {
   var needed = 10 - deals.length;
   if (needed <= 0) { showToast('Already at 10 deals — remove one first'); return; }
 
-  var sliders     = document.querySelectorAll('input[type=range]');
-  var minRating   = parseFloat(sliders[0] ? sliders[0].value : 0);
-  var minDiscount = parseInt(sliders[1]   ? sliders[1].value : 10);
-  var minReviews  = parseInt(sliders[2]   ? sliders[2].value : 0);
+  var minDiscEl   = document.getElementById('afMinDiscount');
+  var minDiscount = parseInt(minDiscEl ? minDiscEl.value : 10);
 
   var toast = document.getElementById('toast');
   toast.innerHTML = randomize ? '🎲 Randomizing picks from catalog…' : '🔍 Picking best deals from your catalog…';
@@ -725,8 +720,6 @@ async function autoFill(randomize) {
       if (existingIds.has(String(r.id)))        return false;
       if (existingKeys.has(_afBaseKey(r.name))) return false;
       if ((r.off || 0) < minDiscount)           return false;
-      if (r.rating  > 0 && r.rating  < minRating)  return false;
-      if (r.reviews > 0 && r.reviews < minReviews)  return false;
       return true;
     });
 
@@ -1013,12 +1006,9 @@ function resetDefaults() {
   // Reset all sliders and labels
 
   var defaults = [
-    { id:'sv1', val:'3.8', label:'3.8★' },
-    { id:'sv2', val:'30',  label:'30%'  },
-    { id:'sv3', val:'15',  label:'15'   },
-    { id:'sv4', val:'80',  label:'80%'  },
-    { id:'sv5', val:'60',  label:'60%'  },
-    { id:'sv6', val:'2',   label:'2'    }
+    { id:'sv2', val:'30', label:'30%' },
+    { id:'sv4', val:'80', label:'80%' },
+    { id:'sv6', val:'2',  label:'2'   }
   ];
 
   // Get all range inputs in order
