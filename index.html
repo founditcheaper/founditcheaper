@@ -316,6 +316,10 @@
   .fbar-clear { margin-left: auto; color: var(--muted); border-style: dashed; }
   .fdrop { display: none; padding: 13px 15px; border-top: 1px solid rgba(255,255,255,0.06); }
   .fdrop.open { display: block; }
+  .active-filters { display: none; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0 14px 12px; }
+  .active-filters.shown { display: flex; }
+  .af-count { font-size: 11px; font-weight: 800; color: var(--accent); }
+  .af-chip { font-size: 11px; font-weight: 600; color: var(--text); background: rgba(245,200,66,0.12); border: 1px solid rgba(245,200,66,0.35); border-radius: 12px; padding: 2px 9px; }
   .slider-wrap { display: flex; flex-direction: column; gap: 7px; }
   .slider-value { font-size: 14px; font-weight: 700; color: var(--accent); }
   /* ── Dual-handle range slider ─────────────────────────────────── */
@@ -645,14 +649,15 @@
 
     <div class="filter-panel">
       <div class="fbar">
+        <button type="button" class="fbar-btn" id="chipPromo" onclick="togglePromo(this)">🏷️ Promo Codes Only</button>
         <button type="button" class="fbar-btn" id="fbtnDiscount" onclick="toggleDrop('dDiscount', this, event)">Discount<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
         <button type="button" class="fbar-btn" id="fbtnStore" onclick="toggleDrop('dStore', this, event)">Store<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
         <button type="button" class="fbar-btn" id="fbtnCategory" onclick="toggleDrop('dCategory', this, event)">Category<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
         <button type="button" class="fbar-btn" id="fbtnPrice" onclick="toggleDrop('dPrice', this, event)">Price Range<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
         <button type="button" class="fbar-btn" id="fbtnBrand" onclick="toggleBrand()">Name Brands Only</button>
-        <button type="button" class="fbar-btn" id="chipPromo" onclick="togglePromo(this)">🏷️ Promo Codes Only</button>
         <button type="button" class="fbar-btn fbar-clear" onclick="clearFilters()">Clear all</button>
       </div>
+      <div class="active-filters" id="activeFilters"></div>
 
       <div class="fdrop" id="dDiscount">
         <div id="quickChipsInline" style="display:flex;gap:6px;flex-wrap:wrap">
@@ -1132,6 +1137,7 @@ function resetAndRender() {
   if (typeof updateFilterBars === 'function') updateFilterBars();
   var savedScroll = window.scrollY;
   filtered = getFiltered(); page = 0;
+  if (typeof updateActiveSummary === 'function') updateActiveSummary(filtered.length);
   window.promoShown = false;
   document.getElementById('productGrid').innerHTML = '';
   document.getElementById('endMsg').classList.remove('visible');
@@ -1385,6 +1391,28 @@ function updateFilterBars() {
   set('fbtnStore', state.store !== 'all');
   set('fbtnCategory', state.category !== 'all');
   set('fbtnPrice', (typeof state_minPrice !== 'undefined' && state_minPrice > 0) || (state.maxPrice && state.maxPrice > 0));
+}
+function _prettyStore(s) { return ({ HomeDepot: 'Home Depot', BestBuy: 'Best Buy', Lowes: "Lowe's" })[s] || s; }
+// Small summary of what's currently filtered + how many deals matched.
+function updateActiveSummary(count) {
+  var el = document.getElementById('activeFilters');
+  if (!el) return;
+  var parts = [];
+  if (state.promoOnly) parts.push('Promo codes');
+  if (state.store !== 'all') parts.push(_prettyStore(state.store));
+  if (state.category !== 'all') parts.push(state.category);
+  if (state.minDiscount > 10) parts.push(state.minDiscount + '%+ off');
+  var minP = (typeof state_minPrice !== 'undefined') ? (state_minPrice || 0) : 0;
+  var maxP = state.maxPrice || 0;
+  if (minP > 0 || maxP > 0) {
+    parts.push('$' + minP + '–' + (maxP > 0 ? '$' + maxP : '$' + PRICE_MAX + '+'));
+  }
+  if (state.brandOnly) parts.push('Name brands');
+  if (state.search) parts.push('“' + state.search + '”');
+  if (!parts.length) { el.className = 'active-filters'; el.innerHTML = ''; return; }
+  var chips = parts.map(function(p) { return '<span class="af-chip">' + p + '</span>'; }).join('');
+  el.innerHTML = '<span class="af-count">' + count + ' deal' + (count === 1 ? '' : 's') + '</span>' + chips;
+  el.className = 'active-filters shown';
 }
 // Click outside the filter panel closes any open dropdown.
 document.addEventListener('click', function(e) {
