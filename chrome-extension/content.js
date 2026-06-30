@@ -49,8 +49,9 @@
     else if (nums.length) out.price = String(nums[0]);
     if (nums.length >= 2) out.was = String(Math.max(nums[0], nums[1]));
     // The code sits after the run of dashes; it may be followed by a single dash.
+    // Codes can be all-letters (no digit), so only require at least one letter.
     var c = h.match(/-{2,}([A-Za-z0-9]{5,14})(?![A-Za-z0-9])/);
-    if (c && /[A-Za-z]/.test(c[1]) && /[0-9]/.test(c[1]) && !/^B0[A-Z0-9]{8}$/.test(c[1].toUpperCase())) out.code = c[1].toUpperCase();
+    if (c && /[A-Za-z]/.test(c[1]) && !/^B0[A-Z0-9]{8}$/.test(c[1].toUpperCase())) out.code = c[1].toUpperCase();
     return out;
   }
 
@@ -172,7 +173,7 @@
       var bm = raw.match(boxRe);
       if (bm) {
         var cc = cleanCode(bm[1]);
-        if (cc.length >= 5 && /[0-9]/.test(cc) && /[A-Z]/.test(cc) && !/^B0[A-Z0-9]{8}$/.test(cc)) { out.code = cc; break; }
+        if (cc.length >= 5 && /[A-Z]/.test(cc) && !/^B0[A-Z0-9]{8}$/.test(cc)) { out.code = cc; break; }
       }
     }
     if (!out.code) { // fallback: an element that is just the bare code token

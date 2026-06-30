@@ -22,7 +22,7 @@ function scrapeDeal() {
       if (nums.length >= 2) out.price = String(nums[1]);          // ASIN-ID-RETAIL-DEAL → deal is 2nd
       else if (nums.length) out.price = String(nums[0]);
       var c = h.match(/-{2,}([A-Za-z0-9]{5,14})(?![A-Za-z0-9])/);
-      if (c && /[A-Za-z]/.test(c[1]) && /[0-9]/.test(c[1]) && !/^B0[A-Z0-9]{8}$/.test(c[1].toUpperCase())) out.code = c[1].toUpperCase();
+      if (c && /[A-Za-z]/.test(c[1]) && !/^B0[A-Z0-9]{8}$/.test(c[1].toUpperCase())) out.code = c[1].toUpperCase();
     }
     var html = document.documentElement ? document.documentElement.innerHTML : '';
     var text = document.body ? (document.body.innerText || '') : '';
