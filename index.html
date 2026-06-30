@@ -1319,18 +1319,24 @@ function togglePromo(el) {
   resetAndRender();
 }
 function setStore(el, store) {
+  // Click the already-selected store again → toggle back to All.
+  if (store !== 'all' && state.store === store) { store = 'all'; el = document.querySelector('#storeChips .chip[data-store="all"]'); }
   document.querySelectorAll('#storeChips .chip').forEach(function(c) { c.classList.remove('active'); });
-  el.classList.add('active'); state.store = store; resetAndRender();
+  if (el) el.classList.add('active'); state.store = store; resetAndRender();
 }
 function setCategory(el, cat) {
+  // Click the already-selected category again → toggle back to All.
+  if (cat !== 'all' && state.category === cat) { cat = 'all'; el = document.querySelector('#catChips .chip[data-cat="all"]'); }
   document.querySelectorAll('#catChips .chip').forEach(function(c) { c.classList.remove('active'); });
-  el.classList.add('active'); state.category = cat; resetAndRender();
+  if (el) el.classList.add('active'); state.category = cat; resetAndRender();
 }
 function setQuickDiscount(val, el, evt) {
   if (evt) { evt.preventDefault(); evt.stopPropagation(); }
+  // Click the already-selected discount again → toggle back to the default (10%+).
+  if (val !== 10 && state.minDiscount === val) { val = 10; el = document.querySelector('#quickChipsInline .quick-chip'); }
   state.minDiscount = val;
   document.querySelectorAll('#quickChipsInline .quick-chip').forEach(function(c) { c.classList.remove('active'); });
-  el.classList.add('active');
+  if (el) el.classList.add('active');
   resetAndRender();
 }
 
