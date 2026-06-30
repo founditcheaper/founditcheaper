@@ -33,6 +33,22 @@
 
   function cleanCode(c) { return (c || '').toUpperCase().replace(/COPY$/, ''); }
 
+  // DealSeek encodes ASIN + retail + deal price + code in the deal URL's
+  // dealHash — far more reliable than reading the rendered card.
+  function parseDealHash(url) {
+    var out = {};
+    var m = (url || '').match(/dealHash=([^&#]+)/i);
+    if (!m) return out;
+    var h; try { h = decodeURIComponent(m[1]); } catch (e) { h = m[1]; }
+    var a = h.match(/^([A-Z0-9]{10})/i) || h.match(/\b(B0[A-Z0-9]{8})\b/i);
+    if (a) out.asin = a[1].toUpperCase();
+    var nums = (h.match(/\d+\.\d{2}/g) || []).map(parseFloat).filter(function (n) { return n > 0; });
+    if (nums.length) out.price = String(Math.min.apply(null, nums)); // deal price = the lower
+    var c = h.match(/-{2,}([A-Za-z0-9]{5,14})(?:-{2,}|$)/);
+    if (c && /[A-Za-z]/.test(c[1]) && /[0-9]/.test(c[1]) && !/^B0[A-Z0-9]{8}$/.test(c[1].toUpperCase())) out.code = c[1].toUpperCase();
+    return out;
+  }
+
   var toastEl = document.createElement('div');
   toastEl.style.cssText = 'position:fixed;bottom:14px;right:14px;z-index:2147483647;display:none;background:#0a1f33;color:#fff;font:600 12px Inter,Arial,sans-serif;border:1px solid #4ade80;border-radius:8px;padding:9px 12px;max-width:320px;line-height:1.4;box-shadow:0 4px 16px rgba(0,0,0,.4)';
   document.documentElement.appendChild(toastEl);
@@ -138,6 +154,12 @@
       if (lt.indexOf('view deal') >= 0 || /amazon|amzn|\/out|\/go|\/r\/|redirect|deeplink|geni\.us|joylink/i.test(lh)) { out.dealUrl = links[k].href; break; }
     }
     if (!out.dealUrl && links.length) out.dealUrl = links[0].href;
+
+    // If the deal link carries a DealSeek dealHash, trust it over the scraped card.
+    var dh = parseDealHash(out.dealUrl);
+    if (dh.asin) out.link = 'https://www.amazon.com/dp/' + dh.asin;
+    if (dh.price) out.price = dh.price;
+    if (dh.code) out.code = dh.code;
     return out;
   }
 

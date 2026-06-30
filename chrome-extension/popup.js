@@ -11,25 +11,44 @@ function setHint(m) { $('hint').textContent = m; }
 function scrapeDeal() {
   var out = { code: '', price: '', link: '' };
   try {
+    // DealSeek encodes ASIN + retail + deal price + code in the URL's dealHash —
+    // far more reliable than scraping (avoids grabbing a price from another deal).
+    var hm = location.href.match(/dealHash=([^&#]+)/i);
+    if (hm) {
+      var h; try { h = decodeURIComponent(hm[1]); } catch (e) { h = hm[1]; }
+      var a = h.match(/^([A-Z0-9]{10})/i) || h.match(/\b(B0[A-Z0-9]{8})\b/i);
+      if (a) out.link = 'https://www.amazon.com/dp/' + a[1].toUpperCase();
+      var nums = (h.match(/\d+\.\d{2}/g) || []).map(parseFloat).filter(function (n) { return n > 0; });
+      if (nums.length) out.price = String(Math.min.apply(null, nums));
+      var c = h.match(/-{2,}([A-Za-z0-9]{5,14})(?:-{2,}|$)/);
+      if (c && /[A-Za-z]/.test(c[1]) && /[0-9]/.test(c[1]) && !/^B0[A-Z0-9]{8}$/.test(c[1].toUpperCase())) out.code = c[1].toUpperCase();
+    }
     var html = document.documentElement ? document.documentElement.innerHTML : '';
     var text = document.body ? (document.body.innerText || '') : '';
-    // PRICE: first $ amount (a deal page shows the deal price prominently/first)
-    var pm = text.match(/\$\s?(\d{1,4}(?:\.\d{1,2})?)/); if (pm) out.price = pm[1];
-    // LINK: find an Amazon ASIN in any anchor href, then anywhere in the HTML
-    var asin = '';
-    var as = document.querySelectorAll('a[href]');
-    for (var i = 0; i < as.length; i++) {
-      var h = as[i].getAttribute('href') || '';
-      var m = h.match(/(?:\/dp\/|\/gp\/product\/|\/gp\/aw\/d\/|%2Fdp%2F|[?&]asin=)([A-Z0-9]{10})/i);
-      if (m) { asin = m[1].toUpperCase(); break; }
+    // PRICE fallback: first product $ amount, skipping commission ("$X/sale", "$X/click")
+    if (!out.price) {
+      var cleaned = text.replace(/\$\s?\d+(?:\.\d+)?\s*\/\s*(?:sale|click)/gi, ' ');
+      var pm = cleaned.match(/\$\s?(\d{1,4}(?:\.\d{1,2})?)/); if (pm) out.price = pm[1];
     }
-    if (!asin) { var mm = html.match(/(?:\/dp\/|asin["'=:%>\s]+)([A-Z0-9]{10})/i) || html.match(/\b(B0[A-Z0-9]{8})\b/); if (mm) asin = mm[1].toUpperCase(); }
-    if (asin) out.link = 'https://www.amazon.com/dp/' + asin;
-    // CODE: an element that is JUST a promo-code-looking token
-    var nodes = document.querySelectorAll('div,span,p,strong,b,code,h1,h2,h3,h4,td,li');
-    for (var j = 0; j < nodes.length; j++) {
-      var t = (nodes[j].textContent || '').trim();
-      if (/^[A-Z0-9]{6,14}$/.test(t) && /[A-Z]/.test(t) && /[0-9]/.test(t) && !/^B0[A-Z0-9]{8}$/.test(t)) { out.code = t; break; }
+    // LINK fallback: an Amazon ASIN in any anchor, then anywhere in the HTML
+    if (!out.link) {
+      var asin = '';
+      var as = document.querySelectorAll('a[href]');
+      for (var i = 0; i < as.length; i++) {
+        var ah = as[i].getAttribute('href') || '';
+        var m = ah.match(/(?:\/dp\/|\/gp\/product\/|\/gp\/aw\/d\/|%2Fdp%2F|[?&]asin=)([A-Z0-9]{10})/i);
+        if (m) { asin = m[1].toUpperCase(); break; }
+      }
+      if (!asin) { var mm = html.match(/(?:\/dp\/|asin["'=:%>\s]+)([A-Z0-9]{10})/i) || html.match(/\b(B0[A-Z0-9]{8})\b/); if (mm) asin = mm[1].toUpperCase(); }
+      if (asin) out.link = 'https://www.amazon.com/dp/' + asin;
+    }
+    // CODE fallback: an element that is JUST a promo-code-looking token
+    if (!out.code) {
+      var nodes = document.querySelectorAll('div,span,p,strong,b,code,h1,h2,h3,h4,td,li');
+      for (var j = 0; j < nodes.length; j++) {
+        var t = (nodes[j].textContent || '').trim();
+        if (/^[A-Z0-9]{6,14}$/.test(t) && /[A-Z]/.test(t) && /[0-9]/.test(t) && !/^B0[A-Z0-9]{8}$/.test(t)) { out.code = t; break; }
+      }
     }
   } catch (e) { out.err = String(e); }
   return out;
