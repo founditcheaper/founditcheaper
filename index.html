@@ -1056,12 +1056,14 @@ function getFiltered() {
     f.sort(function(a, b) { return a._rank - b._rank; });
     // Spread similar products apart: walk the ranked list, but for each slot pick
     // the next best deal whose type differs from the one just placed — so you don't
-    // get six headphones (or three vacuums) in a row.
+    // get six headphones (or three vacuums) in a row. (_tk cached so this stays fast
+    // even with 1000+ deals.)
+    f.forEach(function(p) { if (p._tk === undefined) p._tk = typeKey(p); });
     var pool = f.slice(), out = [];
     while (pool.length) {
-      var prev = out.length ? typeKey(out[out.length - 1]) : null;
+      var prev = out.length ? out[out.length - 1]._tk : null;
       var idx = 0;
-      for (var i = 0; i < pool.length; i++) { if (typeKey(pool[i]) !== prev) { idx = i; break; } }
+      for (var i = 0; i < pool.length; i++) { if (pool[i]._tk !== prev) { idx = i; break; } }
       out.push(pool.splice(idx, 1)[0]);
     }
     return out;
