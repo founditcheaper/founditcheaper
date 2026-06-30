@@ -19,8 +19,9 @@ function scrapeDeal() {
       var a = h.match(/^([A-Z0-9]{10})/i) || h.match(/\b(B0[A-Z0-9]{8})\b/i);
       if (a) out.link = 'https://www.amazon.com/dp/' + a[1].toUpperCase();
       var nums = (h.match(/\d+\.\d{2}/g) || []).map(parseFloat).filter(function (n) { return n > 0; });
-      if (nums.length) out.price = String(Math.min.apply(null, nums));
-      var c = h.match(/-{2,}([A-Za-z0-9]{5,14})(?:-{2,}|$)/);
+      if (nums.length >= 2) out.price = String(nums[1]);          // ASIN-ID-RETAIL-DEAL → deal is 2nd
+      else if (nums.length) out.price = String(nums[0]);
+      var c = h.match(/-{2,}([A-Za-z0-9]{5,14})(?![A-Za-z0-9])/);
       if (c && /[A-Za-z]/.test(c[1]) && /[0-9]/.test(c[1]) && !/^B0[A-Z0-9]{8}$/.test(c[1].toUpperCase())) out.code = c[1].toUpperCase();
     }
     var html = document.documentElement ? document.documentElement.innerHTML : '';

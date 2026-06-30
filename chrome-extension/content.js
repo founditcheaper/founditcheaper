@@ -42,9 +42,14 @@
     var h; try { h = decodeURIComponent(m[1]); } catch (e) { h = m[1]; }
     var a = h.match(/^([A-Z0-9]{10})/i) || h.match(/\b(B0[A-Z0-9]{8})\b/i);
     if (a) out.asin = a[1].toUpperCase();
+    // Format: ASIN-INTERNALID-RETAIL-DEAL----CODE-commission-... → the deal price
+    // is the SECOND number (commission numbers later in the hash are smaller).
     var nums = (h.match(/\d+\.\d{2}/g) || []).map(parseFloat).filter(function (n) { return n > 0; });
-    if (nums.length) out.price = String(Math.min.apply(null, nums)); // deal price = the lower
-    var c = h.match(/-{2,}([A-Za-z0-9]{5,14})(?:-{2,}|$)/);
+    if (nums.length >= 2) out.price = String(nums[1]);
+    else if (nums.length) out.price = String(nums[0]);
+    if (nums.length >= 2) out.was = String(Math.max(nums[0], nums[1]));
+    // The code sits after the run of dashes; it may be followed by a single dash.
+    var c = h.match(/-{2,}([A-Za-z0-9]{5,14})(?![A-Za-z0-9])/);
     if (c && /[A-Za-z]/.test(c[1]) && /[0-9]/.test(c[1]) && !/^B0[A-Z0-9]{8}$/.test(c[1].toUpperCase())) out.code = c[1].toUpperCase();
     return out;
   }
@@ -196,8 +201,9 @@
     if (dh.asin) out.link = 'https://www.amazon.com/dp/' + dh.asin;
     if (dh.price) out.price = dh.price;
     if (dh.code) out.code = dh.code;
+    if (dh.was) out.was = dh.was;
 
-    // Retail (was) = highest price on the card; title = longest leaf text.
+    // Retail (was) = highest price on the card (overrides URL when present); title = longest leaf text.
     if (out.prices.length > 1) out.was = String(Math.max.apply(null, out.prices.map(parseFloat)));
     var best = '';
     var tels = card.querySelectorAll('a,span,div,p,h1,h2,h3,strong,b');
