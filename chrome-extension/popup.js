@@ -3,27 +3,35 @@ var $ = function (id) { return document.getElementById(id); };
 var savedPw = '';
 var currentTab = null;
 
-function isAmazonProduct(u) {
-  u = u || '';
-  return /amazon\.[a-z.]+\/.*(?:\/dp\/|\/gp\/product\/|\/gp\/aw\/d\/|\/product\/|[?&]asin=)/i.test(u)
-    || (/amazon\.[a-z.]+/i.test(u) && /\b[A-Z0-9]{10}\b/.test(u));
-}
+function isAmazon(u) { return /amazon\.[a-z.]+/i.test(u || ''); }
 function setStatus(m, c) { var s = $('status'); s.textContent = m; s.className = 'status' + (c ? ' ' + c : ''); }
 function setHint(m) { $('hint').textContent = m; }
 
-// Injected into the page to pull the promo code + deal price (heuristic).
+// Injected into the page: pull promo code + deal price + Amazon link (heuristic).
 function scrapeDeal() {
-  var out = { code: '', price: '' };
+  var out = { code: '', price: '', link: '' };
   try {
+    var html = document.documentElement ? document.documentElement.innerHTML : '';
     var text = document.body ? (document.body.innerText || '') : '';
-    var pm = text.match(/\$\s?(\d{1,4}(?:\.\d{1,2})?)/);     // first $ amount = the deal price
-    if (pm) out.price = pm[1];
+    // PRICE: first $ amount (a deal page shows the deal price prominently/first)
+    var pm = text.match(/\$\s?(\d{1,4}(?:\.\d{1,2})?)/); if (pm) out.price = pm[1];
+    // LINK: find an Amazon ASIN in any anchor href, then anywhere in the HTML
+    var asin = '';
+    var as = document.querySelectorAll('a[href]');
+    for (var i = 0; i < as.length; i++) {
+      var h = as[i].getAttribute('href') || '';
+      var m = h.match(/(?:\/dp\/|\/gp\/product\/|\/gp\/aw\/d\/|%2Fdp%2F|[?&]asin=)([A-Z0-9]{10})/i);
+      if (m) { asin = m[1].toUpperCase(); break; }
+    }
+    if (!asin) { var mm = html.match(/(?:\/dp\/|asin["'=:%>\s]+)([A-Z0-9]{10})/i) || html.match(/\b(B0[A-Z0-9]{8})\b/); if (mm) asin = mm[1].toUpperCase(); }
+    if (asin) out.link = 'https://www.amazon.com/dp/' + asin;
+    // CODE: an element that is JUST a promo-code-looking token
     var nodes = document.querySelectorAll('div,span,p,strong,b,code,h1,h2,h3,h4,td,li');
-    for (var i = 0; i < nodes.length; i++) {
-      var t = (nodes[i].textContent || '').trim();           // an element that is JUST a code-like token
+    for (var j = 0; j < nodes.length; j++) {
+      var t = (nodes[j].textContent || '').trim();
       if (/^[A-Z0-9]{6,14}$/.test(t) && /[A-Z]/.test(t) && /[0-9]/.test(t) && !/^B0[A-Z0-9]{8}$/.test(t)) { out.code = t; break; }
     }
-  } catch (e) {}
+  } catch (e) { out.err = String(e); }
   return out;
 }
 
@@ -35,29 +43,45 @@ chrome.storage.local.get(['ficPw'], function (res) {
 chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
   currentTab = tabs && tabs[0];
   var url = (currentTab && currentTab.url) || '';
-  if (isAmazonProduct(url)) {
+  if (isAmazon(url)) {
     $('link').value = url;
     chrome.storage.local.get(['pendCode', 'pendPrice'], function (p) {
       if (p.pendCode && !$('code').value) $('code').value = p.pendCode;
       if (p.pendPrice && !$('price').value) $('price').value = p.pendPrice;
-      setHint('Amazon link grabbed' + ((p.pendCode || p.pendPrice) ? ' — code & price filled from the deal site. Review and Add.' : '. Add the code + price.'));
     });
+    tryClipboardCode();
+    setHint('Amazon link grabbed. Review code + price, then Add.');
   } else {
-    setHint('Reading this page for the code + price… then open the deal on Amazon and reopen me to grab the link.');
+    setHint('Reading this page for code, price, and the Amazon link…');
     grabFromPage(true);
   }
 });
 
+// On Amazon, DealSeek's "Copy Code & Open Amazon" leaves the code on the clipboard.
+function tryClipboardCode() {
+  try {
+    navigator.clipboard.readText().then(function (txt) {
+      txt = (txt || '').trim();
+      if (!$('code').value && /^[A-Z0-9]{5,14}$/.test(txt) && /[A-Z]/.test(txt) && /[0-9]/.test(txt) && !/^B0[A-Z0-9]{8}$/.test(txt)) {
+        $('code').value = txt;
+      }
+    }).catch(function () {});
+  } catch (e) {}
+}
+
 function grabFromPage(auto) {
-  if (!currentTab) return;
+  if (!currentTab || !currentTab.id) { setStatus('No active tab to read.', 'err'); return; }
   chrome.scripting.executeScript({ target: { tabId: currentTab.id }, func: scrapeDeal }, function (results) {
+    if (chrome.runtime.lastError) { setStatus("Can't read this page: " + chrome.runtime.lastError.message, 'err'); return; }
     var r = results && results[0] && results[0].result;
-    if (!r) { if (!auto) setStatus('Could not read this page.', 'err'); return; }
+    if (!r) { setStatus('Could not read this page.', 'err'); return; }
     if (r.code) $('code').value = r.code;
     if (r.price) $('price').value = r.price;
-    chrome.storage.local.set({ pendCode: r.code || '', pendPrice: r.price || '' });  // remember for the Amazon step
-    if (r.code || r.price) setStatus('Grabbed: ' + (r.code ? 'code ' + r.code : '') + (r.price ? '  $' + r.price : ''), 'ok');
-    else if (!auto) setStatus('Nothing found on this page — type it in.', 'err');
+    if (r.link) $('link').value = r.link;
+    chrome.storage.local.set({ pendCode: r.code || '', pendPrice: r.price || '' });
+    var got = [r.code ? 'code' : '', r.price ? 'price' : '', r.link ? 'link' : ''].filter(Boolean);
+    if (got.length) { setStatus('Grabbed: ' + got.join(' + ') + (r.code ? '  (' + r.code + ')' : ''), 'ok'); setHint(r.link ? 'Got the Amazon link too — review and Add. No need to open Amazon.' : 'Couldn\'t find the Amazon link here — open the deal on Amazon, then reopen me.'); }
+    else { setStatus('Nothing found here — type it in, or open the deal on Amazon.', 'err'); }
   });
 }
 
@@ -71,7 +95,7 @@ $('addBtn').addEventListener('click', async function () {
   var price = ($('price').value || '').trim();
   if (!pw) { setStatus('Enter your admin password first.', 'err'); return; }
   if (!/\/(dp|gp\/product|gp\/aw\/d|product)\/[A-Z0-9]{10}|[?&]asin=[A-Z0-9]{10}|\bB0[A-Z0-9]{8}\b/i.test(link)) {
-    setStatus('Need a valid Amazon product link — open the deal on Amazon first.', 'err'); return;
+    setStatus('Need a valid Amazon product link.', 'err'); return;
   }
   $('addBtn').disabled = true; setStatus('Adding…');
   try {
@@ -85,7 +109,7 @@ $('addBtn').addEventListener('click', async function () {
       chrome.storage.local.set({ ficPw: pw, pendCode: '', pendPrice: '' }); savedPw = pw;
       $('pwRow').classList.add('saved'); $('changePw').style.display = 'inline-block';
       setStatus(data.instant ? '✓ Added — live on the site now' : '✓ Added — will appear shortly', 'ok');
-      $('code').value = ''; $('price').value = '';
+      $('code').value = ''; $('price').value = ''; $('link').value = '';
     } else { setStatus('Failed: ' + (data.error || ('HTTP ' + res.status)), 'err'); }
   } catch (e) { setStatus('Network error — try again.', 'err'); }
   $('addBtn').disabled = false;
