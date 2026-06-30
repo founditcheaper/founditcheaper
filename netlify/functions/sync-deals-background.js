@@ -10,6 +10,7 @@ const MAX_DISCOUNT  = 80;       // cap fake/inflated-MSRP deals
 const MIN_PRICE     = 5;        // skip sub-$5 junk
 const MIN_RATING    = 3.0;      // only cut clearly-bad rated items; 0/unknown is KEPT
 const TIME_CAP_MS   = 780000;   // 13 min — stay safely under the 15-min background limit
+const MAX_PAGES     = 3;        // pages per keyword (deeper results); stops early if dry
 
 // Broad category sweep — the more terms, the more deals (the API has no
 // "browse all deals" endpoint, so coverage = how many keywords we search).
@@ -74,7 +75,7 @@ async function getCreatorsToken() {
   return _creatorsToken;
 }
 
-async function searchAmazon(keywords, token, retry = true) {
+async function searchAmazon(keywords, token, page = 1, retry = true) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
@@ -82,17 +83,17 @@ async function searchAmazon(keywords, token, retry = true) {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'x-marketplace': 'www.amazon.com' },
       body: JSON.stringify({
-        keywords, searchIndex: 'All', itemCount: 10, minSavingPercent: MIN_DISCOUNT,
+        keywords, searchIndex: 'All', itemCount: 10, itemPage: page, minSavingPercent: MIN_DISCOUNT,
         resources: ['images.primary.large', 'itemInfo.title', 'itemInfo.byLineInfo', 'offersV2.listings.price', 'offersV2.listings.dealDetails', 'customerReviews.starRating', 'customerReviews.count'],
         partnerTag: AFFILIATE_TAG, partnerType: 'Associates', marketplace: 'www.amazon.com',
       }),
       signal: ctrl.signal,
     });
     clearTimeout(timer);
-    if (res.status === 429 && retry) { await new Promise(r => setTimeout(r, 2500)); return searchAmazon(keywords, token, false); }
+    if (res.status === 429 && retry) { await new Promise(r => setTimeout(r, 2500)); return searchAmazon(keywords, token, page, false); }
     const text = await res.text();
     let data = null; try { data = JSON.parse(text); } catch {}
-    if (res.status !== 200) { console.error(`[sync-deals-bg] "${keywords}" -> HTTP ${res.status}: ${text.slice(0, 120)}`); return { items: [], status: res.status }; }
+    if (res.status !== 200) { console.error(`[sync-deals-bg] "${keywords}" p${page} -> HTTP ${res.status}: ${text.slice(0, 120)}`); return { items: [], status: res.status }; }
     return { items: (data && (data.searchResult?.items || data.itemsResult?.items || data.items)) || [], status: 200 };
   } catch (e) { clearTimeout(timer); return { items: [], status: 0 }; }
 }
@@ -108,36 +109,43 @@ async function discoverDeals() {
 
   for (const term of SEARCH_TERMS) {
     if (Date.now() - start > TIME_CAP_MS) { stats.timeCap = true; break; }
-    const { items, status } = await searchAmazon(term, token);
-    stats.terms++;
-    if (status === 200) stats.s200++; else if (status === 429) stats.s429++; else stats.sErr++;
-    stats.itemsSeen += items.length;
-    for (const it of items) {
-      const asin = it.asin || it.ASIN;
-      if (!asin || found[asin]) continue;
-      const listings = it.offersV2?.listings || [];
-      const listing = listings.find(l => l.isBuyBoxWinner) || listings[0];
-      const price = Number(listing?.price?.money?.amount) || 0;
-      const was = Number(listing?.price?.savingBasis?.money?.amount) || 0;
-      const pct = listing?.price?.savings?.percentage;
-      if (price < MIN_PRICE || was <= price) continue;
-      const off = (typeof pct === 'number' && pct > 0) ? Math.round(pct) : Math.round((1 - price / was) * 100);
-      if (off < MIN_DISCOUNT || off > MAX_DISCOUNT) continue;
-      const name = it.itemInfo?.title?.displayValue || '';
-      const brandName = it.itemInfo?.byLineInfo?.brand?.displayValue || '';
-      const brand = isBrand(name, brandName);
-      const rating = it.customerReviews?.starRating?.value || 0;
-      if (rating > 0 && rating < MIN_RATING) continue;
-      found[asin] = {
-        asin, name: name.slice(0, 250), price, was, off,
-        img: it.images?.primary?.large?.url || '',
-        rating, reviews: it.customerReviews?.count || 0, brand,
-        brandName: brand ? brandName : '',
-        category: inferCategory(name),
-        url: `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`,
-      };
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const { items, status } = await searchAmazon(term, token, page);
+      stats.terms++;
+      if (status === 200) stats.s200++; else if (status === 429) stats.s429++; else stats.sErr++;
+      stats.itemsSeen += items.length;
+      let newOnPage = 0;
+      for (const it of items) {
+        const asin = it.asin || it.ASIN;
+        if (!asin || found[asin]) continue;
+        const listings = it.offersV2?.listings || [];
+        const listing = listings.find(l => l.isBuyBoxWinner) || listings[0];
+        const price = Number(listing?.price?.money?.amount) || 0;
+        const was = Number(listing?.price?.savingBasis?.money?.amount) || 0;
+        const pct = listing?.price?.savings?.percentage;
+        if (price < MIN_PRICE || was <= price) continue;
+        const off = (typeof pct === 'number' && pct > 0) ? Math.round(pct) : Math.round((1 - price / was) * 100);
+        if (off < MIN_DISCOUNT || off > MAX_DISCOUNT) continue;
+        const name = it.itemInfo?.title?.displayValue || '';
+        const brandName = it.itemInfo?.byLineInfo?.brand?.displayValue || '';
+        const brand = isBrand(name, brandName);
+        const rating = it.customerReviews?.starRating?.value || 0;
+        if (rating > 0 && rating < MIN_RATING) continue;
+        newOnPage++;
+        found[asin] = {
+          asin, name: name.slice(0, 250), price, was, off,
+          img: it.images?.primary?.large?.url || '',
+          rating, reviews: it.customerReviews?.count || 0, brand,
+          brandName: brand ? brandName : '',
+          category: inferCategory(name),
+          url: `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`,
+        };
+      }
+      await sleep(1500);
+      if (items.length < 10) break;            // last page for this term
+      if (page > 1 && newOnPage === 0) break;  // pagination not yielding anything new
+      if (Date.now() - start > TIME_CAP_MS) { stats.timeCap = true; break; }
     }
-    await sleep(1500);
   }
   stats.found = Object.keys(found).length;
   console.log('[sync-deals-bg] discovery stats:', JSON.stringify(stats));
