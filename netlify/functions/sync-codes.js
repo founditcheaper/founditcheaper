@@ -234,15 +234,22 @@ exports.handler = async function (event) {
     if (!Array.isArray(existing)) existing = [];
   } catch (e) { console.error('[sync-codes] load existing failed:', e.message); }
 
+  // Map ASIN -> one row; if the same ASIN has multiple grid rows, drop the extras.
   const existingByAsin = {};
-  for (const d of existing) { const a = extractAsin(d.url); if (a) existingByAsin[a] = d; }
+  const removeIds = [];
+  for (const d of existing) {
+    const a = extractAsin(d.url);
+    if (!a) continue;
+    if (existingByAsin[a]) { removeIds.push(d.id); }   // duplicate ASIN -> remove the extra row
+    else existingByAsin[a] = d;
+  }
 
   const cutoff = daysAgo(MAX_AGE_DAYS);
   const today  = todayStr();
 
   // 3. Decide removals: gone from sheet, OR older than 5 days, OR past explicit expires
-  const removeIds = [];
   for (const d of existing) {
+    if (removeIds.indexOf(d.id) !== -1) continue;     // already flagged as a duplicate
     const a = extractAsin(d.url);
     const s = a && sheetByAsin[a];
     const fresh = d.active_date === today;          // added today — the published CSV may still be caching, so don't yank it for "not in sheet" yet
