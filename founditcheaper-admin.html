@@ -190,7 +190,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
     <!-- TABS -->
     <div class="tabs">
       <button class="tab active" onclick="switchTab('picks')">📋 Today's Top Deal Picks</button>
-      <button class="tab" onclick="switchTab('promocodes')">🏷️ All Deals</button>
+      <button class="tab" onclick="switchTab('promocodes')">🏷️ All Imported Promo Code Deals</button>
       <button class="tab" onclick="switchTab('autopicker')">🤖 Auto-Fill / Randomizer Settings</button>
       <button class="tab" onclick="switchTab('schedule')">📅 Schedule</button>
     </div>
@@ -274,12 +274,12 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
     <div class="tab-content" id="tab-promocodes">
       <div class="section-header">
         <div>
-          <div class="section-title">All Deals</div>
+          <div class="section-title">All Imported Promo Code Deals</div>
           <div class="section-sub">Promo-code deals, synced both ways with your Google Sheet. Add or remove here and the sheet updates to match.</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-ghost" onclick="loadPromoCodeDeals()" title="Reload this list to see deals you just added">↻ Refresh List</button>
-          <button id="syncCodesBtn" class="btn btn-ghost" onclick="syncCodes()" title="Pull the latest sheet deals onto the site now">🔄 Sync Now</button>
+          <button id="syncCodesBtn" class="btn btn-ghost" onclick="syncCodes()" title="Pull the latest sheet deals onto the site now">🔄 Sync Spreadsheet Now</button>
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:12px;border:1px solid rgba(245,200,66,0.25);border-radius:8px;margin-bottom:14px">
