@@ -1006,6 +1006,18 @@ function togglePastDay(i) { document.getElementById('past-' + i).classList.toggl
 // nudge), with a stable per-deal jitter so Amazon & Walmart interleave instead of
 // clustering by store. Unknown ratings (Amazon's API often omits them) are treated
 // as neutral so those deals aren't unfairly buried at the bottom.
+// Coarse product "type" used to spread similar items apart in the grid.
+function typeKey(p) {
+  var n = (p.name || '').toLowerCase();
+  if (/headphone|earbud|earphone|headset|airpod|\bbuds\b|speaker/.test(n)) return 'audio';
+  if (/vacuum/.test(n)) return 'vacuum';
+  if (/monitor|\btv\b|television/.test(n)) return 'display';
+  if (/drill|impact driver|tool kit|tool set|wrench|ratchet|\bsaw\b|sander|screwdriver/.test(n)) return 'tools';
+  if (/air fryer|blender|coffee|keurig|espresso|cookware|\bknife\b|mixer|toaster|\bpot\b|\bpan\b/.test(n)) return 'kitchen';
+  if (/mattress|pillow|bedding|topper|\bsheet/.test(n)) return 'bedding';
+  if (/watch|fitness tracker|smartwatch/.test(n)) return 'wearable';
+  return p.category || 'other';
+}
 function valueScore(p) {
   var off     = Math.min(p.off || 0, 90) / 90;                      // % off — the dominant factor
   var rating  = (p.rating && p.rating > 0 ? p.rating : 4.0) / 5;    // stars (unknown -> neutral)
@@ -1042,7 +1054,17 @@ function getFiltered() {
       groups[s].forEach(function(p, i) { p._rank = i + (p._jit || 0) * 2.5; });
     });
     f.sort(function(a, b) { return a._rank - b._rank; });
-    return f;
+    // Spread similar products apart: walk the ranked list, but for each slot pick
+    // the next best deal whose type differs from the one just placed — so you don't
+    // get six headphones (or three vacuums) in a row.
+    var pool = f.slice(), out = [];
+    while (pool.length) {
+      var prev = out.length ? typeKey(out[out.length - 1]) : null;
+      var idx = 0;
+      for (var i = 0; i < pool.length; i++) { if (typeKey(pool[i]) !== prev) { idx = i; break; } }
+      out.push(pool.splice(idx, 1)[0]);
+    }
+    return out;
   }
   f.sort(function(a, b) {
     if (state.sort === 'rating') return b.rating - a.rating;
