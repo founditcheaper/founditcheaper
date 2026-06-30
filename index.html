@@ -622,7 +622,8 @@
     <div class="results-bar">
       <span id="resultsCount">Loading...</span>
       <select class="sort-select" onchange="sortDeals(this.value)">
-        <option value="rating" selected>Top Rated</option>
+        <option value="value" selected>Top Value</option>
+        <option value="rating">Top Rated</option>
         <option value="discount">Highest Discount</option>
         <option value="price-asc">Price: Low to High</option>
         <option value="price-desc">Price: High to Low</option>
@@ -811,7 +812,7 @@ var _deadcode = [
 ];
 
 // ── STATE ─────────────────────────────────────────────────────────────
-var state = { store: 'all', category: 'all', minDiscount: 10, maxPrice: 0, minStars: 0, brandOnly: false, sort: 'rating', search: '', promoOnly: false };
+var state = { store: 'all', category: 'all', minDiscount: 10, maxPrice: 0, minStars: 0, brandOnly: false, sort: 'value', search: '', promoOnly: false };
 var filtered = [], page = 0, loading = false;
 
 // ── HELPERS ───────────────────────────────────────────────────────────
@@ -1012,6 +1013,17 @@ function togglePrev() { document.getElementById('prev-wrapper').classList.toggle
 function togglePastDay(i) { document.getElementById('past-' + i).classList.toggle('open'); }
 
 // ── MAIN GRID ─────────────────────────────────────────────────────────
+// "Top Value" score — blends discount, rating, and social proof (+ a small promo
+// nudge), with a stable per-deal jitter so Amazon & Walmart interleave instead of
+// clustering by store. Unknown ratings (Amazon's API often omits them) are treated
+// as neutral so those deals aren't unfairly buried at the bottom.
+function valueScore(p) {
+  var off     = Math.min(p.off || 0, 90) / 90;
+  var rating  = (p.rating && p.rating > 0 ? p.rating : 4.0) / 5;
+  var reviews = Math.min(Math.log(((p.reviews || 0) + 1)) / Math.log(10) / 4, 1);
+  var promo   = p.code ? 0.08 : 0;
+  return off * 0.5 + rating * 0.25 + reviews * 0.15 + promo + (p._jit || 0) * 0.3;
+}
 function getFiltered() {
   var f = allProducts.filter(function(p) {
     if (state.promoOnly && !p.code) return false;
@@ -1030,6 +1042,7 @@ function getFiltered() {
     return true;
   });
   f.sort(function(a, b) {
+    if (state.sort === 'value') return valueScore(b) - valueScore(a);
     if (state.sort === 'rating') return b.rating - a.rating;
     if (state.sort === 'discount') return b.off - a.off;
     if (state.sort === 'price-asc') return a.price - b.price;
@@ -1487,6 +1500,7 @@ function _afterLoad() {
           off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
           rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
           found: formatFound(d.created_at, d.active_date), code: d.code || null,
+          _jit: Math.random(),   // stable per-load jitter so the Top Value sort interleaves stores
           images: (function() { try { return JSON.parse(d.images || '[]'); } catch(e) { return []; } })(),
         };
       });
