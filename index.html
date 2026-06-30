@@ -1705,6 +1705,7 @@ function openDrawer(productId) {
   // Buttons
   html += '<a class="drawer-view-btn" href="' + affiliateUrl(p.url, p.store) + '" target="_blank" rel="noopener">View Deal on ' + sName + ' →</a>';
   html += '<button class="drawer-share-btn" onclick="drawerShareDeal(this)">🔗 Share Deal</button>';
+  html += '<div style="font-size:10px;color:var(--muted);text-align:center;line-height:1.5;margin-top:12px">founditcheaper earns from qualifying purchases, including as an Amazon Associate — at no extra cost to you. Prices &amp; codes can change. <a href="founditcheaper-legal.html" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:underline">Full disclosure</a></div>';
 
   document.getElementById('drawerContent').innerHTML = html;
   document.getElementById('drawerOverlay').style.display = 'block';
