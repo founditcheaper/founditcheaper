@@ -276,6 +276,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
           <div class="section-sub">Promo-code deals, synced both ways with your Google Sheet. Add or remove here and the sheet updates to match.</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost" onclick="loadPromoCodeDeals()" title="Reload this list to see deals you just added">↻ Refresh List</button>
           <button id="syncCodesBtn" class="btn btn-ghost" onclick="syncCodes()" title="Pull the latest sheet deals onto the site now">🔄 Sync Now</button>
         </div>
       </div>
