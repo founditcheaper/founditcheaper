@@ -1433,7 +1433,9 @@ function _afterLoad() {
       function _mapPickRows(rows) {
         var raw = rows.map(function(r) {
           return { id: String(r.id), name: r.name, store: r.store, img: r.img,
-                   price: r.price, was: r.was, off: r.off, url: r.url,
+                   price: r.price, was: r.was,
+                   off: (r.was > r.price && r.was > 0) ? Math.round((1 - r.price / r.was) * 100) : (r.off || 0),
+                   url: r.url,
                    code: r.code || null, rating: r.rating, reviews: r.reviews,
                    category: r.category || '',
                    found: formatFound(r.created_at, r.active_date),
@@ -1482,7 +1484,8 @@ function _afterLoad() {
         return {
           id: String(d.id), name: d.name, store: d.store, category: d.category || 'General',
           brand: d.brand, brandName: d.brand_name || '', price: d.price, was: d.was,
-          off: d.off, rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
+          off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
+          rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
           found: formatFound(d.created_at, d.active_date), code: d.code || null,
           images: (function() { try { return JSON.parse(d.images || '[]'); } catch(e) { return []; } })(),
         };

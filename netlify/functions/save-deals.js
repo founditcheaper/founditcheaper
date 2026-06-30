@@ -105,7 +105,11 @@ exports.handler = async function (event) {
     store:        d.store,
     price:        d.price,
     was:          d.was,
-    off:          d.off,
+    // Always derive % off from the actual prices so the badge can't disagree with
+    // them (the admin Fetch may have left a stale API discount in d.off).
+    off:          (Number(d.was) > Number(d.price) && Number(d.was) > 0)
+                    ? Math.round((1 - Number(d.price) / Number(d.was)) * 100)
+                    : (Number(d.off) || 0),
     rating:       d.rating  ?? 0,
     reviews:      d.reviews ?? 0,
     code:         d.code || null,
