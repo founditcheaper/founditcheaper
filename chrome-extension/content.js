@@ -22,7 +22,7 @@
   var hideTimer = null;
   function scheduleHide(ms) { clearTimeout(hideTimer); hideTimer = setTimeout(function () { prompt.style.display = 'none'; lastCard = null; }, ms); }
   prompt.addEventListener('mouseenter', function () { clearTimeout(hideTimer); });
-  prompt.addEventListener('mouseleave', function () { scheduleHide(2500); });
+  prompt.addEventListener('mouseleave', function () { scheduleHide(5000); });
 
   function cleanCode(c) { return (c || '').toUpperCase().replace(/COPY$/, ''); }
 
@@ -137,7 +137,7 @@
     if (left < window.scrollX + 4) left = window.scrollX + 4;
     prompt.style.top = (window.scrollY + r.top + 8) + 'px';
     prompt.style.left = left + 'px';
-    scheduleHide(4000);
+    clearTimeout(hideTimer); // stays while you're on the card; countdown starts on leave
   }
 
   function tryCapture(card, attempt) {
@@ -152,9 +152,13 @@
     if (panel.style.display === 'block') return;
     if (e.target === prompt) return;
     var card = findCard(e.target);
-    if (!card) return;            // moved off a card — let the timer hide it
-    if (card === lastCard) return;
+    if (!card) {                              // moved off the card → start the countdown
+      if (prompt.style.display === 'block') scheduleHide(5000);
+      return;
+    }
+    if (card === lastCard) { clearTimeout(hideTimer); return; } // still on it → keep showing
     lastCard = card;
+    clearTimeout(hideTimer);
     tryCapture(card, 0);
   }, true);
 
