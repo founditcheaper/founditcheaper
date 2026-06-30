@@ -180,6 +180,17 @@ exports.handler = async function (event) {
 
   const sbHeaders = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
 
+  // Auto-expire: prune sheet rows older than MAX_AGE_DAYS via the gateway, so the
+  // sheet self-cleans and aged-out deals drop off the site on this same run.
+  if (process.env.SHEET_API_URL && process.env.SHEET_API_TOKEN) {
+    try {
+      await fetch(process.env.SHEET_API_URL, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, redirect: 'follow',
+        body: JSON.stringify({ token: process.env.SHEET_API_TOKEN, action: 'cleanup', days: MAX_AGE_DAYS }),
+      });
+    } catch (e) { console.error('[sync-codes] sheet cleanup failed:', e.message); }
+  }
+
   // 1. Read the sheet
   let sheet = [];
   try {

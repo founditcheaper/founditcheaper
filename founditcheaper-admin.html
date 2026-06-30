@@ -317,9 +317,15 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       <div class="section-header">
         <div>
           <div class="section-title">All Deals</div>
-          <div class="section-sub">Promo-code deals from your VA's Google Sheet. Remove hides one from the site and blocks it from coming back.</div>
+          <div class="section-sub">Promo-code deals, synced both ways with your Google Sheet. Add or remove here and the sheet updates to match.</div>
         </div>
         <button class="btn btn-ghost" onclick="loadPromoCodeDeals()">↻ Refresh</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:12px;border:1px solid rgba(245,200,66,0.25);border-radius:8px;margin-bottom:14px">
+        <div style="flex:3;min-width:200px"><label class="field-label">Amazon link</label><input class="field-input" id="pcLink" placeholder="https://www.amazon.com/dp/..."></div>
+        <div style="flex:1;min-width:110px"><label class="field-label">Promo code</label><input class="field-input" id="pcCode" placeholder="SAVE20"></div>
+        <div style="flex:1;min-width:100px"><label class="field-label">After-code price</label><input class="field-input no-spin" id="pcPrice" type="number" placeholder="19.99"></div>
+        <button class="btn btn-green" id="pcAddBtn" onclick="addPromoDeal()" style="flex-shrink:0">+ Add Deal</button>
       </div>
       <input class="field-input" id="pcSearch" placeholder="Search promo deals by name or code..." style="margin-bottom:12px" oninput="renderPromoCodeDeals()">
       <div id="pcList"></div>
@@ -438,20 +444,46 @@ function renderPromoCodeDeals() {
     + '</div>';
   }).join('');
 }
+async function addPromoDeal() {
+  var link = (document.getElementById('pcLink').value || '').trim();
+  var code = (document.getElementById('pcCode').value || '').trim();
+  var price = (document.getElementById('pcPrice').value || '').trim();
+  if (!link) { showToast('Paste an Amazon link first'); return; }
+  var btn = document.getElementById('pcAddBtn');
+  btn.textContent = 'Adding…'; btn.disabled = true;
+  try {
+    var res = await fetch('/.netlify/functions/manage-code', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass, action: 'add', amazon_link: link, promo_code: code, discount_price: price })
+    });
+    var data = await res.json();
+    if (res.ok && data.ok) {
+      document.getElementById('pcLink').value = '';
+      document.getElementById('pcCode').value = '';
+      document.getElementById('pcPrice').value = '';
+      showToast('Added to sheet — pulling it onto the site…');
+      try { await fetch('/.netlify/functions/sync-codes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: sessionPass }) }); } catch (e) {}
+      loadPromoCodeDeals();
+    } else {
+      showToast('Add failed: ' + (data.error || ('HTTP ' + res.status)));
+    }
+  } catch (e) { showToast('Network error'); }
+  btn.textContent = '+ Add Deal'; btn.disabled = false;
+}
 async function removePromoDeal(asin, btn) {
   if (!asin) { showToast('No Amazon ID found for this deal'); return; }
-  if (!confirm('Remove this deal and block it from coming back?')) return;
+  if (!confirm('Remove this deal? It will be deleted from the sheet and the site.')) return;
   btn.textContent = 'Removing…'; btn.disabled = true;
   try {
-    var res = await fetch('/.netlify/functions/block-deal', {
+    var res = await fetch('/.netlify/functions/manage-code', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: sessionPass, action: 'block', asin: asin })
+      body: JSON.stringify({ password: sessionPass, action: 'remove', asin: asin })
     });
     var data = await res.json();
     if (res.ok && data.ok) {
       _pcDeals = _pcDeals.filter(function(d) { return _asinFromUrl(d.url) !== asin; });
       renderPromoCodeDeals();
-      showToast('Removed and blocked');
+      showToast('Removed from sheet and site');
     } else {
       showToast('Failed: ' + (data.error || ('HTTP ' + res.status)));
       btn.textContent = 'Remove'; btn.disabled = false;
