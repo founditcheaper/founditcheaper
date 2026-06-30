@@ -20,7 +20,14 @@
   // Keep the prompt on screen long enough to move to it and click (the code on
   // the card disappears the moment you move off it, but we already captured it).
   var hideTimer = null;
-  function scheduleHide(ms) { clearTimeout(hideTimer); hideTimer = setTimeout(function () { prompt.style.display = 'none'; lastCard = null; }, ms); }
+  function scheduleHide(ms) {
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(function check() {
+      // Never hide while the cursor is actually on the button — keep it up.
+      if (prompt.matches(':hover')) { hideTimer = setTimeout(check, 1000); return; }
+      prompt.style.display = 'none'; lastCard = null;
+    }, ms);
+  }
   prompt.addEventListener('mouseenter', function () { clearTimeout(hideTimer); });
   prompt.addEventListener('mouseleave', function () { scheduleHide(10000); });
 
