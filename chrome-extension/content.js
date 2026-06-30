@@ -272,6 +272,7 @@
     prompt.style.display = 'none';
     detailBtn.style.display = 'none';
     panel.style.display = 'block';
+    $('ficSave').focus(); // so pressing Enter saves right away
   }
 
   prompt.addEventListener('click', function (e) {
@@ -280,6 +281,11 @@
   });
 
   $('ficCancel').addEventListener('click', function () { panel.style.display = 'none'; lastCard = null; });
+
+  // Press Enter anywhere in the review box to Save.
+  panel.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); if (!$('ficSave').disabled) $('ficSave').click(); }
+  });
 
   $('ficSave').addEventListener('click', function () {
     var link = ($('ficLink').value || '').trim();
