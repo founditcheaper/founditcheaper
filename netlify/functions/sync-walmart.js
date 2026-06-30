@@ -73,7 +73,7 @@ async function wmSearch(term, pub) {
   const ctrl  = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
-    const res = await fetch(`${BASE}/search?publisherId=${pub}&query=${encodeURIComponent(term)}&numItems=50`, {
+    const res = await fetch(`${BASE}/search?publisherId=${pub}&query=${encodeURIComponent(term)}&numItems=25`, {
       headers: {
         'WM_CONSUMER.ID':          consumerId,
         'WM_CONSUMER.INTIMESTAMP': ts,
