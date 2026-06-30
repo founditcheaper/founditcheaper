@@ -1018,11 +1018,11 @@ function togglePastDay(i) { document.getElementById('past-' + i).classList.toggl
 // clustering by store. Unknown ratings (Amazon's API often omits them) are treated
 // as neutral so those deals aren't unfairly buried at the bottom.
 function valueScore(p) {
-  var off     = Math.min(p.off || 0, 90) / 90;
-  var rating  = (p.rating && p.rating > 0 ? p.rating : 4.0) / 5;
+  var off     = Math.min(p.off || 0, 90) / 90;                      // % off — the dominant factor
+  var rating  = (p.rating && p.rating > 0 ? p.rating : 4.0) / 5;    // stars (unknown -> neutral)
   var reviews = Math.min(Math.log(((p.reviews || 0) + 1)) / Math.log(10) / 4, 1);
-  var promo   = p.code ? 0.08 : 0;
-  return off * 0.5 + rating * 0.25 + reviews * 0.15 + promo + (p._jit || 0) * 0.3;
+  var promo   = p.code ? 0.05 : 0;                                  // small promo-code nudge
+  return off * 0.6 + rating * 0.25 + reviews * 0.1 + promo;
 }
 function getFiltered() {
   var f = allProducts.filter(function(p) {
@@ -1041,8 +1041,21 @@ function getFiltered() {
     if (state.brandOnly && !p.brand && !_isBrand(p.name)) return false;
     return true;
   });
+  if (state.sort === 'value') {
+    // Volume is lopsided (far more Walmart than Amazon), so a single combined score
+    // buries Amazon. Rank each store's deals by value (discount-led) on their own,
+    // then interleave by rank so both stores' best deals surface together at the top.
+    // The jitter blurs ~2-3 ranks so it reads as a natural mix, not strict A/W/A/W.
+    var groups = {};
+    f.forEach(function(p) { (groups[p.store] = groups[p.store] || []).push(p); });
+    Object.keys(groups).forEach(function(s) {
+      groups[s].sort(function(a, b) { return valueScore(b) - valueScore(a); });
+      groups[s].forEach(function(p, i) { p._rank = i + (p._jit || 0) * 2.5; });
+    });
+    f.sort(function(a, b) { return a._rank - b._rank; });
+    return f;
+  }
   f.sort(function(a, b) {
-    if (state.sort === 'value') return valueScore(b) - valueScore(a);
     if (state.sort === 'rating') return b.rating - a.rating;
     if (state.sort === 'discount') return b.off - a.off;
     if (state.sort === 'price-asc') return a.price - b.price;
