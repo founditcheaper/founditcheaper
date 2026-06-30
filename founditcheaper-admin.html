@@ -432,10 +432,16 @@ function renderPromoCodeDeals() {
         + '<button class="abtn abtn-red" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="removePromoDeal(\'' + asin + '\', this)">Remove</button>'
       : '<button class="abtn abtn-gold" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="promoteToPicks(\'' + asin + '\')">Move to Today\'s Top Deal Picks</button>'
         + '<button class="abtn abtn-red" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="removePromoDeal(\'' + asin + '\', this)">Remove</button>';
+    var au = d.url || '';
+    var img = d.img ? '<img src="' + d.img + '" style="width:48px;height:48px;object-fit:contain;background:#fff;border-radius:6px;flex-shrink:0' + (au ? ';cursor:pointer' : '') + '" onerror="this.style.display=\'none\'">' : '';
+    if (au && img) img = '<a href="' + au + '" target="_blank" rel="noopener" title="Open on Amazon">' + img + '</a>';
+    var nameHtml = au
+      ? '<a href="' + au + '" target="_blank" rel="noopener" title="Open on Amazon" style="color:#fff;text-decoration:none">' + d.name + ' <span style="color:#f5c842">&#8599;</span></a>'
+      : d.name;
     return '<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid ' + border + ';border-radius:8px;margin-bottom:8px">'
-      + (d.img ? '<img src="' + d.img + '" style="width:48px;height:48px;object-fit:contain;background:#fff;border-radius:6px;flex-shrink:0" onerror="this.style.display=\'none\'">' : '')
+      + img
       + '<div style="flex:1;min-width:0">'
-        + '<div style="font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + d.name + '</div>'
+        + '<div style="font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + nameHtml + '</div>'
         + '<div style="font-size:12px;color:var(--muted)"><span style="color:#4ade80;font-weight:800">$' + d.price + '</span> · code <span style="color:#f5c842;font-weight:700">' + (d.code || '') + '</span> · ' + d.store + (inPicks ? ' &nbsp;' + status : '') + '</div>'
       + '</div>'
       + editBtn + actions
