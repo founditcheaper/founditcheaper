@@ -11,11 +11,25 @@
   btn.textContent = '➕ Add to founditcheaper';
   btn.style.cssText = 'position:absolute;z-index:2147483647;display:none;background:#f5c842;color:#0a1f33;font:800 12px Inter,Arial,sans-serif;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.35)';
   var toastEl = document.createElement('div');
-  toastEl.style.cssText = 'position:fixed;top:12px;right:12px;z-index:2147483647;display:none;background:#0a1f33;color:#fff;font:600 12px Inter,Arial,sans-serif;border:1px solid #f5c842;border-radius:8px;padding:10px 12px;max-width:300px;line-height:1.4';
+  toastEl.style.cssText = 'position:fixed;top:12px;right:12px;z-index:2147483647;display:none;background:#0a1f33;color:#fff;font:600 12px Inter,Arial,sans-serif;border:1px solid #f5c842;border-radius:8px;padding:10px 28px 10px 12px;max-width:320px;line-height:1.45;white-space:pre-wrap;box-shadow:0 4px 16px rgba(0,0,0,.4)';
+  var closeX = document.createElement('span');
+  closeX.textContent = '✕';
+  closeX.style.cssText = 'position:absolute;top:6px;right:8px;cursor:pointer;color:#8aa0b4;font-weight:700';
+  closeX.addEventListener('click', function () { toastEl.style.display = 'none'; });
+  toastEl.appendChild(closeX);
+  var toastMsg = document.createElement('span');
+  toastEl.appendChild(toastMsg);
   document.documentElement.appendChild(btn);
   document.documentElement.appendChild(toastEl);
 
-  function toast(m, err) { toastEl.textContent = m; toastEl.style.borderColor = err ? '#f87171' : '#4ade80'; toastEl.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(function () { toastEl.style.display = 'none'; }, 2800); }
+  // sticky = stay until dismissed (used for results so we can read them)
+  function toast(m, err, sticky) {
+    toastMsg.textContent = m;
+    toastEl.style.borderColor = err ? '#f87171' : '#4ade80';
+    toastEl.style.display = 'block';
+    clearTimeout(toast._t);
+    if (!sticky) toast._t = setTimeout(function () { toastEl.style.display = 'none'; }, 2800);
+  }
   window.__ficToast = toast;
 
   var currentCard = null;
@@ -72,12 +86,14 @@
     e.preventDefault(); e.stopPropagation();
     if (!currentCard) return;
     var d = extract(currentCard);
-    if (!d.link) { toast('No Amazon link found on this card.', true); return; }
+    var grabbed = 'link: ' + (d.link || '— none —') + '\ncode: ' + (d.code || '— none —') + '\nprice: ' + (d.price || '— none —');
+    if (!d.link) { toast('No Amazon link found on this card.\n' + grabbed, true, true); return; }
     btn.disabled = true; var old = btn.textContent; btn.textContent = 'Adding…';
     chrome.runtime.sendMessage({ type: 'ficAdd', link: d.link, code: d.code, price: d.price }, function (resp) {
       btn.disabled = false; btn.textContent = old;
-      if (resp && resp.ok) toast('✓ Added' + (d.code ? ' — code ' + d.code : '') + (d.price ? ' ($' + d.price + ')' : ''), false);
-      else toast('Failed: ' + ((resp && resp.error) || 'error'), true);
+      if (chrome.runtime.lastError) { toast('Extension error: ' + chrome.runtime.lastError.message + '\n' + grabbed, true, true); return; }
+      if (resp && resp.ok) toast('✓ Added' + (resp.instant ? ' (live now)' : ' (will appear shortly)') + '\n' + grabbed, false, true);
+      else toast('Server said NO: ' + ((resp && resp.error) || 'no response from background worker') + '\n' + grabbed, true, true);
     });
   });
 
