@@ -139,11 +139,14 @@ async function fetchProduct(asin, token) {
     }),
   });
   const data = await res.json();
+  const reason = data.reason || data.errors?.[0]?.reason || data.errors?.[0]?.message;
   const item = data.itemsResult?.items?.[0];
-  if (!item) return null;
+  if (!item) return { skip: reason || 'no-item', sample: JSON.stringify(data).slice(0, 300) };
   const primary = item.images?.primary?.large?.url || '';
   const listing = item.offersV2?.listings?.[0];
-  const apiPrice = Number(listing?.price?.amount) || 0;   // current regular price
+  // getItems nests price like searchItems: price.money.amount (fall back to .amount)
+  const apiPrice = Number(listing?.price?.money?.amount ?? listing?.price?.amount) || 0;
+  if (!apiPrice) return { skip: 'no-price', sample: JSON.stringify(listing || item.offersV2 || {}).slice(0, 300) };
   return {
     name:      item.itemInfo?.title?.displayValue || '',
     apiPrice,
@@ -236,13 +239,18 @@ exports.handler = async function (event) {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const start = Date.now();
   let added = 0, skipped = 0, capped = false;
+  const skipInfo = [];
 
   for (const s of toAdd) {
     if (Date.now() - start > TIME_CAP_MS) { capped = true; break; }
     let prod = null;
-    try { prod = await fetchProduct(s.asin, token); } catch (e) { /* skip */ }
+    try { prod = await fetchProduct(s.asin, token); } catch (e) { prod = { skip: 'fetch-error: ' + e.message }; }
     await sleep(API_SPACING);
-    if (!prod || !prod.apiPrice) { skipped++; continue; }
+    if (!prod || prod.skip || !prod.apiPrice) {
+      skipped++;
+      if (skipInfo.length < 3) skipInfo.push({ asin: s.asin, why: prod?.skip || 'unknown', sample: prod?.sample });
+      continue;
+    }
 
     const regular = prod.apiPrice;                       // compliant regular price (API)
     const price   = s.discount > 0 && s.discount < regular ? s.discount : regular;
@@ -283,6 +291,7 @@ exports.handler = async function (event) {
   }
 
   const result = { ok: true, sheetRows: sheet.length, added, removed, skipped, capped, remaining: capped ? toAdd.length - added - skipped : 0 };
+  if (skipInfo.length) result.skipInfo = skipInfo;
   console.log('[sync-codes]', JSON.stringify(result));
   return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(result) };
 };
