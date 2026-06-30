@@ -223,13 +223,6 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <div class="slider-row"><div class="slider-row-top"><span class="slider-name">Min Discount %</span><span class="slider-val" id="sv2">30%</span></div><input id="afMinDiscount" type="range" min="10" max="70" step="5" value="30" oninput="document.getElementById('sv2').textContent=this.value+'%'"></div>
       </div>
 
-      <!-- Audience Split -->
-      <div class="settings-card">
-        <div class="settings-title">Audience Split</div>
-        <div class="slider-row"><div class="slider-row-top"><span class="slider-name">Male-skewing %</span><span class="slider-val" id="sv4">80%</span></div><input type="range" min="50" max="100" step="5" value="80" oninput="document.getElementById('sv4').textContent=this.value+'%'"></div>
-        <div class="slider-row"><div class="slider-row-top"><span class="slider-name">Big brand minimum</span><span class="slider-val" id="sv6">2</span></div><input type="range" min="0" max="5" step="1" value="2" oninput="document.getElementById('sv6').textContent=this.value"></div>
-      </div>
-
       <!-- Creator Connections Brands -->
       <div class="settings-card">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;flex-wrap:wrap"><div class="settings-title" style="margin-bottom:0">Big Brand Names</div><div style="display:flex;gap:6px"><button id="brandEditBtn" onclick="toggleBrandEdit()" class="btn btn-ghost" style="font-size:11px;padding:5px 10px">✏️ Edit</button><button onclick="resetBrandList()" class="btn btn-ghost" style="font-size:11px;padding:5px 10px">↺ Reset</button></div></div>
@@ -1006,9 +999,7 @@ function resetDefaults() {
   // Reset all sliders and labels
 
   var defaults = [
-    { id:'sv2', val:'30', label:'30%' },
-    { id:'sv4', val:'80', label:'80%' },
-    { id:'sv6', val:'2',  label:'2'   }
+    { id:'sv2', val:'30', label:'30%' }
   ];
 
   // Get all range inputs in order
