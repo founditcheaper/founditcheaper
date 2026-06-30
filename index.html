@@ -864,7 +864,7 @@ function pickGridHtml(items, groupId) {
   html += '</div>';
   // See All Deals banner — only for today's carousel; filled in by updateDealsBanner() after Phase 2
   if (groupId === 'today') {
-    html += '<a id="dealsBanner" href="#allDealsAnchor" onclick="closePicksAndScroll()" style="display:block;width:100%;margin-top:14px;padding:13px 20px;background:rgba(245,200,66,0.08);border:2px solid rgba(245,200,66,0.5);border-radius:8px;color:#ffffff;font-size:15px;font-weight:700;text-align:center;text-decoration:none;font-family:Inter,sans-serif;box-sizing:border-box;line-height:1.6">Deals loading — check back soon!<br>Click here to see all Top Rated Deals</a>';
+    html += '<a id="dealsBanner" href="#allDealsAnchor" onclick="closePicksAndScroll()" style="display:block;width:100%;margin-top:14px;padding:13px 20px;background:rgba(245,200,66,0.08);border:2px solid rgba(245,200,66,0.5);border-radius:8px;color:#ffffff;font-size:15px;font-weight:700;text-align:center;text-decoration:none;font-family:Inter,sans-serif;box-sizing:border-box;line-height:1.6">Deals loading — check back soon!<br>Click here to see all Top Value Deals</a>';
   }
   return html;
 }
@@ -880,7 +880,7 @@ function updateDealsBanner() {
   var storeText = storeNames.length === 0 ? '' :
     storeNames.length === 1 ? 'from ' + storeNames[0] :
     'from ' + storeNames.slice(0, -1).join(', ') + ' & ' + storeNames[storeNames.length - 1];
-  banner.innerHTML = 'We found ' + allProducts.length + ' deal' + (allProducts.length === 1 ? '' : 's') + ' ' + storeText + '<br>Click here to see all Top Rated Deals';
+  banner.innerHTML = 'We found ' + allProducts.length + ' deal' + (allProducts.length === 1 ? '' : 's') + ' ' + storeText + '<br>Click here to see all Top Value Deals';
 }
 
 function getCurrentSlide(groupId) {
