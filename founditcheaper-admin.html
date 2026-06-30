@@ -191,6 +191,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       <button class="tab active" onclick="switchTab('picks')">📋 Today's Picks</button>
       <button class="tab" onclick="switchTab('autopicker')">🤖 Auto-Picker</button>
       <button class="tab" onclick="switchTab('schedule')">📅 Schedule</button>
+      <button class="tab" onclick="switchTab('promocodes')">🏷️ Promo Codes</button>
     </div>
 
     <!-- TAB: TODAY'S PICKS -->
@@ -311,6 +312,19 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       </div>
     </div>
 
+    <!-- TAB: PROMO CODE DEALS (All Deals grid) -->
+    <div class="tab-content" id="tab-promocodes">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Promo Code Deals · All Deals grid</div>
+          <div class="section-sub">From your VA's Google Sheet. Remove hides one from the site and blocks it from coming back.</div>
+        </div>
+        <button class="btn btn-ghost" onclick="loadPromoCodeDeals()">↻ Refresh</button>
+      </div>
+      <input class="field-input" id="pcSearch" placeholder="Search promo deals by name or code..." style="margin-bottom:12px" oninput="renderPromoCodeDeals()">
+      <div id="pcList"></div>
+    </div>
+
   </div>
 </div>
 
@@ -385,10 +399,64 @@ async function syncCodes() {
 // ── TABS ─────────────────────────────────────────────────────────────
 function switchTab(id) {
   document.querySelectorAll('.tab').forEach(function(t,i) {
-    t.classList.toggle('active', ['picks','autopicker','schedule'][i] === id);
+    t.classList.toggle('active', ['picks','autopicker','schedule','promocodes'][i] === id);
   });
   document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
   document.getElementById('tab-' + id).classList.add('active');
+  if (id === 'promocodes') loadPromoCodeDeals();
+}
+
+// ── PROMO CODE DEALS (All Deals grid) — list + remove/block ────────────
+var _pcDeals = [];
+function _asinFromUrl(u) { var m = (u || '').match(/\/dp\/([A-Z0-9]{10})/i); return m ? m[1].toUpperCase() : ''; }
+async function loadPromoCodeDeals() {
+  var list = document.getElementById('pcList');
+  if (list) list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Loading…</div>';
+  try {
+    var res = await fetch(_ADMIN_SB_URL + '/rest/v1/deals?is_top_pick=eq.false&code=not.is.null&select=id,name,price,was,off,code,img,url,store&order=name', {
+      headers: { apikey: _ADMIN_SB_KEY, Authorization: 'Bearer ' + _ADMIN_SB_KEY }
+    });
+    _pcDeals = await res.json();
+    if (!Array.isArray(_pcDeals)) _pcDeals = [];
+  } catch (e) { _pcDeals = []; }
+  renderPromoCodeDeals();
+}
+function renderPromoCodeDeals() {
+  var list = document.getElementById('pcList'); if (!list) return;
+  var q = (document.getElementById('pcSearch').value || '').toLowerCase();
+  var items = _pcDeals.filter(function(d) { return !q || (d.name||'').toLowerCase().indexOf(q) >= 0 || (d.code||'').toLowerCase().indexOf(q) >= 0; });
+  if (!items.length) { list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No promo code deals' + (q ? ' match your search' : ' yet — your VA\'s sheet feeds these in') + '.</div>'; return; }
+  list.innerHTML = items.map(function(d) {
+    var asin = _asinFromUrl(d.url);
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid rgba(255,255,255,0.08);border-radius:8px;margin-bottom:8px">'
+      + (d.img ? '<img src="' + d.img + '" style="width:48px;height:48px;object-fit:contain;background:#fff;border-radius:6px;flex-shrink:0" onerror="this.style.display=\'none\'">' : '')
+      + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + d.name + '</div>'
+        + '<div style="font-size:12px;color:var(--muted)"><span style="color:#4ade80;font-weight:800">$' + d.price + '</span> · code <span style="color:#f5c842;font-weight:700">' + (d.code || '') + '</span> · ' + d.store + '</div>'
+      + '</div>'
+      + '<button class="abtn abtn-red" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="removePromoDeal(\'' + asin + '\', this)">Remove</button>'
+    + '</div>';
+  }).join('');
+}
+async function removePromoDeal(asin, btn) {
+  if (!asin) { showToast('No Amazon ID found for this deal'); return; }
+  if (!confirm('Remove this deal and block it from coming back?')) return;
+  btn.textContent = 'Removing…'; btn.disabled = true;
+  try {
+    var res = await fetch('/.netlify/functions/block-deal', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass, action: 'block', asin: asin })
+    });
+    var data = await res.json();
+    if (res.ok && data.ok) {
+      _pcDeals = _pcDeals.filter(function(d) { return _asinFromUrl(d.url) !== asin; });
+      renderPromoCodeDeals();
+      showToast('Removed and blocked');
+    } else {
+      showToast('Failed: ' + (data.error || ('HTTP ' + res.status)));
+      btn.textContent = 'Remove'; btn.disabled = false;
+    }
+  } catch (e) { showToast('Network error'); btn.textContent = 'Remove'; btn.disabled = false; }
 }
 
 // ── SUPABASE (read-only anon key — safe for admin panel reads) ─────────

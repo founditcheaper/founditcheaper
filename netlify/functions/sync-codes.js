@@ -190,6 +190,17 @@ exports.handler = async function (event) {
     console.error('[sync-codes] sheet read failed:', e.message);
     return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'sheet read failed: ' + e.message }) };
   }
+  // Drop any ASINs blocked via the admin "Remove" button so they never re-enter
+  // the grid even while they're still in the VA's sheet. (Table may not exist
+  // yet -> treat as empty.)
+  let blocked = new Set();
+  try {
+    const br = await fetch(`${sbUrl}/rest/v1/blocked_deals?select=asin`, { headers: sbHeaders });
+    const bj = await br.json();
+    if (Array.isArray(bj)) blocked = new Set(bj.map(x => String(x.asin || '').toUpperCase()));
+  } catch (e) { /* table missing/unreachable -> no blocks */ }
+  if (blocked.size) sheet = sheet.filter(s => !blocked.has(s.asin));
+
   const sheetByAsin = {};
   for (const s of sheet) sheetByAsin[s.asin] = s;
   const sheetAsins = new Set(Object.keys(sheetByAsin));

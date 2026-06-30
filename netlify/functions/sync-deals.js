@@ -219,6 +219,16 @@ exports.handler = async function () {
     }
   } catch (e) { console.error('[sync-deals] coded-ASIN check failed:', e.message); }
 
+  // Skip any ASINs blocked via the admin "Remove" button (table may not exist yet).
+  try {
+    const res = await fetch(`${sbUrl}/rest/v1/blocked_deals?select=asin`, { headers: sbHeaders });
+    const blk = await res.json();
+    if (Array.isArray(blk) && blk.length) {
+      const blkSet = new Set(blk.map(x => String(x.asin || '').toUpperCase()));
+      deals = deals.filter(d => !blkSet.has(d.asin));
+    }
+  } catch (e) { /* no block list -> nothing to skip */ }
+
   console.log(`[sync-deals] ${deals.length} qualifying Amazon deals (after variant + coded dedup)`);
 
   // Safety: if discovery returned nothing (API hiccup), leave the existing grid alone.
