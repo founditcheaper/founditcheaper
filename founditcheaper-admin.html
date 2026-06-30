@@ -400,6 +400,13 @@ function switchTab(id) {
 // ── PROMO CODE DEALS (All Deals grid) — list + remove/block ────────────
 var _pcDeals = [];
 function _asinFromUrl(u) { var m = (u || '').match(/\/dp\/([A-Z0-9]{10})/i); return m ? m[1].toUpperCase() : ''; }
+// Format the DB timestamp into local date + time (so you can tell when a deal was uploaded).
+function _fmtAdded(ts) {
+  if (!ts) return 'unknown';
+  var dt = new Date(ts);
+  if (isNaN(dt.getTime())) return 'unknown';
+  return dt.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
 async function loadPromoCodeDeals() {
   var list = document.getElementById('pcList');
   if (list) list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Loading…</div>';
@@ -445,6 +452,7 @@ function renderPromoCodeDeals() {
       + '<div style="flex:1;min-width:0">'
         + '<div style="font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + nameHtml + '</div>'
         + '<div style="font-size:12px;color:var(--muted)"><span style="color:#4ade80;font-weight:800">$' + d.price + '</span> · code <span style="color:#f5c842;font-weight:700">' + (d.code || '') + '</span> · ' + d.store + (inPicks ? ' &nbsp;' + status : '') + '</div>'
+        + '<div style="font-size:11px;color:var(--muted);margin-top:3px">🕒 Added ' + _fmtAdded(d.created_at) + '</div>'
       + '</div>'
       + editBtn + actions
     + '</div>';
