@@ -153,6 +153,11 @@ exports.handler = async function (event) {
       if (!sbUrl || !sbKey) return { statusCode: 500, body: JSON.stringify({ error: 'Config error' }) };
       const sb = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
       const today = new Date().toISOString().split('T')[0];
+      // When sending a deal back to the grid, make sure it's in the sheet first,
+      // so the promo sync keeps it instead of pruning it as "not in the sheet".
+      if (action === 'demote' && amazon_link) {
+        await callGateway({ action: 'append', amazon_link: String(amazon_link), promo_code: String(promo_code || ''), discount_price: String(discount_price || '') }).catch(() => {});
+      }
       // Flip the existing row in place — no delete/insert, so no duplicate row.
       const from = action === 'promote' ? 'false' : 'true';
       const patch = action === 'promote' ? { is_top_pick: true, active_date: today } : { is_top_pick: false };

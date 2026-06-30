@@ -472,11 +472,12 @@ async function promoteToPicks(asin) {
   } catch (e) { showToast('Network error'); }
 }
 async function demoteFromPicks(asin) {
+  var d = _pcDeals.find(function (x) { return _asinFromUrl(x.url) === asin; }) || {};
   showToast('Moving back to All Deals…');
   try {
     var res = await fetch('/.netlify/functions/manage-code', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: sessionPass, action: 'demote', asin: asin })
+      body: JSON.stringify({ password: sessionPass, action: 'demote', asin: asin, amazon_link: d.url || '', promo_code: d.code || '', discount_price: d.price || '' })
     });
     var data = await res.json();
     if (res.ok && data.ok) { await loadPicks(); await loadPromoCodeDeals(); showToast('Moved back to All Deals'); }
