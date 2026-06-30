@@ -443,11 +443,17 @@ function dealCardHtml(d, idx) {
 
   // Button row
   card += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;padding:0 14px 14px">';
-  card += '<button onclick="event.stopPropagation();moveUp(' + idx + ')" class="abtn">▲ Up</button>';
-  card += '<button onclick="event.stopPropagation();moveDown(' + idx + ')" class="abtn">▼ Down</button>';
+  card += '<button onclick="event.stopPropagation();moveUp(' + idx + ')" class="abtn">▲ Move Up</button>';
+  card += '<button onclick="event.stopPropagation();moveDown(' + idx + ')" class="abtn">▼ Move Down</button>';
   card += '<button onclick="event.stopPropagation();toggleEdit(' + idx + ')" class="abtn abtn-gold">✏️ Edit</button>';
   card += '<button onclick="event.stopPropagation();deleteItem(' + idx + ')" class="abtn abtn-red">✕</button>';
   card += '</div>';
+  card += '</div>';
+
+  // Move-to-spot row (type a position, jump the deal there)
+  card += '<div style="display:flex;gap:8px;align-items:center;padding:0 14px 14px">';
+  card += '<input type="number" min="1" max="' + deals.length + '" id="spot-' + idx + '" placeholder="#" class="field-input" style="width:64px;padding:6px 8px" onkeydown="if(event.key===\'Enter\'){event.preventDefault();moveToSpot(' + idx + ')}">';
+  card += '<button onclick="moveToSpot(' + idx + ')" class="abtn">↕ Move to spot</button>';
   card += '</div>';
 
   // Edit panel
@@ -502,6 +508,21 @@ function moveDown(idx) {
   var tmp = deals[idx]; deals[idx] = deals[idx+1]; deals[idx+1] = tmp;
   deals.forEach(function(d,i) { d.rank = i+1; });
   renderDeals(); showToast('Deal moved down');
+}
+function moveToSpot(idx) {
+  var input = document.getElementById('spot-' + idx);
+  if (!input) return;
+  var target = parseInt(input.value, 10);
+  if (isNaN(target)) { showToast('Enter a spot number'); return; }
+  target = Math.max(1, Math.min(deals.length, target));   // clamp to 1..count
+  var newIdx = target - 1;
+  if (newIdx === idx) { showToast('Already at spot ' + target); return; }
+  saveHistory('Moved to spot ' + target);
+  var item = deals.splice(idx, 1)[0];   // pull it out
+  deals.splice(newIdx, 0, item);        // drop it at the target position
+  deals.forEach(function(d,i) { d.rank = i+1; });
+  renderDeals();
+  showToast('Moved to spot ' + target);
 }
 // History stack for undo
 var actionHistory = [];
