@@ -202,7 +202,6 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
           <div class="section-sub">Drag to reorder · Click a deal to edit · Changes save to site instantly</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button id="syncCodesBtn" class="btn btn-ghost" onclick="syncCodes()" title="Pull new promo-code deals from the Google Sheet right now">🔄 Sync Promo Codes</button>
           <button id="undoHistoryBtn" class="btn btn-ghost" onclick="undoHistory()" disabled style="opacity:0.4">↩ Undo</button>
           <button class="btn btn-ghost" onclick="autoFill()">🤖 Auto-Fill</button>
           <button class="btn btn-ghost" onclick="randomizePicks()">🎲 Randomize</button>
@@ -319,7 +318,10 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
           <div class="section-title">All Deals</div>
           <div class="section-sub">Promo-code deals, synced both ways with your Google Sheet. Add or remove here and the sheet updates to match.</div>
         </div>
-        <button class="btn btn-ghost" onclick="loadPromoCodeDeals()">↻ Refresh</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="syncCodesBtn" class="btn btn-ghost" onclick="syncCodes()" title="Pull the latest sheet deals onto the site now">🔄 Sync Now</button>
+          <button class="btn btn-ghost" onclick="loadPromoCodeDeals()">↻ Refresh</button>
+        </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:12px;border:1px solid rgba(245,200,66,0.25);border-radius:8px;margin-bottom:14px">
         <div style="flex:3;min-width:200px"><label class="field-label">Amazon link</label><input class="field-input" id="pcLink" placeholder="https://www.amazon.com/dp/..."></div>
@@ -393,6 +395,7 @@ async function syncCodes() {
         + 'Added: ' + data.added + '\nRemoved (expired/deleted): ' + data.removed + '\nSkipped: ' + data.skipped;
       if (data.capped) msg += '\n\n' + data.remaining + ' more will pull in over the next few minutes.';
       alert(msg);
+      if (typeof loadPromoCodeDeals === 'function') loadPromoCodeDeals();
     } else {
       alert('Sync failed: ' + (data.error || ('HTTP ' + res.status)));
     }
