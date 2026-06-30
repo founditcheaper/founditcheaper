@@ -234,17 +234,6 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         </div>
       </div>
 
-      <!-- Male Categories -->
-      <div class="settings-card">
-        <div class="settings-title">Male-Skewing Categories</div>
-        <div class="brand-tags" id="maleCats"></div>
-      </div>
-
-      <!-- Female Categories -->
-      <div class="settings-card">
-        <div class="settings-title">Female-Friendly Categories</div>
-        <div class="brand-tags" id="femaleCats"></div>
-      </div>
     </div>
 
     <!-- TAB: SCHEDULE -->
@@ -840,9 +829,6 @@ function updateStats() {
 
 // ── BRANDS & CATEGORIES ───────────────────────────────────────────────
 var ccBrands = ['3M', 'ACDelco', 'ADT', 'Acer', 'Adidas', 'Akro-Mils', 'All-Clad', 'Amazon', 'Andis', 'Anker', 'Apple', 'Ariens', 'Arlo', 'Armor All', 'Asus', 'August', 'Autel', 'BFGoodrich', 'BaByliss', 'Beats', 'Belkin', 'Big Green Egg', 'Bilstein', 'Bissell', 'Black+Decker', 'Blackstone', 'Blendtec', 'Bosch', 'Bose', 'Bowflex', 'Braun', 'Breville', 'Bridgestone', 'CAP Barbell', 'Callaway', 'Calphalon', 'CamelBak', 'Camp Chef', 'Castrol', 'Channellock', 'Chemical Guys', 'Cleveland', 'Coleman', 'Columbia', 'Cooper', 'Corsair', 'Craftsman', 'Cree', 'Crucial', 'Cub Cadet', 'Cuisinart', 'DEWALT', 'DeWalt', 'Dell', 'DieHard', 'Dollar Shave Club', 'Dyson', 'Easton', 'Echo', 'Ego', 'Elgato', 'Eufy', 'Festool', 'First Alert', 'Fiskars', 'Fitbit', 'Fluke', 'Frigidaire', 'Furbo', 'GE', 'Gaiam', 'Garmin', 'Gerber', 'Gillette', 'GoPro', 'Goodyear', 'Google', 'Govee', 'Greenworks', 'HP', 'Hamilton Beach', "Harry's", "Hill's", 'Hilti', 'Hisense', 'Honeywell', 'Hoover', 'Hunter', 'Husky', 'Husky Liners', 'Husqvarna', 'Hydro Flask', 'HyperX', 'Hyperice', 'INNOVA', 'IRIS', 'Igloo', 'Instant Pot', 'Intel', 'Irwin', 'JBL', 'Jabra', 'John Deere', 'K&N', 'Kasa', 'Keurig', 'Kidde', 'Kingston', 'KitchenAid', 'Klein Tools', 'Knipex', 'Kobalt', 'Kong', 'LG', 'Lasko', 'Launch', 'Le Creuset', 'Leatherman', 'Lenovo', 'Leviton', 'Levoit', 'Life Fitness', 'Lodge', 'Logitech', 'Louisville Slugger', 'Lutron', 'Mac Tools', 'Makita', 'Maytag', 'Meguiars', 'Metabo', 'Michelin', 'Microsoft', 'Milwaukee', 'Miracle-Gro', 'Mobil 1', 'Monroe', 'Motorola', 'NOCO', 'NVIDIA', 'Nathan', 'Nespresso', 'Nest', 'New Balance', 'Nike', 'Ninja', 'NordicTrack', 'OBD Auto Doctor', 'Odyssey', 'OnePlus', 'Optima', 'Orbit', 'Osprey', 'Oster', 'Otterbox', 'Oxo', 'Panasonic', 'Pelican', 'Peloton', 'PetSafe', 'Philips', 'Philips Hue', 'Philips Norelco', 'Ping', 'Pit Boss', 'Poulan', 'Proto', 'Puma', 'Purina', 'Pyrex', 'RTIC', 'Rain Bird', 'Rawlings', 'Razer', 'Reebok', 'Remington', 'Reynolds', 'Riddell', 'Ridgid', 'Ring', 'Rogue', 'Roku', 'Roomba', 'Rough Country', 'Royal Canin', 'Royal Purple', 'Rubbermaid', 'Ryobi', 'Samsung', 'SanDisk', 'Schlage', 'Schumacher', 'Scotts', 'Seagate', 'Sennheiser', 'Shark', 'Simplisafe', 'Simpson Strong-Tie', 'Snap-on', 'Snapper', 'Sonos', 'Sony', 'Spalding', 'Spigen', 'Stanley', 'Staub', 'SteelSeries', 'Sterilite', 'Stihl', 'Sun Joe', 'Swanson', 'TCL', 'TRX', 'TaylorMade', 'The North Face', 'Theragun', 'Tile', 'Titleist', 'Toro', 'Traeger', 'Trigger Point', 'Troy-Bilt', 'Tupperware', 'Under Armour', 'Valvoline', 'Victorinox', 'Vitamix', 'Vizio', 'Vornado', 'WD', 'WD-40', 'Wahl', 'WeatherTech', 'Weber', 'Wera', 'Werner', 'Whirlpool', 'Wilson', 'Winix', 'Worx', 'Wyze', 'Yeti', 'ZAGG', 'Ziploc', 'iRobot'];
-var maleCats = ['Tools & Power Tools', 'Automotive', 'Outdoor & Camping', 'Grilling & BBQ', 'Sports Equipment', 'Work Gear', 'Electronics', 'Home Improvement', 'Lawn & Garden'];
-var femaleCats = ['Kitchen Appliances', 'Home Décor', 'Fitness & Wellness', 'Personal Care', 'Organization & Storage'];
-
 var brandEditMode = false;
 
 function renderBrands() {
@@ -854,13 +840,6 @@ function renderBrands() {
       return '<div class="brand-tag" style="border-color:rgba(248,113,113,0.4)">' + b + '<button onclick="removeBrand(' + i + ')" style="color:#f87171;margin-left:4px;font-weight:800">✕</button></div>';
     }
     return '<div class="brand-tag">' + b + '</div>';
-  }).join('');
-
-  document.getElementById('maleCats').innerHTML = maleCats.map(function(c) {
-    return '<div class="brand-tag" style="border-color:rgba(96,184,245,0.3);color:#60b8f5;background:rgba(96,184,245,0.1)">' + c + '</div>';
-  }).join('');
-  document.getElementById('femaleCats').innerHTML = femaleCats.map(function(c) {
-    return '<div class="brand-tag" style="border-color:rgba(248,113,113,0.3);color:#f87171;background:rgba(248,113,113,0.1)">' + c + '</div>';
   }).join('');
 }
 
