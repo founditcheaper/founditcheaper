@@ -171,6 +171,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
     </div>
     <div class="header-actions">
       <button class="btn btn-primary" onclick="saveAll()">🚀 Publish to Site</button>
+      <span id="changesBadge" onclick="openChangesPanel()" title="Review unpublished changes" style="display:none;align-items:center;gap:6px;cursor:pointer;background:rgba(245,200,66,0.15);border:1px solid rgba(245,200,66,0.55);color:#f5c842;font-size:12px;font-weight:800;padding:6px 12px;border-radius:20px;white-space:nowrap"></span>
       <button class="btn btn-ghost" onclick="logout()">Sign Out</button>
     </div>
   </header>
@@ -197,7 +198,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       <div class="section-header">
         <div>
           <div class="section-title">Today's Top Deal Picks</div>
-          <div class="section-sub">Drag to reorder · Click a deal to edit · Changes save to site instantly</div>
+          <div class="section-sub">Drag to reorder · Click a deal to edit · Changes go live when you Publish</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button id="undoHistoryBtn" class="btn btn-ghost" onclick="undoHistory()" disabled style="opacity:0.4">↩ Undo</button>
@@ -585,6 +586,7 @@ function renderDeals() {
   });
   updateStats();
   if (document.getElementById('dealsGrid').children.length) initTouchDrag();
+  updateChangesUI();
 }
 
 function dealCardHtml(d, idx) {
@@ -708,6 +710,7 @@ function saveHistory(action) {
   actionHistory.push({ action: action, snapshot: JSON.parse(JSON.stringify(deals)) });
   if (actionHistory.length > MAX_HISTORY) actionHistory.shift();
   updateUndoBtn();
+  updateChangesUI();
 }
 
 function updateUndoBtn() {
@@ -724,7 +727,66 @@ function undoHistory() {
   deals = last.snapshot;
   renderDeals();
   updateUndoBtn();
+  updateChangesUI();
   showToast('↩ Undid: ' + last.action);
+}
+
+// ── UNPUBLISHED-CHANGES INDICATOR ──────────────────────────────────────
+// Baseline = the Top Picks as last loaded or published. Anything different
+// means there are unpublished changes; the badge shows until you publish.
+var publishedBaseline = '[]';
+function setBaseline() { try { publishedBaseline = JSON.stringify(deals); } catch (e) { publishedBaseline = '[]'; } }
+function dealsDirty() { try { return JSON.stringify(deals) !== publishedBaseline; } catch (e) { return false; } }
+
+function updateChangesUI() {
+  var badge = document.getElementById('changesBadge');
+  if (!badge) return;
+  if (dealsDirty()) {
+    var n = actionHistory.length;
+    badge.innerHTML = '● ' + (n > 0 ? n + ' unpublished change' + (n > 1 ? 's' : '') : 'Unpublished changes');
+    badge.style.display = 'inline-flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function discardChanges() {
+  try { deals = JSON.parse(publishedBaseline || '[]'); } catch (e) { deals = []; }
+  actionHistory = [];
+  renderDeals();
+  updateUndoBtn();
+  updateChangesUI();
+  closeChangesPanel();
+  showToast('↩ Reverted to last published');
+}
+
+function closeChangesPanel() { var ov = document.getElementById('changesOverlay'); if (ov) ov.remove(); }
+
+function openChangesPanel() {
+  if (!dealsDirty()) { showToast('No unpublished changes'); return; }
+  closeChangesPanel();
+  var ov = document.createElement('div');
+  ov.id = 'changesOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:20px';
+  var rows = actionHistory.slice().reverse().map(function (h, i) {
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid rgba(255,255,255,.08);border-radius:7px;margin-bottom:6px;font-size:13px;color:#fff">'
+      + '<span style="color:#f5c842;font-weight:800">' + (actionHistory.length - i) + '.</span>'
+      + '<span>' + h.action + '</span></div>';
+  }).join('');
+  if (!rows) rows = '<div style="font-size:12px;color:#8aa0b4;padding:6px 0">Changes are ready to publish.</div>';
+  ov.innerHTML = '<div style="background:#0a1f33;border:1px solid #f5c842;border-radius:12px;padding:18px;width:420px;max-width:100%;max-height:80vh;display:flex;flex-direction:column">'
+    + '<div style="font-weight:800;color:#f5c842;font-size:15px;margin-bottom:2px">Unpublished changes</div>'
+    + '<div style="font-size:12px;color:#8aa0b4;margin-bottom:10px">Most recent first. These are not live until you publish.</div>'
+    + '<div style="overflow-y:auto;flex:1;margin-bottom:12px">' + rows + '</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button class="btn btn-primary" style="flex:1" onclick="closeChangesPanel();saveAll();">🚀 Publish to Site</button>'
+    + '<button class="btn btn-ghost" onclick="undoHistory();if(!dealsDirty())closeChangesPanel();else openChangesPanel();">↩ Undo last</button>'
+    + '<button class="btn btn-ghost" onclick="discardChanges()">Discard all</button>'
+    + '</div>'
+    + '<button class="btn btn-ghost" style="margin-top:8px" onclick="closeChangesPanel()">Close</button>'
+    + '</div>';
+  document.body.appendChild(ov);
+  ov.onclick = function (e) { if (e.target === ov) closeChangesPanel(); };
 }
 
 function deleteItem(idx) {
@@ -1038,6 +1100,11 @@ async function saveAll() {
     var data = await res.json();
     if (res.ok) {
       showToast('✓ Published — ' + data.saved + ' deals live on site');
+      // Published — current state is now the clean baseline; clear the indicator.
+      actionHistory = [];
+      setBaseline();
+      updateUndoBtn();
+      updateChangesUI();
       // Keep any coded Top Picks recorded in the promo sheet so the two stay in sync.
       deals.filter(function (d) { return d.code && /\/(dp|gp\/product)\//.test(d.url || ''); }).forEach(function (d) {
         fetch('/.netlify/functions/manage-code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, action: 'addsheet', amazon_link: d.url, promo_code: d.code, discount_price: d.price }) }).catch(function () {});
@@ -1208,6 +1275,9 @@ async function loadPicks() {
     console.error('Failed to load picks:', e);
     deals = [];
   }
+  // Loaded state is the clean baseline — no unpublished changes yet.
+  actionHistory = [];
+  setBaseline();
   renderDeals();
 }
 
