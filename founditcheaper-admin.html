@@ -182,8 +182,6 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
     <div class="stats-bar">
       <div class="stat-card"><div class="stat-val" id="statDeals">10</div><div class="stat-label">Today's Picks</div></div>
       <div class="stat-card"><div class="stat-val" id="statCodes">7</div><div class="stat-label">With Promo Codes</div></div>
-      <div class="stat-card"><div class="stat-val" id="statCC">5</div><div class="stat-label">Creator Connections</div></div>
-      <div class="stat-card"><div class="stat-val" id="statAvgOff">43%</div><div class="stat-label">Avg % Off</div></div>
     </div>
 
     <!-- TABS -->
@@ -833,9 +831,6 @@ function _afShuffle(arr) {
 function updateStats() {
   document.getElementById('statDeals').textContent = deals.length;
   document.getElementById('statCodes').textContent = deals.filter(function(d){return d.code;}).length;
-  document.getElementById('statCC').textContent = deals.filter(function(d){return d.creator;}).length;
-  var avgOff = deals.length ? Math.round(deals.reduce(function(a,d){return a+d.off;},0)/deals.length) : 0;
-  document.getElementById('statAvgOff').textContent = avgOff + '%';
 }
 
 // ── BRANDS & CATEGORIES ───────────────────────────────────────────────
