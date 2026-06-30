@@ -235,9 +235,10 @@ exports.handler = async function (event) {
   for (const d of existing) {
     const a = extractAsin(d.url);
     const s = a && sheetByAsin[a];
+    const fresh = d.active_date === today;          // added today — the published CSV may still be caching, so don't yank it for "not in sheet" yet
     const tooOld = !d.active_date || d.active_date < cutoff;
     const expired = s && s.expires && s.expires < today;
-    if (!s || tooOld || expired) removeIds.push(d.id);
+    if ((!s && !fresh) || tooOld || expired) removeIds.push(d.id);
   }
 
   // 4. New rows to add (in sheet, not already a coded deal)

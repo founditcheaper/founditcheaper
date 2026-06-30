@@ -12,6 +12,58 @@ function asinFromUrl(url) {
   return b ? b[1].toUpperCase() : '';
 }
 
+// ── Amazon Creators API (for instant insert on add) ───────────────────────
+const TOKEN_ENDPOINT = 'https://api.amazon.com/auth/o2/token';
+const ITEMS_ENDPOINT = 'https://creatorsapi.amazon/catalog/v1/getItems';
+const MARKETPLACE    = 'www.amazon.com';
+const AFFILIATE_TAG  = 'founditchea09-20';
+const RESOURCES = ['images.primary.large', 'itemInfo.title', 'itemInfo.byLineInfo', 'offersV2.listings.price', 'customerReviews.starRating', 'customerReviews.count'];
+
+function inferCategory(title) {
+  const t = (title || '').toLowerCase();
+  if (/drill|saw|wrench|power tool|cordless|sander|grinder|socket|plier/.test(t)) return 'Tools';
+  if (/headphone|earbud|speaker|\btv\b|laptop|tablet|camera|gaming|keyboard|mouse|charger|monitor/.test(t)) return 'Electronics';
+  if (/air fryer|coffee|blender|cookware|knife|toaster|oven|espresso|keurig|tray|\bpot\b|\bpan\b/.test(t)) return 'Kitchen';
+  if (/vacuum|humidifier|air purifier|mattress|pillow|bedding|\bfan\b|lamp|rug/.test(t)) return 'Home';
+  if (/camp|hiking|tent|backpack|cooler|fishing|kayak/.test(t)) return 'Outdoors';
+  if (/dumbbell|workout|yoga|exercise|fitness|\bbike\b|treadmill/.test(t)) return 'Sports';
+  if (/\bcar\b|truck|automotive|tire|dash cam/.test(t)) return 'Auto';
+  if (/garden|plant|lawn|hose|sprinkler/.test(t)) return 'Garden';
+  return 'Home';
+}
+
+let _token = null, _tokenExp = 0;
+async function getToken() {
+  if (_token && Date.now() < _tokenExp - 60000) return _token;
+  const res = await fetch(TOKEN_ENDPOINT, {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: process.env.AMAZON_CREATORS_CLIENT_ID, client_secret: process.env.AMAZON_CREATORS_CLIENT_SECRET, scope: 'creatorsapi::default' }).toString(),
+  });
+  const data = await res.json();
+  if (!data.access_token) throw new Error('token failed');
+  _token = data.access_token; _tokenExp = Date.now() + (data.expires_in || 3600) * 1000;
+  return _token;
+}
+async function fetchProduct(asin, token) {
+  const res = await fetch(ITEMS_ENDPOINT, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'x-marketplace': MARKETPLACE },
+    body: JSON.stringify({ itemIds: [asin], itemIdType: 'ASIN', resources: RESOURCES, partnerTag: AFFILIATE_TAG, partnerType: 'Associates', marketplace: MARKETPLACE }),
+  });
+  const data = await res.json();
+  const item = data.itemsResult?.items?.[0];
+  if (!item) return null;
+  const listing = item.offersV2?.listings?.[0];
+  const apiPrice = Number(listing?.price?.money?.amount ?? listing?.price?.amount) || 0;
+  return {
+    name: item.itemInfo?.title?.displayValue || '',
+    apiPrice,
+    img: item.images?.primary?.large?.url || '',
+    rating: item.customerReviews?.starRating?.value || 0,
+    reviews: item.customerReviews?.count || 0,
+    brandName: item.itemInfo?.byLineInfo?.brand?.displayValue || '',
+  };
+}
+
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
 
@@ -49,7 +101,33 @@ exports.handler = async function (event) {
         promo_code: String(promo_code || ''),
         discount_price: String(discount_price || ''),
       });
-      return { statusCode: res.ok ? 200 : 502, body: JSON.stringify({ ...res, asin }) };
+      // Insert into the grid right away so it appears instantly (the published CSV
+      // is cached, so the sheet-based sync would otherwise lag a few minutes).
+      let instant = false;
+      try {
+        const sbUrl = process.env.SUPABASE_URL, sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const token = await getToken();
+        const prod = await fetchProduct(asin, token);
+        if (prod && prod.apiPrice && sbUrl && sbKey) {
+          const regular = prod.apiPrice;
+          const dp = parseFloat(String(discount_price || '').replace(/[^0-9.]/g, ''));
+          const price = (dp > 0 && dp < regular) ? dp : regular;
+          const off = regular > price ? Math.round((1 - price / regular) * 100) : 0;
+          const today = new Date().toISOString().split('T')[0];
+          const sb = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
+          await fetch(`${sbUrl}/rest/v1/deals?url=like.*${asin}*&is_top_pick=eq.false`, { method: 'DELETE', headers: { ...sb, Prefer: 'return=minimal' } }).catch(() => {});
+          const row = {
+            rank: 900, name: prod.name.slice(0, 250), store: 'Amazon', category: inferCategory(prod.name),
+            price, was: regular, off, rating: prod.rating || 0, reviews: prod.reviews || 0,
+            img: prod.img, images: null, url: `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`,
+            code: String(promo_code || ''), use_code_url: false, creator: false, brand: false,
+            brand_name: prod.brandName || null, active_date: today, is_top_pick: false,
+          };
+          const insRes = await fetch(`${sbUrl}/rest/v1/deals`, { method: 'POST', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(row) });
+          instant = insRes.ok;
+        }
+      } catch (e) { /* sheet has it; the scheduled sync will pull it in even if this failed */ }
+      return { statusCode: res.ok ? 200 : 502, body: JSON.stringify({ ...res, asin, instant }) };
     }
 
     if (action === 'remove') {
