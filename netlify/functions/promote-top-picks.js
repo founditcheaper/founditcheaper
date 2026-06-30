@@ -1,21 +1,27 @@
-// Promotes the best current deals to "Top Daily Deal Picks", balanced ~50/50
-// Walmart/Amazon (per Erik). Picks the highest-scoring deals from each store,
-// marks them is_top_pick=true with active_date=today (so they group as TODAY's
-// picks in the carousel), and clears today's prior auto-picks so re-runs are clean.
+// Daily Top Deal Picks refresh (scheduled — see netlify.toml).
 //
-// NOTE: this auto-curates today's picks. It is NOT yet on a daily schedule — it
-// coexists with the admin manual-pick workflow until Erik confirms he wants it
-// to run automatically every day.
-const PICKS_PER_STORE = 8;
+// Every morning this replaces the Top Deal Picks carousel with a FRESH,
+// randomized set of 10 quality deals pulled from the current grid — a ~50/50
+// Amazon/Walmart mix, with a boost for promo-code deals and recognized brands,
+// plus a random jitter so the lineup feels new each day. Erik can still hand-edit
+// the picks afterward; his changes hold until the next morning's run.
+//
+// It DEMOTES the prior picks back to the grid (is_top_pick=false) rather than
+// deleting them, so nothing is lost — yesterday's picks just rejoin the pool.
+
+const PICKS = 10;
+const MIN_OFF = 15;   // quality floor
 
 function score(d) {
   const off     = Number(d.off) || 0;
   const rating  = Number(d.rating) || 0;
   const reviews = Number(d.reviews) || 0;
   return off
-       + rating * 8
-       + Math.min(reviews, 5000) / 250
-       + (d.brand ? 20 : 0);
+       + rating * 5
+       + Math.min(reviews, 5000) / 300
+       + (d.brand ? 20 : 0)
+       + (d.code ? 25 : 0)            // feature promo-code deals (Erik's focus)
+       + Math.random() * 40;          // freshness — different lineup each day
 }
 
 function baseNameKey(name) {
@@ -31,39 +37,43 @@ exports.handler = async function () {
   const H = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
   const today = new Date().toISOString().split('T')[0];
 
+  // Candidates come from the GRID only (is_top_pick=false), so each day's set
+  // rotates instead of re-picking the same deals.
   async function topFor(store) {
-    const res  = await fetch(`${sbUrl}/rest/v1/deals?select=id,name,off,rating,reviews,brand&store=eq.${store}&limit=5000`, { headers: H });
+    const res  = await fetch(`${sbUrl}/rest/v1/deals?select=id,name,off,rating,reviews,brand,code&store=eq.${store}&is_top_pick=eq.false&limit=5000`, { headers: H });
     const rows = await res.json();
     const best = {};                                   // variant dedup, keep best-scoring
     for (const r of (rows || [])) {
+      if ((Number(r.off) || 0) < MIN_OFF) continue;
       const k = baseNameKey(r.name);
-      if (!best[k] || score(r) > score(best[k])) best[k] = r;
+      const s = score(r);
+      if (!best[k] || s > best[k]._s) { r._s = s; best[k] = r; }
     }
-    return Object.values(best).sort((a, b) => score(b) - score(a)).slice(0, PICKS_PER_STORE);
+    return Object.values(best).sort((a, b) => b._s - a._s);
   }
 
   const [amz, wmt] = await Promise.all([topFor('Amazon'), topFor('Walmart')]);
-  console.log(`[promote-top-picks] selected ${amz.length} Amazon + ${wmt.length} Walmart`);
 
-  // Interleave A,W,A,W… so the carousel reads as a 50/50 mix.
+  // Interleave A,W,A,W… for a balanced mix, up to PICKS total.
   const ordered = [];
-  for (let i = 0; i < Math.max(amz.length, wmt.length); i++) {
-    if (amz[i]) ordered.push(amz[i]);
-    if (wmt[i]) ordered.push(wmt[i]);
+  for (let i = 0; ordered.length < PICKS && (i < amz.length || i < wmt.length); i++) {
+    if (amz[i] && ordered.length < PICKS) ordered.push(amz[i]);
+    if (wmt[i] && ordered.length < PICKS) ordered.push(wmt[i]);
   }
-  // Safety: if a sync failed and there's nothing to pick, leave existing picks
-  // alone rather than blanking the carousel.
+
+  // Safety: if the grid is empty (a sync failed), leave the existing picks alone
+  // rather than blanking the carousel.
   if (ordered.length === 0) {
     console.log('[promote-top-picks] no candidates — leaving existing picks unchanged');
     return { statusCode: 200, body: JSON.stringify({ ok: true, picked: 0 }) };
   }
 
-  // Clear ALL existing top picks, so the carousel shows exactly today's clean
-  // 50/50 set (no stale picks or duplicate ranks carrying over).
+  // Demote the prior picks back to the grid (don't delete — they rejoin the pool).
   await fetch(`${sbUrl}/rest/v1/deals?is_top_pick=eq.true`, {
     method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ is_top_pick: false }),
   });
 
+  // Promote the fresh set.
   let promoted = 0;
   for (let i = 0; i < ordered.length; i++) {
     const r = await fetch(`${sbUrl}/rest/v1/deals?id=eq.${ordered[i].id}`, {
@@ -73,10 +83,10 @@ exports.handler = async function () {
     if (r.ok) promoted++; else console.error(`[promote-top-picks] patch ${ordered[i].id} -> ${r.status}`);
   }
 
-  console.log(`[promote-top-picks] promoted ${promoted} (${amz.length} Amazon / ${wmt.length} Walmart)`);
+  console.log(`[promote-top-picks] ✓ refreshed Top Picks: ${promoted} deals`);
   return {
     statusCode: 200,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ok: true, picked: promoted, amazon: amz.length, walmart: wmt.length }),
+    body: JSON.stringify({ ok: true, picked: promoted }),
   };
 };

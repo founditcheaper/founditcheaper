@@ -38,9 +38,12 @@
   schedule = "*/15 * * * *"
   timeout = 26
 
-# promote-top-picks is intentionally NOT scheduled. Top Daily Deal Picks are
-# curated manually by Erik (he features specific products for videos), so nothing
-# auto-touches them. The function remains available to run on demand if wanted.
+# Daily Top Deal Picks refresh — 7:50 UTC = 2:50 AM CDT, just AFTER the morning
+# grid syncs (2:30/2:40) so it picks from the freshest deals. Replaces the picks
+# with a randomized set of 10; Erik can hand-edit afterward until the next run.
+[functions."promote-top-picks"]
+  schedule = "50 7 * * *"
+  timeout = 26
 
 # Self-hosted deep linker: /go/<ASIN> runs the go function, which adds the
 # affiliate tag and redirects the shopper to Amazon.
