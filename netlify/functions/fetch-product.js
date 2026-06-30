@@ -75,9 +75,10 @@ async function fetchViaCreators(asin, clientId, clientSecret) {
   const images      = primaryUrl ? [primaryUrl, ...variantUrls] : variantUrls;
 
   const listing  = item.offersV2?.listings?.[0];
-  const price    = listing?.price?.amount || 0;
+  // getItems nests the price at price.money.amount (fall back to .amount just in case)
+  const price    = Number(listing?.price?.money?.amount ?? listing?.price?.amount) || 0;
   const dealDets = listing?.dealDetails || {};
-  const was      = dealDets.originalPrice?.amount || price;
+  const was      = Number(listing?.price?.savingBasis?.money?.amount ?? dealDets.originalPrice?.amount) || price;
   const off      = dealDets.percentageSaved
     ? Math.round(dealDets.percentageSaved)
     : (was > price ? Math.round((1 - price / was) * 100) : 0);
