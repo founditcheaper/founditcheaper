@@ -49,14 +49,15 @@
     .header-row1 { margin-bottom: 12px !important; }
     .header-row2 { margin-top: 0 !important; }
     /* On phones the filters collapse behind a single "Filters" button */
-    /* Collapsed on phones: show Promo Codes + an "All Filters" button on the right */
-    .filters-toggle { display: inline-flex !important; align-items: center; gap: 6px; flex-shrink: 0; padding: 8px 12px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-gold); border-radius: 20px; color: var(--text); font-size: 12px; font-weight: 800; cursor: pointer; font-family: 'Inter', sans-serif; }
+    /* Phones: filters in an even 2-column grid. Collapsed = Promo + All Filters
+       as two equal halves; expanded = every filter in aligned rows. */
+    .fbar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; overflow: visible; }
+    .fbar .fbar-btn, .fbar .filters-toggle { width: 100%; justify-content: center; box-sizing: border-box; }
+    .filters-toggle { display: inline-flex !important; align-items: center; gap: 6px; padding: 8px 12px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-gold); border-radius: 20px; color: var(--text); font-size: 12px; font-weight: 800; cursor: pointer; font-family: 'Inter', sans-serif; }
     .filters-toggle .fbar-chev { width: 14px; height: 14px; transition: transform .2s; }
     #filterPanel.open .filters-toggle .fbar-chev { transform: rotate(180deg); }
-    #filterPanel:not(.open) .filters-toggle { margin-left: auto; }
     #filterPanel:not(.open) .fbar-btn:not(#chipPromo) { display: none; }
     #filterPanel:not(.open) .active-filters { display: none !important; }
-    .fbar { flex-wrap: wrap; row-gap: 8px; }
   }
 
   /* Desktop: single row */
