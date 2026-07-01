@@ -144,12 +144,18 @@
   .die {
     width: 90px; height: 90px;
     background: white; border-radius: 14px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 52px; line-height: 1;
     box-shadow: 0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.5);
     transition: transform 0.1s;
     user-select: none;
+    display: grid; grid-template-columns: repeat(3,1fr); grid-template-rows: repeat(3,1fr);
+    padding: 13px; gap: 3px; box-sizing: border-box;
   }
+  .die .pip-cell { display: flex; align-items: center; justify-content: center; }
+  .die .pip { width: 17px; height: 17px; border-radius: 50%; background: #0a1f33; box-shadow: inset 0 -2px 2px rgba(0,0,0,0.25); }
+  /* small dice shown in the roll history */
+  .mini-die { display: inline-grid; grid-template-columns: repeat(3,1fr); grid-template-rows: repeat(3,1fr); width: 30px; height: 30px; background: #fff; border-radius: 5px; padding: 3px; gap: 1px; box-sizing: border-box; vertical-align: middle; }
+  .mini-die .pip-cell { display: flex; align-items: center; justify-content: center; }
+  .mini-die .pip { width: 6px; height: 6px; border-radius: 50%; background: #0a1f33; }
 
   .die.rolling {
     animation: dieRoll 0.6s ease-out;
@@ -273,8 +279,8 @@
   <!-- PRIZE BANNER -->
   <div class="prize-banner">
     <div class="prize-eyebrow">🎁 This Week's Prize</div>
-    <div class="prize-text">$25 Amazon Gift Card</div>
-    <div class="prize-sub">Highest score by Sunday wins · One roll per day</div>
+    <div class="prize-text" id="prizeText">$25 Amazon Gift Card</div>
+    <div class="prize-sub" id="prizeSub">Highest score by Sunday wins · One roll per day</div>
     <div class="week-range" id="weekRange"></div>
   </div>
 
@@ -311,8 +317,8 @@
 
       <div class="dice-area">
         <div class="dice-pair">
-          <div class="die" id="die1">⚀</div>
-          <div class="die" id="die2">⚀</div>
+          <div class="die" id="die1"></div>
+          <div class="die" id="die2"></div>
         </div>
         <button class="roll-btn" id="rollBtn" onclick="rollDice()">Roll!</button>
       </div>
@@ -451,10 +457,16 @@ async function saveScores() {
   } catch(e) {}
 }
 
-// ── DICE FACES ────────────────────────────────────────────────────────
-var diceFaces = ['⚀','⚁','⚂','⚃','⚄','⚅'];
-
-function dieEmoji(n) { return diceFaces[n - 1]; }
+// ── DICE FACES (CSS dots — Unicode dice glyphs render blank on many phones) ──
+var PIP_MAP = { 1:[5], 2:[1,9], 3:[1,5,9], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,3,4,6,7,9] };
+function pipsHtml(n) {
+  var cells = PIP_MAP[n] || [];
+  var h = '';
+  for (var i = 1; i <= 9; i++) h += '<span class="pip-cell">' + (cells.indexOf(i) !== -1 ? '<span class="pip"></span>' : '') + '</span>';
+  return h;
+}
+function renderDie(el, n) { if (el) el.innerHTML = pipsHtml(n); }
+function miniDie(n) { return '<span class="mini-die">' + pipsHtml(n) + '</span>'; }
 
 // ── SCORING LOGIC ─────────────────────────────────────────────────────
 function isDoubles(d1, d2) { return d1 === d2; }
@@ -536,8 +548,8 @@ function animateDice(die1El, die2El, callback) {
   die1El.classList.add('rolling'); die2El.classList.add('rolling');
   var spins = 0;
   var interval = setInterval(function() {
-    die1El.textContent = dieEmoji(Math.ceil(Math.random()*6));
-    die2El.textContent = dieEmoji(Math.ceil(Math.random()*6));
+    renderDie(die1El, Math.ceil(Math.random()*6));
+    renderDie(die2El, Math.ceil(Math.random()*6));
     if (++spins > 8) clearInterval(interval);
   }, 80);
   setTimeout(function() {
@@ -580,7 +592,7 @@ async function rollDice() {
       var rollLabel = i === 0 ? 'Roll' : 'Bonus Roll ' + i;
       html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,'+(r.special?'0.2':'0.07')+');border-radius:8px;margin-bottom:6px">';
       html += '<div><div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase">'+rollLabel+'</div>';
-      html += '<div style="font-size:24px;letter-spacing:6px;margin:4px 0">'+dieEmoji(r.d1)+dieEmoji(r.d2)+'</div>';
+      html += '<div style="margin:4px 0;display:flex;gap:6px">'+miniDie(r.d1)+miniDie(r.d2)+'</div>';
       html += '<div style="font-size:11px;font-weight:700;color:'+(r.special?'var(--accent)':'var(--muted)')+'">'+r.label+'</div></div>';
       html += '<div style="text-align:right"><div style="font-size:20px;font-weight:800;color:var(--green)">+'+r.pts+'</div><div style="font-size:10px;color:var(--muted)">pts</div></div>';
       html += '</div>';
@@ -601,7 +613,7 @@ async function rollDice() {
     animateDice(die1El, die2El, function() {
       var pair = rollOnePair();
       var d1 = pair[0], d2 = pair[1];
-      die1El.textContent = dieEmoji(d1); die2El.textContent = dieEmoji(d2);
+      renderDie(die1El, d1); renderDie(die2El, d2);
       var pts = d1 + d2;
       var label = '', special = false;
       rollCount++;
@@ -696,6 +708,23 @@ async function renderLeaderboard() {
 // ── INIT ──────────────────────────────────────────────────────────────
 document.getElementById('weekRange').textContent = getWeekString();
 document.getElementById('lbWeekRange') && (document.getElementById('lbWeekRange').textContent = getWeekString());
+
+// Show 1 and 2 on the dice before the first roll.
+renderDie(document.getElementById('die1'), 1);
+renderDie(document.getElementById('die2'), 2);
+
+// Prize banner is editable from the admin panel (settings table).
+async function loadPrize() {
+  try {
+    var res = await _sb.from('settings').select('key,value').in('key', ['game_prize', 'game_prize_sub']);
+    if (res && res.data) {
+      var m = {}; res.data.forEach(function (r) { m[r.key] = r.value; });
+      if (m.game_prize) document.getElementById('prizeText').textContent = m.game_prize;
+      if (m.game_prize_sub) document.getElementById('prizeSub').textContent = m.game_prize_sub;
+    }
+  } catch (e) {}
+}
+loadPrize();
 
 loadPlayer();
 loadScores().then(function() {

@@ -268,6 +268,21 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Don't want to wait until 2:30 AM? Generate today's fresh set right now. This replaces the current Top Picks with a new random 10 — live immediately.</div>
         <button class="btn btn-primary" id="genNowBtn" onclick="generatePicksNow()">🎲 Generate fresh picks now</button>
       </div>
+
+      <div class="settings-card">
+        <div class="settings-title">🎲 Dice Game Prize</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Shown on the Daily Dice Roll page. Update it each week — changes go live immediately.</div>
+        <div class="field-group" style="margin-bottom:10px">
+          <label class="field-label">Prize</label>
+          <input type="text" id="gamePrizeInput" class="field-input" placeholder="$25 Amazon Gift Card" maxlength="120">
+        </div>
+        <div class="field-group" style="margin-bottom:12px">
+          <label class="field-label">Details / deadline line</label>
+          <input type="text" id="gamePrizeSubInput" class="field-input" placeholder="Highest score by Sunday wins · One roll per day" maxlength="160">
+        </div>
+        <button class="btn btn-primary" id="savePrizeBtn" onclick="saveGamePrize()">Save Prize</button>
+        <span id="savePrizeMsg" style="font-size:12px;margin-left:10px"></span>
+      </div>
     </div>
 
     <!-- TAB: PROMO CODE DEALS (All Deals grid) -->
@@ -1042,7 +1057,26 @@ async function loadSettings() {
       document.getElementById('promoTargetSlider').value = m.promo_target;
       document.getElementById('svPromo').textContent = m.promo_target;
     }
+    if (m.game_prize != null && document.getElementById('gamePrizeInput')) document.getElementById('gamePrizeInput').value = m.game_prize;
+    if (m.game_prize_sub != null && document.getElementById('gamePrizeSubInput')) document.getElementById('gamePrizeSubInput').value = m.game_prize_sub;
   } catch (e) { /* settings table may not exist yet */ }
+}
+async function saveGamePrize() {
+  var prize = (document.getElementById('gamePrizeInput').value || '').trim();
+  var sub = (document.getElementById('gamePrizeSubInput').value || '').trim();
+  var msg = document.getElementById('savePrizeMsg');
+  var btn = document.getElementById('savePrizeBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    var res = await fetch('/.netlify/functions/save-settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass, gamePrize: prize, gamePrizeSub: sub }),
+    });
+    var d = await res.json();
+    if (res.ok && d.ok) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Saved — live on the game page'; }
+    else { msg.style.color = '#f87171'; msg.textContent = 'Failed' + (d.error ? ': ' + d.error : ''); }
+  } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error'; }
+  btn.disabled = false; btn.textContent = 'Save Prize';
 }
 async function saveRunTime(v) {
   try {

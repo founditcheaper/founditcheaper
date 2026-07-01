@@ -22,6 +22,8 @@ exports.handler = async function (event) {
     let n = parseInt(body.promoTarget, 10);
     if (!isNaN(n)) updates.push(['promo_target', String(Math.max(0, Math.min(10, n)))]);
   }
+  if (body.gamePrize != null) updates.push(['game_prize', String(body.gamePrize).slice(0, 120)]);
+  if (body.gamePrizeSub != null) updates.push(['game_prize_sub', String(body.gamePrizeSub).slice(0, 160)]);
   if (!updates.length) return { statusCode: 400, body: JSON.stringify({ error: 'Nothing to save' }) };
 
   try {
