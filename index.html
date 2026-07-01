@@ -1822,29 +1822,16 @@ function _afterLoad() {
 <div id="dealLoading" onclick="hideDealLoading()" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(6,18,30,0.82);backdrop-filter:blur(3px);align-items:center;justify-content:center;flex-direction:column;gap:16px">
   <div class="deal-loader">
     <div class="deal-ring"></div>
-    <svg class="deal-banana-svg" viewBox="0 0 120 175" width="72" height="105" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <!-- fruit (stands up, revealed as the peels fold down) -->
+    <svg class="deal-banana-svg" viewBox="0 0 120 175" width="66" height="96" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <!-- a normal peeled banana (fruit standing up, peels drooping down) -->
       <path d="M60,22 C50,26 47,54 48,88 C49,108 54,118 60,120 C66,118 71,108 72,88 C73,54 70,26 60,22 Z" fill="#fbeeb0"/>
-      <!-- base/stem nub where the peels join -->
       <circle cx="60" cy="121" r="4" fill="#7a5b2e"/>
-      <!-- left peel — folds down from the base -->
-      <g>
-        <path d="M60,30 C49,33 44,62 46,90 C47,109 53,119 60,121 L60,30 Z" fill="#f5c842" stroke="#d99f16" stroke-width="1.1" stroke-linejoin="round"/>
-        <animateTransform attributeName="transform" type="rotate" values="0 60 120; -132 60 120; -132 60 120; 0 60 120" keyTimes="0;0.45;0.72;1" dur="2.1s" repeatCount="indefinite"/>
-      </g>
-      <!-- right peel -->
-      <g>
-        <path d="M60,30 C71,33 76,62 74,90 C73,109 67,119 60,121 L60,30 Z" fill="#e8b526" stroke="#d99f16" stroke-width="1.1" stroke-linejoin="round"/>
-        <animateTransform attributeName="transform" type="rotate" values="0 60 120; 132 60 120; 132 60 120; 0 60 120" keyTimes="0;0.45;0.72;1" dur="2.1s" repeatCount="indefinite"/>
-      </g>
-      <!-- front peel — folds straight down -->
-      <g>
-        <path d="M54,32 C51,60 51,98 60,121 C69,98 69,60 66,32 Z" fill="#f3c638" stroke="#d99f16" stroke-width="1" stroke-linejoin="round"/>
-        <animateTransform attributeName="transform" type="rotate" values="0 60 120; 180 60 120; 180 60 120; 0 60 120" keyTimes="0;0.45;0.72;1" dur="2.1s" repeatCount="indefinite"/>
-      </g>
+      <g transform="rotate(-132 60 120)"><path d="M60,30 C49,33 44,62 46,90 C47,109 53,119 60,121 L60,30 Z" fill="#f5c842" stroke="#d99f16" stroke-width="1.1" stroke-linejoin="round"/></g>
+      <g transform="rotate(132 60 120)"><path d="M60,30 C71,33 76,62 74,90 C73,109 67,119 60,121 L60,30 Z" fill="#e8b526" stroke="#d99f16" stroke-width="1.1" stroke-linejoin="round"/></g>
+      <g transform="rotate(180 60 120)"><path d="M54,32 C51,60 51,98 60,121 C69,98 69,60 66,32 Z" fill="#f3c638" stroke="#d99f16" stroke-width="1" stroke-linejoin="round"/></g>
     </svg>
   </div>
-  <div style="font-size:14px;font-weight:700;color:#f5c842;letter-spacing:.5px">Loading deal…</div>
+  <div style="font-size:14px;font-weight:700;color:#f5c842;letter-spacing:.5px">Loading…</div>
 </div>
 
 <style>
