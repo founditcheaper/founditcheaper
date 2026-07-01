@@ -117,6 +117,13 @@ exports.handler = async function (event) {
       if (!asin) return { statusCode: 400, body: JSON.stringify({ error: 'No Amazon ASIN found in that link' }) };
       const retailIn = parseFloat(String(body.retail_price || '').replace(/[^0-9.]/g, '')) || 0;
       const titleIn = String(body.title || '').trim();
+      // Safeguard: DealSeek's interstitial ("We're building DealSeek…") gets scraped
+      // as the title when the real product page wasn't reached — those come in with a
+      // junk title and no image. Never post them (no real Amazon product is named
+      // "DealSeek"). Bail before touching the sheet so it isn't stored anywhere.
+      if (/dealseek/i.test(titleIn)) {
+        return { statusCode: 200, body: JSON.stringify({ ok: false, skipped: true, error: 'Skipped — DealSeek placeholder (no real product title/image)' }) };
+      }
       const res = await callGateway({
         action: 'append',
         amazon_link: String(amazon_link || ''),
