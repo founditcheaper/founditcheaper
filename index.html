@@ -64,6 +64,7 @@
     background: rgba(10,31,51,0.99);
     position: sticky; top: 0; z-index: 200;
     padding: 12px 16px;
+    border-bottom: 2px solid var(--accent);   /* gold line under the search bar */
   }
   /* Mobile: two rows */
   .header-row1 { display: flex; align-items: center; justify-content: space-between; }
@@ -229,8 +230,8 @@
 
   /* PICKS SECTION (full width) */
   .picks-outer { padding: 20px 24px 0; max-width: 1200px; margin: 0 auto; width: 100%; }
-  .filters-bar-outer { background: rgba(10,31,51,0.99); border-bottom: 2px solid var(--accent); }
-  .filters-top { max-width: 1200px; margin: 0 auto; width: 100%; padding: 6px 24px 10px; box-sizing: border-box; }
+  .filters-bar-outer { background: transparent; border-bottom: none; }
+  .filters-top { width: 100%; padding: 0 0 10px; box-sizing: border-box; }
   .filters-toggle { display: none; }  /* shown only on phones */
   @keyframes ficFilterPulse {
     0%, 100% { box-shadow: 0 0 2px 0 rgba(245,200,66,0.35); }
@@ -567,7 +568,7 @@
   @media (max-width: 820px) {
     .layout { padding: 14px; }
     .picks-outer { padding: 14px 14px 0; }
-    .filters-top { padding: 4px 14px 8px; }
+    .filters-top { padding: 0 0 8px; }
     .section-divider { padding: 14px 14px 0; }
     header { padding: 0 16px; }
     .hero-strip { padding: 7px 16px; }
