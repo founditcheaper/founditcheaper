@@ -75,14 +75,10 @@ exports.handler = async function (event) {
 
   // Plain tagged web URL — the universal fallback (works everywhere).
   const webUrl = `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`;
-  // iOS: the Amazon shopping app's own URL scheme opens the app to this product.
-  const iosApp = `com.amazon.mobile.shopping.web://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`;
-  // Android: an intent:// URL opens the Amazon app, with a built-in web fallback
-  // if the app isn't installed.
-  const androidIntent =
-    `intent://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}` +
-    `#Intent;scheme=https;package=com.amazon.mShop.android.shopping;` +
-    `S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+  // Amazon shopping app URL scheme — opens the app to this product on BOTH iOS
+  // and Android. This is the exact scheme Joylink uses (verified), and it opens
+  // the app even from inside Instagram/Facebook in-app browsers.
+  const appUrl = `com.amazon.mobile.shopping.web://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`;
 
   // Log without blocking anything.
   await logClick(asin, event);
@@ -108,40 +104,31 @@ exports.handler = async function (event) {
 <body>
   <div class="s"></div>
   <div class="t">Opening Amazon…</div>
-  <a id="appBtn" class="btn" href="${webUrl}">Open in the Amazon app</a>
+  <a id="appBtn" class="btn" href="${webUrl}">Continue in the Amazon app</a>
   <div class="h">or <a id="web" class="web" href="${webUrl}">continue on the web</a></div>
   <script>
   (function(){
-    var web=${J(webUrl)}, ios=${J(iosApp)}, intent=${J(androidIntent)};
+    var web=${J(webUrl)}, app=${J(appUrl)};
     var ua=navigator.userAgent||'';
-    var isAndroid=/Android/i.test(ua);
-    var isIOS=/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && 'ontouchend' in document);
-    var appUrl = isAndroid ? intent : ios;
-    function go(u){ try{ window.location.href=u; }catch(e){} }
-    function openApp(){ go(appUrl); }
+    function redirectToApp(){ try{ window.location = app; }catch(e){} }
+    function redirectToFallBack(){ try{ window.location = web; }catch(e){} }
 
-    // Manual button = a guaranteed user-gesture path if the auto-open is blocked.
+    // Manual button = a guaranteed one-tap path if the auto-open is blocked.
     var btn=document.getElementById('appBtn');
-    if(btn){ btn.addEventListener('click', function(e){
-      if(isAndroid || isIOS){ e.preventDefault(); openApp(); }
-    }); }
+    if(btn){ btn.addEventListener('click', function(e){ e.preventDefault(); redirectToApp(); }); }
 
-    if(isAndroid){
-      // intent:// decides app-vs-web by itself (S.browser_fallback_url). No extra timer.
-      openApp();
-    } else if(isIOS){
-      // Try the app; only fall back to web if the app did NOT take over the screen.
-      var done=false;
-      function cancel(){ done=true; }
-      document.addEventListener('visibilitychange', function(){ if(document.hidden) cancel(); });
-      window.addEventListener('pagehide', cancel);
-      window.addEventListener('blur', cancel);
-      setTimeout(function(){ if(!done) go(web); }, 1400);
-      openApp();
-    } else {
-      // Desktop / anything else — straight to the web page.
-      go(web);
-    }
+    // Same logic Joylink uses (verified against a live Joylink deep link):
+    //  - Facebook Messenger on iPhone: skip the app scheme (it misbehaves there),
+    //    just go to the web page.
+    //  - Facebook in-app browser on Android: open the app and DON'T fire the web
+    //    fallback (the fallback would cancel the app hand-off).
+    //  - Everything else: fire the app scheme, then the web fallback 100ms later.
+    //    If the app opens it takes over before the fallback matters; if it isn't
+    //    installed the scheme no-ops and the web page loads.
+    var isFacebookMessengerIphone = /FBCR/i.test(ua) && /iPhone/i.test(ua);
+    var isAndroidFacebookInApp = /Android/i.test(ua) && /FB_IAB|FBAN|FBAV/i.test(ua);
+    if(!isFacebookMessengerIphone){ redirectToApp(); }
+    if(!isAndroidFacebookInApp){ setTimeout(redirectToFallBack, 100); }
   })();
   </script>
 </body></html>`;
