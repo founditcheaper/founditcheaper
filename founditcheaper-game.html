@@ -220,6 +220,8 @@
   }
   .demo-btn:hover { background: rgba(255,255,255,0.12); }
   .demo-exit { border-color: rgba(255,120,120,0.4); color: #ff9a9a; }
+  .demo-force { border-color: rgba(245,200,66,0.5); color: var(--accent); background: rgba(245,200,66,0.08); }
+  .demo-force:hover { background: rgba(245,200,66,0.16); }
 
   /* RESULT */
   .result-box {
@@ -380,6 +382,10 @@
       <div id="demoBar" style="display:none">
         <div class="demo-flag">🧪 DEMO MODE — nothing is saved, the live leaderboard is untouched</div>
         <div class="demo-day" id="demoDayLabel"></div>
+        <div class="demo-controls" style="margin-bottom:8px">
+          <button class="demo-btn demo-force" onclick="demoForceRoll('doubles')">🎯 Force Doubles</button>
+          <button class="demo-btn demo-force" onclick="demoForceRoll('snake')">💀 Force Snake Eyes</button>
+        </div>
         <div class="demo-controls">
           <button class="demo-btn" onclick="demoNextDay()">📅 Next Day</button>
           <button class="demo-btn" onclick="demoReset()">🔁 Reset Demo</button>
@@ -441,6 +447,7 @@ const PLAYER_KEY = 'fic_player_v1';
 // never touched — it's a safe place to test the real game end-to-end.
 var DEMO = /[?&]demo=(1|true)(&|$)/.test(location.search);
 var demoDayOffset = 0;          // 0 = Sunday … 6 = Saturday (final day)
+var _animating = false;         // true while dice are tumbling (blocks force buttons)
 var _demoStart = null;
 function demoStart() { if (!_demoStart) _demoStart = getWeekBounds().start; return _demoStart; }
 function demoTodayDate() { var d = new Date(demoStart()); d.setDate(d.getDate() + demoDayOffset); d.setHours(0,0,0,0); return d; }
@@ -580,7 +587,12 @@ function miniDie(n) { return '<span class="mini-die">' + pipsHtml(n) + '</span>'
 // ── SCORING LOGIC ─────────────────────────────────────────────────────
 function isDoubles(d1, d2) { return d1 === d2; }
 function isSnakeEyes(d1, d2) { return d1 === 1 && d2 === 1; }
-function rollOnePair() { return [Math.ceil(Math.random()*6), Math.ceil(Math.random()*6)]; }
+// In demo, the "Force Doubles / Snake Eyes" buttons preload the next pair here.
+var _demoForce = null;
+function rollOnePair() {
+  if (DEMO && _demoForce) { var f = _demoForce; _demoForce = null; return f; }
+  return [Math.ceil(Math.random()*6), Math.ceil(Math.random()*6)];
+}
 
 // ── UI ────────────────────────────────────────────────────────────────
 function switchTab(tab) {
@@ -736,7 +748,9 @@ async function rollDice() {
   }
 
   function doRoll() {
+    _animating = true;
     animateDice(die1El, die2El, function() {
+      _animating = false;
       var pair = rollOnePair();
       var d1 = pair[0], d2 = pair[1];
       renderDie(die1El, d1); renderDie(die2El, d2);
@@ -902,6 +916,12 @@ function _demoResetRollUI() {
   rb.disabled = false; rb.classList.remove('bonus'); rb.textContent = 'Roll!'; rb.onclick = rollDice;
   renderDie(document.getElementById('die1'), 1);
   renderDie(document.getElementById('die2'), 2);
+}
+function demoForceRoll(kind) {
+  if (_animating) return;                       // wait for the current roll to finish
+  _demoForce = (kind === 'snake') ? [1,1] : [4,4];
+  _demoResetRollUI();                           // clear last result + re-enable the button
+  rollDice();                                   // roll immediately with the forced outcome
 }
 function demoNextDay() {
   if (demoDayOffset >= 6) { alert('Demo week is complete (Sunday–Saturday). Hit “Reset Demo” to run it again.'); return; }
