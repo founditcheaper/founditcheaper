@@ -1822,14 +1822,7 @@ function _afterLoad() {
 <div id="dealLoading" onclick="hideDealLoading()" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(6,18,30,0.82);backdrop-filter:blur(3px);align-items:center;justify-content:center;flex-direction:column;gap:16px">
   <div class="deal-loader">
     <div class="deal-ring"></div>
-    <svg class="deal-banana-svg" viewBox="0 0 120 175" width="66" height="96" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <!-- a normal peeled banana (fruit standing up, peels drooping down) -->
-      <path d="M60,22 C50,26 47,54 48,88 C49,108 54,118 60,120 C66,118 71,108 72,88 C73,54 70,26 60,22 Z" fill="#fbeeb0"/>
-      <circle cx="60" cy="121" r="4" fill="#7a5b2e"/>
-      <g transform="rotate(-132 60 120)"><path d="M60,30 C49,33 44,62 46,90 C47,109 53,119 60,121 L60,30 Z" fill="#f5c842" stroke="#d99f16" stroke-width="1.1" stroke-linejoin="round"/></g>
-      <g transform="rotate(132 60 120)"><path d="M60,30 C71,33 76,62 74,90 C73,109 67,119 60,121 L60,30 Z" fill="#e8b526" stroke="#d99f16" stroke-width="1.1" stroke-linejoin="round"/></g>
-      <g transform="rotate(180 60 120)"><path d="M54,32 C51,60 51,98 60,121 C69,98 69,60 66,32 Z" fill="#f3c638" stroke="#d99f16" stroke-width="1" stroke-linejoin="round"/></g>
-    </svg>
+    <img class="deal-logo" src="/assets/logo.png" alt="founditcheaper">
   </div>
   <div style="font-size:14px;font-weight:700;color:#f5c842;letter-spacing:.5px">Loading…</div>
 </div>
@@ -1838,7 +1831,7 @@ function _afterLoad() {
   .deal-loader { position:relative; width:118px; height:118px; display:flex; align-items:center; justify-content:center; }
   .deal-ring { position:absolute; inset:0; border-radius:50%; border:4px solid rgba(245,200,66,0.16); border-top-color:#f5c842; animation:dealspin 0.9s linear infinite; }
   @keyframes dealspin { to { transform: rotate(360deg); } }
-  .deal-banana-svg { position:relative; z-index:1; }
+  .deal-logo { position:relative; z-index:1; width:86px; height:86px; border-radius:50%; object-fit:cover; }
   #productDrawer { transition: transform 0.3s ease; }
   @media (min-width: 640px) {
     #productDrawer {
