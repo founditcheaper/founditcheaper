@@ -806,6 +806,35 @@ const ASSOCIATE_TAG = "founditchea09-20";
 const PAGE_SIZE = 6;
 const MAX_PAST_DAYS = 5;
 
+// ── EMBED MODE (?embed=picks) ─────────────────────────────────────────
+// Renders ONLY the Top Deal Picks carousel so it can be dropped into the dice
+// game page via an iframe — same live data, sliding, and product drawer, no
+// duplicated code. Everything else on the page is hidden.
+var EMBED = /[?&]embed=picks(?:&|$)/.test(location.search);
+function postEmbedHeight() {
+  if (!EMBED) return;
+  try { parent.postMessage({ ficEmbedHeight: Math.ceil(document.documentElement.scrollHeight) }, '*'); } catch (e) {}
+}
+function initEmbed() {
+  if (!EMBED) return;
+  document.body.style.background = 'transparent';
+  document.documentElement.style.background = 'transparent';
+  document.body.style.margin = '0';
+  document.body.style.overflowX = 'hidden';
+  // Hide every top-level section except the picks carousel + the drawer plumbing.
+  Array.prototype.forEach.call(document.body.children, function (el) {
+    if (!el || !el.tagName) return;
+    if (el.classList && el.classList.contains('picks-outer')) return;
+    if (el.id === 'drawerOverlay' || el.id === 'productDrawer' || el.id === 'dealLoading') return;
+    if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'LINK') return;
+    el.style.display = 'none';
+  });
+  if (window.ResizeObserver) { try { new ResizeObserver(postEmbedHeight).observe(document.body); } catch (e) {} }
+  window.addEventListener('resize', postEmbedHeight);
+  setTimeout(postEmbedHeight, 300); setTimeout(postEmbedHeight, 1200); setTimeout(postEmbedHeight, 2500);
+}
+document.addEventListener('DOMContentLoaded', initEmbed);
+
 // ── DAILY PICKS DATA (populated from Supabase) ────────────────────────
 var dailyPicks = [];
 
@@ -969,7 +998,13 @@ function updateDealsBanner() {
   var storeText = storeNames.length === 0 ? '' :
     storeNames.length === 1 ? 'from ' + storeNames[0] :
     'from ' + storeNames.slice(0, -1).join(', ') + ' & ' + storeNames[storeNames.length - 1];
-  banner.innerHTML = 'We found ' + allProducts.length + ' deal' + (allProducts.length === 1 ? '' : 's') + ' ' + storeText + '<br><span style="font-weight:600;color:var(--muted)">See all deals below</span>';
+  // In embed mode (dice game) the second line is a clickable link that opens the
+  // full site in the top window; on the main page it's just a "scroll down" hint.
+  var tail = EMBED
+    ? '<br><a href="/" target="_top" style="font-weight:700;color:var(--accent);text-decoration:underline">Click here to see all deals</a>'
+    : '<br><span style="font-weight:600;color:var(--muted)">See all deals below</span>';
+  banner.innerHTML = 'We found ' + allProducts.length + ' deal' + (allProducts.length === 1 ? '' : 's') + ' ' + storeText + tail;
+  postEmbedHeight();
 }
 
 function getCurrentSlide(groupId) {
@@ -1746,17 +1781,36 @@ function _afterLoad() {
 
 <!-- SHARED-LINK LOADING OVERLAY (shown while a shared ?deal= link fetches the deal) -->
 <div id="dealLoading" onclick="hideDealLoading()" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(6,18,30,0.82);backdrop-filter:blur(3px);align-items:center;justify-content:center;flex-direction:column;gap:16px">
-  <div class="deal-banana">🍌</div>
+  <div class="deal-loader">
+    <div class="deal-ring"></div>
+    <svg class="deal-banana-svg" viewBox="0 0 120 150" width="74" height="92" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <!-- inner fruit (revealed as the peels open) -->
+      <path d="M60,34 C49,34 46,52 46,80 C46,104 53,120 60,124 C67,120 74,104 74,80 C74,52 71,34 60,34 Z" fill="#fbeeb0"/>
+      <path d="M60,44 C55,50 55,96 60,116" fill="none" stroke="#eadd93" stroke-width="1.6" stroke-linecap="round"/>
+      <!-- brown tip -->
+      <circle cx="60" cy="123" r="3.4" fill="#7a5b2e"/>
+      <!-- left peel -->
+      <g>
+        <path d="M60,32 C47,33 41,55 43,84 C44,106 53,122 60,125 L60,32 Z" fill="#f5c842" stroke="#d99f16" stroke-width="1.2" stroke-linejoin="round"/>
+        <animateTransform attributeName="transform" type="rotate" values="0 60 33; -48 60 33; -48 60 33; 0 60 33" keyTimes="0;0.42;0.72;1" dur="1.9s" repeatCount="indefinite"/>
+      </g>
+      <!-- right peel -->
+      <g>
+        <path d="M60,32 C73,33 79,55 77,84 C76,106 67,122 60,125 L60,32 Z" fill="#efc02f" stroke="#d99f16" stroke-width="1.2" stroke-linejoin="round"/>
+        <animateTransform attributeName="transform" type="rotate" values="0 60 33; 48 60 33; 48 60 33; 0 60 33" keyTimes="0;0.42;0.72;1" dur="1.9s" repeatCount="indefinite"/>
+      </g>
+      <!-- stem -->
+      <path d="M56,20 C56,26 56,30 57,33 L63,33 C64,30 64,26 64,20 C64,17 56,17 56,20 Z" fill="#7a5b2e"/>
+    </svg>
+  </div>
   <div style="font-size:14px;font-weight:700;color:#f5c842;letter-spacing:.5px">Loading deal…</div>
 </div>
 
 <style>
-  .deal-banana { font-size:56px;line-height:1;animation:bananaSpin 1.1s ease-in-out infinite;will-change:transform; }
-  @keyframes bananaSpin {
-    0%   { transform: rotate(0deg) scale(1); }
-    50%  { transform: rotate(180deg) scale(1.15); }
-    100% { transform: rotate(360deg) scale(1); }
-  }
+  .deal-loader { position:relative; width:118px; height:118px; display:flex; align-items:center; justify-content:center; }
+  .deal-ring { position:absolute; inset:0; border-radius:50%; border:4px solid rgba(245,200,66,0.16); border-top-color:#f5c842; animation:dealspin 0.9s linear infinite; }
+  @keyframes dealspin { to { transform: rotate(360deg); } }
+  .deal-banana-svg { position:relative; z-index:1; }
   #productDrawer { transition: transform 0.3s ease; }
   @media (min-width: 640px) {
     #productDrawer {

@@ -302,14 +302,7 @@
   }
   .your-rank-box strong { color: var(--accent); }
 
-  .see-deals-link {
-    display: block; text-align: center; margin-top: 18px;
-    padding: 15px 16px; border-radius: 10px; text-decoration: none;
-    background: rgba(245,200,66,0.1); border: 1px solid rgba(245,200,66,0.42);
-    color: var(--accent); font-weight: 800; font-size: 15px; letter-spacing: .3px;
-    transition: background .15s, transform .15s;
-  }
-  .see-deals-link:hover { background: rgba(245,200,66,0.18); transform: translateY(-1px); }
+  .picks-embed-wrap { margin: 26px auto 0; max-width: 1200px; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -408,8 +401,6 @@
         <div class="guide-row"><span class="guide-combo">📅 Perfect week bonus</span><span class="guide-pts">+5 pts × days played</span></div>
         <div class="guide-row"><span class="guide-combo" style="font-size:10px;color:var(--muted)">Roll every day Sun–Sat · Bonus only paid on final day</span><span class="guide-pts"></span></div>
       </div>
-
-      <a href="/" class="see-deals-link">👉 Click here to see all deals</a>
     </div>
 
   </div>
@@ -429,7 +420,23 @@
     </div>
   </div>
 
+  <!-- TODAY'S TOP DEAL PICKS — the live carousel from the main site, embedded -->
+  <div class="picks-embed-wrap">
+    <iframe id="picksFrame" src="/?embed=picks" title="Today's Top Deal Picks" scrolling="no"
+            style="width:100%;height:720px;border:none;overflow:hidden;display:block"></iframe>
+  </div>
+
 </div>
+
+<script>
+// Auto-size the embedded picks carousel to its content (it posts its height).
+window.addEventListener('message', function (e) {
+  if (e && e.data && e.data.ficEmbedHeight) {
+    var f = document.getElementById('picksFrame');
+    if (f) f.style.height = (e.data.ficEmbedHeight + 8) + 'px';
+  }
+});
+</script>
 
 <script>
 const SUPABASE_URL      = 'https://kvscvenwhdfwiswcfmxq.supabase.co';
