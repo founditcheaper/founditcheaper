@@ -1111,8 +1111,10 @@ async function loadGameResults() {
   var el = document.getElementById('gameResults'); if (!el) return;
   el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Loading…</div>';
   try {
-    var res = await fetch(_ADMIN_SB_URL + '/rest/v1/game_scores?select=email,username,week_score,week_start,streak&order=week_start.desc,week_score.desc', { headers: { apikey: _ADMIN_SB_KEY, Authorization: 'Bearer ' + _ADMIN_SB_KEY } });
-    var rows = await res.json();
+    // Read via the secure function (service key) — emails are hidden from public access.
+    var res = await fetch('/.netlify/functions/game-results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass }) });
+    var payload = await res.json();
+    var rows = payload && payload.rows;
     if (!Array.isArray(rows) || !rows.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No dice game plays yet.</div>'; return; }
     var byWeek = {};
     rows.forEach(function (r) { (byWeek[r.week_start] = byWeek[r.week_start] || []).push(r); });
@@ -1128,12 +1130,12 @@ async function loadGameResults() {
         : '<span style="font-size:11px;font-weight:800;color:#f5c842;background:rgba(245,200,66,0.12);border:1px solid rgba(245,200,66,0.35);padding:2px 8px;border-radius:4px;white-space:nowrap">✓ FINAL</span>';
       html += '<div style="border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:14px;margin-bottom:14px">';
       html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap"><div style="font-size:15px;font-weight:800;color:#fff">' + _weekRangeLabel(wk) + '</div>' + badge + '</div>';
-      html += '<div style="background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.3);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:#fff">🏆 <strong>' + (isCur ? 'Leading: ' : 'Winner: ') + _esc(winner.username) + '</strong> — <span style="color:#f5c842;font-weight:800">' + winner.week_score + ' pts</span><br><span style="color:var(--muted);font-size:12px">' + _esc(winner.email) + '</span></div>';
+      html += '<div style="background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.3);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:#fff">🏆 <strong>' + (isCur ? 'Leading: ' : 'Winner: ') + _esc(winner.username) + ' <span style="color:var(--muted);font-weight:600">#' + _esc(winner.player_tag || '?') + '</span></strong> — <span style="color:#f5c842;font-weight:800">' + winner.week_score + ' pts</span><br><span style="color:var(--muted);font-size:12px">' + _esc(winner.email) + '</span></div>';
       html += '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">All players (' + players.length + ')</div>';
       players.forEach(function (p, i) {
         html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px">'
           + '<span style="width:24px;font-weight:800;color:' + (i === 0 ? '#f5c842' : 'var(--muted)') + '">' + (i + 1) + '</span>'
-          + '<span style="flex:1;color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(p.username) + ' <span style="color:var(--muted);font-size:11px">· ' + _esc(p.email) + '</span></span>'
+          + '<span style="flex:1;color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(p.username) + ' <span style="color:var(--muted);font-size:11px">#' + _esc(p.player_tag || '?') + ' · ' + _esc(p.email) + '</span></span>'
           + '<span style="font-weight:800;color:#4ade80">' + p.week_score + '</span></div>';
       });
       html += '</div>';

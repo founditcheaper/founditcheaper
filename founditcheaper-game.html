@@ -312,6 +312,7 @@
         <div class="player-name" id="playerNameDisplay"></div>
         <div class="player-score"><span>This week · </span><span id="playerScoreDisplay">0</span> pts</div>
       </div>
+      <div id="playerIdNote" style="font-size:11px;color:var(--muted);text-align:center;margin:2px 0 12px;line-height:1.5;background:rgba(245,200,66,0.06);border:1px solid rgba(245,200,66,0.2);border-radius:8px;padding:8px 10px"></div>
 
       <div class="result-box" id="resultBox"></div>
 
@@ -403,10 +404,18 @@ function todayString() {
 // ── PLAYER STATE ──────────────────────────────────────────────────────
 var player = null;
 
+// Stable per-player ID derived from the email (same email → same ID, always).
+// Lets us tell two "Eric"s apart on the leaderboard without exposing emails.
+function tagFromEmail(email) {
+  var h = 5381, e = (email || '').toLowerCase();
+  for (var i = 0; i < e.length; i++) h = ((h << 5) + h + e.charCodeAt(i)) >>> 0;
+  return 10000 + (h % 90000);   // 5-digit ID
+}
 function loadPlayer() {
   try {
     var raw = localStorage.getItem(PLAYER_KEY);
     if (raw) player = JSON.parse(raw);
+    if (player && !player.tag && player.email) { player.tag = tagFromEmail(player.email); savePlayer(); }
   } catch(e) {}
 }
 
@@ -424,10 +433,14 @@ async function loadScores() {
   }
   try {
     var weekStart = getWeekBounds().start.toISOString().split('T')[0];
-    var { data } = await _sb.from('game_scores').select('*').eq('week_start', weekStart);
+    // Read the public view (names + IDs + scores only — no emails exposed).
+    var res = await _sb.from('game_leaderboard').select('username,player_tag,week_score,last_roll,roll_days,streak').eq('week_start', weekStart);
+    if (res.error) throw res.error;
+    var data = res.data;
     scores = {};
     if (data) data.forEach(function(row) {
-      scores[row.email] = { name: row.username, weekScore: row.week_score,
+      var key = row.player_tag || row.username;
+      scores[key] = { name: row.username, tag: row.player_tag, weekScore: row.week_score,
         lastRoll: row.last_roll, rollDays: row.roll_days || [], streak: row.streak };
     });
     // Cache locally for offline resilience
@@ -442,11 +455,12 @@ async function saveScores() {
   if (!USE_SUPABASE || !player) return;
   try {
     var weekStart = getWeekBounds().start.toISOString().split('T')[0];
-    var entry = scores[player.email];
+    var entry = scores[player.tag];
     if (!entry) return;
     await _sb.from('game_scores').upsert({
       email:      player.email,
       username:   entry.name,
+      player_tag: player.tag,
       week_score: entry.weekScore,
       last_roll:  entry.lastRoll,
       roll_days:  entry.rollDays || [],
@@ -493,10 +507,10 @@ async function startPlaying() {
   var email = document.getElementById('emailInput').value.trim();
   if (!username) { alert('Please enter a display name.'); return; }
   if (!email || !email.includes('@')) { alert('Please enter a valid email.'); return; }
-  player = { username: username, email: email };
+  player = { username: username, email: email, tag: tagFromEmail(email) };
   savePlayer();
-  if (!scores[email]) {
-    scores[email] = { name: username, weekScore: 0, lastRoll: null, streak: 0, rollDays: [] };
+  if (!scores[player.tag]) {
+    scores[player.tag] = { name: username, tag: player.tag, weekScore: 0, lastRoll: null, streak: 0, rollDays: [] };
     await saveScores();
   }
   // Subscribe to email list silently
@@ -512,18 +526,20 @@ async function startPlaying() {
 function showGame() {
   document.getElementById('emailGate').style.display = 'none';
   document.getElementById('gameArea').style.display = 'block';
-  document.getElementById('playerNameDisplay').textContent = player.username;
+  document.getElementById('playerNameDisplay').innerHTML = player.username + ' <span style="color:var(--muted);font-weight:600">#' + player.tag + '</span>';
+  var idn = document.getElementById('playerIdNote');
+  if (idn) idn.innerHTML = 'Your player ID is <strong style="color:var(--accent)">#' + player.tag + '</strong> — this is how you\'ll spot yourself on the leaderboard. Same email always gets you the same ID.';
   updateScoreDisplay();
   checkAlreadyPlayed();
 }
 
 function updateScoreDisplay() {
-  var entry = scores[player.email];
+  var entry = scores[player.tag];
   document.getElementById('playerScoreDisplay').textContent = entry ? entry.weekScore : 0;
 }
 
 function checkAlreadyPlayed() {
-  var entry = scores[player.email];
+  var entry = scores[player.tag];
   if (entry && entry.lastRoll === todayString()) {
     document.getElementById('rollBtn').disabled = true;
     document.getElementById('playedMsg').style.display = 'block';
@@ -566,7 +582,7 @@ async function rollDice() {
   resultBox.innerHTML = '';
 
   // Streak calculation
-  var entry = scores[player.email] || { name: player.username, weekScore: 0, lastRoll: null, streak: 0, rollDays: [] };
+  var entry = scores[player.tag] || { name: player.username, tag: player.tag, weekScore: 0, lastRoll: null, streak: 0, rollDays: [] };
   if (!entry.rollDays) entry.rollDays = [];
   var today = todayString();
   var weekStart = getWeekBounds().start;
@@ -642,7 +658,8 @@ async function rollDice() {
         entry.weekScore = (entry.weekScore || 0) + finalTotal;
         entry.lastRoll = today;
         entry.name = player.username;
-        scores[player.email] = entry;
+        entry.tag = player.tag;
+        scores[player.tag] = entry;
         saveScores();
         updateScoreDisplay();
         document.getElementById('playedMsg').style.display = 'block';
@@ -663,7 +680,7 @@ async function renderLeaderboard() {
   document.getElementById('lbWeekRange').textContent = getWeekString();
 
   var entries = Object.entries(scores).map(function(e) {
-    return { email: e[0], name: e[1].name, score: e[1].weekScore || 0 };
+    return { tag: e[1].tag || e[0], name: e[1].name, score: e[1].weekScore || 0 };
   });
   entries.sort(function(a,b) { return b.score - a.score; });
 
@@ -678,12 +695,12 @@ async function renderLeaderboard() {
   var rankClasses = ['gold','silver','bronze'];
 
   top10.forEach(function(e, i) {
-    var isYou = player && e.email === player.email;
+    var isYou = player && String(e.tag) === String(player.tag);
     var rankCls = rankClasses[i] || '';
     var rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
     html += '<div class="lb-row' + (isYou ? ' you' : '') + '">';
     html += '<div class="lb-rank ' + rankCls + '">' + rankEmoji + '</div>';
-    html += '<div class="lb-name">' + e.name + (isYou ? '<span class="you-tag">YOU</span>' : '') + '</div>';
+    html += '<div class="lb-name">' + e.name + '<span style="color:var(--muted);font-weight:600;font-size:11px"> #' + e.tag + '</span>' + (isYou ? '<span class="you-tag">YOU</span>' : '') + '</div>';
     html += '<div style="text-align:right"><div class="lb-score">' + e.score + '</div><div class="lb-pts-label">pts</div></div>';
     html += '</div>';
   });
@@ -692,7 +709,7 @@ async function renderLeaderboard() {
 
   // Show player's rank if outside top 10
   if (player) {
-    var myRank = entries.findIndex(function(e) { return e.email === player.email; });
+    var myRank = entries.findIndex(function(e) { return String(e.tag) === String(player.tag); });
     if (myRank >= 10) {
       yourRankBox.style.display = 'block';
       yourRankBox.innerHTML = 'You\'re ranked <strong>#' + (myRank + 1) + '</strong> with <strong>' + entries[myRank].score + ' pts</strong> · Keep rolling to climb!';
