@@ -47,6 +47,15 @@
   schedule = "*/15 * * * *"
   timeout = 26
 
+# Daily price logger for the "Verified Lowest" filter. Records each deal's price
+# once a day (Central) and flags deals sitting at/near their 30-day low. Runs at
+# 7:40 UTC (2:40 AM CT), after the morning grid sync. Kickoff self-gates to the
+# 15-min background worker. No-ops until the price_history table + verified_low
+# column exist in Supabase.
+[functions."log-prices"]
+  schedule = "40 7 * * *"
+  timeout = 26
+
 # Self-hosted deep linker: /go/<ASIN> runs the go function, which adds the
 # affiliate tag and redirects the shopper to Amazon.
 [[redirects]]

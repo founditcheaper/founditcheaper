@@ -592,6 +592,8 @@
       <button type="button" class="fbar-btn" id="fbtnCategory" onclick="toggleDrop('dCategory', this, event)">Category<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnPrice" onclick="toggleDrop('dPrice', this, event)">Price Range<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnBrand" onclick="toggleBrand()">Name Brands Only</button>
+      <button type="button" class="fbar-btn" id="fbtnVerified" onclick="toggleVerified(this)" title="Only deals that are at their lowest price in the last 30 days — we track each deal's price history.">✅ Verified Lowest</button>
+      <button type="button" class="fbar-btn" id="fbtnInflated" onclick="toggleInflated(this)" title="Hides suspiciously-high discounts (75%+) on no-name brands — the kind that are often fake markdowns.">🚫 Remove Inflated</button>
       <button type="button" class="fbar-btn fbar-clear" onclick="clearFilters()">Clear all</button>
     </div>
     <div class="active-filters" id="activeFilters"></div>
@@ -842,7 +844,7 @@ var _deadcode = [
 function money(n) { var v = parseFloat(n); return isNaN(v) ? (n == null ? '' : n) : v.toFixed(2); }
 
 // ── STATE ─────────────────────────────────────────────────────────────
-var state = { store: 'all', category: 'all', minDiscount: 10, maxPrice: 0, minStars: 0, brandOnly: false, sort: 'value', search: '', promoOnly: false };
+var state = { store: 'all', category: 'all', minDiscount: 10, maxPrice: 0, minStars: 0, brandOnly: false, sort: 'value', search: '', promoOnly: false, hideInflated: false, verifiedOnly: false };
 var filtered = [], page = 0, loading = false;
 
 // ── HELPERS ───────────────────────────────────────────────────────────
@@ -1081,6 +1083,10 @@ function getFiltered() {
     if (state.maxPrice > 0 && p.price > state.maxPrice) return false;
     if (state.minStars > 0 && p.rating > 0 && p.rating < state.minStars) return false;
     if (state.brandOnly && !p.brand && !_isBrand(p.name)) return false;
+    // Remove Inflated: hide very-high discounts on no-name brands (likely fake markdowns)
+    if (state.hideInflated && (p.off || 0) >= 75 && !p.brand && !_isBrand(p.name)) return false;
+    // Verified Lowest: only deals flagged as at/near their 30-day low
+    if (state.verifiedOnly && !p.verifiedLow) return false;
     return true;
   });
   if (state.sort === 'value') {
@@ -1393,9 +1399,19 @@ function toggleBrand() {
   if (b) b.classList.toggle('active', state.brandOnly);
   resetAndRender();
 }
+function toggleInflated(el) {
+  state.hideInflated = !state.hideInflated;
+  if (el) el.classList.toggle('active', state.hideInflated);
+  resetAndRender();
+}
+function toggleVerified(el) {
+  state.verifiedOnly = !state.verifiedOnly;
+  if (el) el.classList.toggle('active', state.verifiedOnly);
+  resetAndRender();
+}
 function sortDeals(v) { state.sort = v; resetAndRender(); }
 function clearFilters() {
-  state = { store: 'all', category: 'all', minDiscount: 10, maxPrice: 0, minStars: 0, brandOnly: false, sort: state.sort, search: '', promoOnly: false };
+  state = { store: 'all', category: 'all', minDiscount: 10, maxPrice: 0, minStars: 0, brandOnly: false, sort: state.sort, search: '', promoOnly: false, hideInflated: false, verifiedOnly: false };
   state_minPrice = 0;
   document.getElementById('chipPromo').classList.remove('active');
   document.querySelectorAll('#quickChipsInline .quick-chip').forEach(function(c) { c.classList.remove('active'); });
@@ -1417,6 +1433,8 @@ function clearFilters() {
   document.querySelector('#catChips .chip[data-cat="all"]').classList.add('active');
   var starEl = document.querySelector('input[name="stars"][value="0"]'); if (starEl) starEl.checked = true;
   var brandBtn = document.getElementById('fbtnBrand'); if (brandBtn) brandBtn.classList.remove('active');
+  var vBtn = document.getElementById('fbtnVerified'); if (vBtn) vBtn.classList.remove('active');
+  var iBtn = document.getElementById('fbtnInflated'); if (iBtn) iBtn.classList.remove('active');
   collapseFilters();
   resetAndRender();
 }
@@ -1473,6 +1491,8 @@ function updateActiveSummary(count) {
     parts.push('$' + minP + '–' + (maxP > 0 ? '$' + maxP : '$' + PRICE_MAX + '+'));
   }
   if (state.brandOnly) parts.push('Name brands');
+  if (state.verifiedOnly) parts.push('Verified lowest');
+  if (state.hideInflated) parts.push('No inflated');
   if (state.search) parts.push('“' + state.search + '”');
   if (!parts.length) { el.className = 'active-filters'; el.innerHTML = ''; return; }
   var chips = parts.map(function(p) { return '<span class="af-chip">' + p + '</span>'; }).join('');
@@ -1634,6 +1654,7 @@ function _afterLoad() {
           off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
           rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
           found: formatFound(d.created_at, d.active_date), code: d.code || null,
+          verifiedLow: !!d.verified_low,   // at/near its 30-day low (set by the price-tracking job)
           _jit: Math.random(),   // stable per-load jitter so the Top Value sort interleaves stores
           images: (function() { try { return JSON.parse(d.images || '[]'); } catch(e) { return []; } })(),
         };
