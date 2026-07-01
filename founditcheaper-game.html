@@ -721,8 +721,9 @@ async function rollDice() {
   var streakBonus = (hasRolledEveryDay && isLastDay) ? allDays.length * 5 : 0;
   entry.streak = hasRolledEveryDay ? allDays.length : 0;
 
-  // Roll sequence
-  var rolls = [], totalPoints = 0, rollCount = 0, maxRolls = 2;
+  // Roll sequence. bonusRemaining = how many extra rolls the FIRST roll earned:
+  //   Doubles → 1 bonus roll (2 total) · Snake Eyes → 2 bonus rolls (3 total).
+  var rolls = [], totalPoints = 0, rollCount = 0, bonusRemaining = 0;
 
   function buildResultHtml() {
     var html = '';
@@ -758,36 +759,48 @@ async function rollDice() {
       var label = '', special = false;
       rollCount++;
 
-      if (isSnakeEyes(d1, d2)) {
-        special = true;
-        if (rollCount === 1)      { label = '💀 Snake Eyes! Roll again!'; maxRolls = 3; }
-        else if (rollCount === 2) { label = '💀 Snake Eyes again! One more!'; maxRolls = 3; }
-        else                      { label = '💀 Snake Eyes — unbelievable!'; }
-      } else if (isDoubles(d1, d2)) {
-        special = true;
-        label = rollCount === 1 ? '🔥 Doubles! Roll again!' : '🔥 Doubles bonus!';
+      if (rollCount === 1) {
+        // Only the first roll grants bonus rolls.
+        if (isSnakeEyes(d1, d2))      { special = true; bonusRemaining = 2; label = '💀 Snake Eyes! Two bonus rolls!'; }
+        else if (isDoubles(d1, d2))   { special = true; bonusRemaining = 1; label = '🔥 Doubles! Bonus roll!'; }
+        else                          { label = pts >= 10 ? 'Nice roll!' : 'Keep rolling!'; }
       } else {
-        label = pts >= 10 ? 'Nice roll!' : 'Keep rolling!';
+        // Bonus rolls just add points (doubles here are still a fun highlight).
+        if (isSnakeEyes(d1, d2))      { special = true; label = '💀 Snake Eyes bonus!'; }
+        else if (isDoubles(d1, d2))   { special = true; label = '🔥 Doubles bonus!'; }
+        else                          { label = 'Bonus roll'; }
       }
 
       rolls.push({ d1:d1, d2:d2, pts:pts, label:label, special:special });
       totalPoints += pts;
       buildResultHtml();
 
-      if (isDoubles(d1, d2) && rollCount < maxRolls) {
-        // Player earned a bonus roll — celebrate and wait for them to click again
-        offerBonusRoll(isSnakeEyes(d1, d2));
+      if (bonusRemaining > 0) {
+        // Celebrate and wait for the player to click for each remaining bonus roll.
+        var owedNow = bonusRemaining;
+        bonusRemaining--;
+        offerBonusRoll({ firstSnake: (rollCount === 1 && isSnakeEyes(d1, d2)), owed: owedNow });
       } else {
         finalizeRoll();
       }
     });
   }
 
-  function offerBonusRoll(isSnake) {
+  function offerBonusRoll(info) {
+    var big, sub;
+    if (info.firstSnake) {
+      big = '💀 Snake Eyes! You earned 2 bonus rolls';
+      sub = 'Tap to take your first bonus roll';
+    } else if (info.owed > 1) {
+      big = '🎲 ' + info.owed + ' bonus rolls left';
+      sub = 'Tap to take the next one';
+    } else {
+      big = '🔥 Bonus roll unlocked';
+      sub = 'Tap the button to take it';
+    }
     var cel = document.createElement('div');
     cel.className = 'bonus-celebrate';
-    cel.innerHTML = '<div class="bc-big">' + (isSnake ? '💀 Snake Eyes!' : '🔥 Doubles!') + ' You earned a bonus roll</div>'
-                  + '<div class="bc-sub">Tap the button to take it</div>';
+    cel.innerHTML = '<div class="bc-big">' + big + '</div><div class="bc-sub">' + sub + '</div>';
     resultBox.appendChild(cel);
 
     var btn = document.getElementById('rollBtn');
