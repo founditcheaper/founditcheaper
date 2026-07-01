@@ -56,6 +56,8 @@
     .filters-toggle { display: inline-flex !important; align-items: center; gap: 6px; padding: 8px 12px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-gold); border-radius: 20px; color: var(--text); font-size: 12px; font-weight: 800; cursor: pointer; font-family: 'Inter', sans-serif; }
     .filters-toggle .fbar-chev { width: 14px; height: 14px; transition: transform .2s; }
     #filterPanel.open .filters-toggle .fbar-chev { transform: rotate(180deg); }
+    /* Expanded: rename happens in JS; make the button pulse yellow so it's obviously the "close" control */
+    #filterPanel.open .filters-toggle { color: #0a1f33; background: var(--accent); border-color: var(--accent); animation: ficFilterPulse 1.3s ease-in-out infinite; }
     #filterPanel:not(.open) .fbar-btn:not(#chipPromo) { display: none; }
     #filterPanel:not(.open) .active-filters { display: none !important; }
   }
@@ -204,6 +206,10 @@
   .filters-bar-outer { background: rgba(10,31,51,0.99); border-bottom: 2px solid var(--accent); }
   .filters-top { max-width: 1200px; margin: 0 auto; width: 100%; padding: 6px 24px 10px; box-sizing: border-box; }
   .filters-toggle { display: none; }  /* shown only on phones */
+  @keyframes ficFilterPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245,200,66,0.55); }
+    50%      { box-shadow: 0 0 12px 4px rgba(245,200,66,0.95); }
+  }
   .picks-section-title { font-size: 11px; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
 
   /* Today card */
@@ -1414,7 +1420,11 @@ function toggleFilterBar() {
   var t = document.getElementById('filtersToggle');
   if (!p) return;
   var open = p.classList.toggle('open');
-  if (t) t.classList.toggle('open', open);
+  if (t) {
+    t.classList.toggle('open', open);
+    var label = t.querySelector('span');
+    if (label) label.textContent = open ? 'Close Filters' : 'All Filters';
+  }
   if (!open) collapseFilters(); // also close any open dropdown when hiding the bar
 }
 
