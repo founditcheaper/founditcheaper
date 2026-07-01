@@ -78,6 +78,7 @@
        Collapsed = Promo + All Filters; expanded = every filter in aligned rows. */
     .filters-top .fbar { display: grid !important; grid-template-columns: 1.2fr 1fr; gap: 8px; overflow: visible !important; }
     .filters-top .fbar .fbar-btn, .filters-top .fbar .filters-toggle { width: 100%; min-width: 0; justify-content: center; box-sizing: border-box; padding: 9px 8px; font-size: 12px; }
+    .filters-top .fbar .fbar-clear { grid-column: 1 / -1; }  /* Clear all filters spans the full width */
     .filters-toggle { display: inline-flex !important; align-items: center; gap: 6px; padding: 8px 12px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-gold); border-radius: 20px; color: var(--text); font-size: 12px; font-weight: 800; cursor: pointer; font-family: 'Inter', sans-serif; }
     .filters-toggle .fbar-chev { width: 14px; height: 14px; transition: transform .2s; }
     #filterPanel.open .filters-toggle .fbar-chev { transform: rotate(180deg); }
@@ -619,7 +620,7 @@
       <button type="button" class="fbar-btn" id="fbtnBrand" onclick="toggleBrand()">Name Brands Only</button>
       <!-- Verified Lowest button hidden until price history accrues (~Aug 2026). Backend tracker still runs. Re-add: <button type="button" class="fbar-btn" id="fbtnVerified" onclick="toggleVerified(this)" title="Only deals at their lowest price in the last 30 days.">✅ Verified Lowest</button> -->
       <button type="button" class="fbar-btn" id="fbtnInflated" onclick="toggleInflated(this)" title="Hides suspiciously-high discounts (65%+) on no-name brands — the kind that are often fake markdowns.">🚫 Remove Inflated</button>
-      <button type="button" class="fbar-btn fbar-clear" onclick="clearFilters()">Clear all</button>
+      <button type="button" class="fbar-btn fbar-clear" onclick="clearFilters()">Clear all filters</button>
     </div>
     <div class="active-filters" id="activeFilters"></div>
 
