@@ -177,6 +177,9 @@ exports.handler = async function () {
   const bestByKey = {};
   for (const d of deals) { const k = baseNameKey(d.name); if (!bestByKey[k] || d.off > bestByKey[k].off) bestByKey[k] = d; }
   deals = Object.values(bestByKey);
+  // Safeguard: never let a deal-site placeholder title through (belt-and-suspenders).
+  const BANNED = /dealseek|joylink|koupon|coupert|slickdeals|dealnews|couponbirds|capital one shopping|we'?re building|for smarter shopping/i;
+  deals = deals.filter(d => !BANNED.test(d.name || ''));
 
   // Don't duplicate coded deals, blocked ASINs, or current Top Picks.
   const skipAsins = new Set();

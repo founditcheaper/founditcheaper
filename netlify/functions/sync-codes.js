@@ -306,6 +306,8 @@ exports.handler = async function (event) {
       if (skipInfo.length < 3) skipInfo.push({ asin: s.asin, why: prod?.skip || 'unknown', sample: prod?.sample });
       continue;
     }
+    // Safeguard: never post a deal-site placeholder title (belt-and-suspenders).
+    if (/dealseek|joylink|koupon|coupert|slickdeals|dealnews|couponbirds|capital one shopping|we'?re building|for smarter shopping/i.test(prod.name || '')) { skipped++; continue; }
 
     const regular = prod.apiPrice;                       // compliant regular price (API)
     const price   = s.discount > 0 && s.discount < regular ? s.discount : regular;

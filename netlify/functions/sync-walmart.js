@@ -184,7 +184,10 @@ exports.handler = async function () {
     const k = baseNameKey(d.name);
     if (!bestByKey[k] || d.off > bestByKey[k].off) bestByKey[k] = d;
   }
-  const deals = Object.values(bestByKey);
+  // Safeguard: never let a deal-site placeholder title through (belt-and-suspenders;
+  // official Walmart titles won't contain these, but this guarantees no path leaks one).
+  const BANNED = /dealseek|joylink|koupon|coupert|slickdeals|dealnews|couponbirds|capital one shopping|we'?re building|for smarter shopping/i;
+  const deals = Object.values(bestByKey).filter(d => !BANNED.test(d.name || ''));
   console.log(`[sync-walmart] ${deals.length} new qualifying Walmart deals (after variant dedup)`);
   if (deals.length === 0) {
     return { statusCode: 200, body: JSON.stringify({ ok: true, added: 0 }) };
