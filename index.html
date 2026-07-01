@@ -838,6 +838,9 @@ var _deadcode = [
   { id: "ge-range", name: "GE 30 in. Freestanding Gas Range", store: "Lowes", category: "Kitchen", brand: true, brandName: "GE", price: 549, was: 799, off: 31, rating: 4.5, reviews: 1560, img: "https://m.media-amazon.com/images/I/71V1B65gXCL._AC_SL1500_.jpg", url: "https://www.lowes.com/pd/GE-Gas-Range/5014567890", found: "Jun 22 · 7:30 AM", code: null }
 ];
 
+// Currency formatter — always two decimals (e.g. 31.9 -> "31.90").
+function money(n) { var v = parseFloat(n); return isNaN(v) ? (n == null ? '' : n) : v.toFixed(2); }
+
 // ── STATE ─────────────────────────────────────────────────────────────
 var state = { store: 'all', category: 'all', minDiscount: 10, maxPrice: 0, minStars: 0, brandOnly: false, sort: 'value', search: '', promoOnly: false };
 var filtered = [], page = 0, loading = false;
@@ -985,7 +988,7 @@ function pickCardHtml(item, rank) {
     html += '<div class="product-stars" style="margin-bottom:4px"><span class="stars-display">★</span><span class="rating-num">' + parseFloat(item.rating).toFixed(1) + ' (' + Number(item.reviews).toLocaleString() + ')</span></div>';
   }
   html += (item.code ? '<div class="pick-code-row"><span class="pick-code-label">CODE</span><span class="pick-code-val">' + item.code + '</span></div>' : '');
-  html += '<div class="pick-prices" style="margin-top:auto"><span class="pick-now" style="font-size:20px">$' + item.price + '</span><span class="pick-was" style="font-size:13px;margin-left:6px">$' + item.was + '</span></div>';
+  html += '<div class="pick-prices" style="margin-top:auto"><span class="pick-now" style="font-size:20px">$' + money(item.price) + '</span><span class="pick-was" style="font-size:13px;margin-left:6px">$' + money(item.was) + '</span></div>';
   html += '</div></div>';
   return html;
 }
@@ -1137,7 +1140,7 @@ function topPickCardHtml(p, rank) {
   html += '<div class="product-name">' + p.name + '</div>';
   if (p.rating && p.reviews) { html += '<div class="product-stars"><span class="stars-display">' + starsHtml(p.rating) + '</span><span class="rating-num">' + p.rating + ' (' + p.reviews.toLocaleString() + ')</span></div>'; }
   html += (p.code ? '<div class="code-row"><span class="code-label">CODE</span><span class="code-value">' + p.code + '</span></div>' : '');
-  html += '<div class="price-row" style="margin-top:auto"><span class="current-price">$' + p.price + '</span><span class="was-price">$' + p.was + '</span></div>';
+  html += '<div class="price-row" style="margin-top:auto"><span class="current-price">$' + money(p.price) + '</span><span class="was-price">$' + money(p.was) + '</span></div>';
   html += '</div></div>';
   return html;
 }
@@ -1166,7 +1169,7 @@ function cardHtml(p) {
   html += '<div class="product-name">' + p.name + '</div>';
   if (p.rating && p.reviews) { html += '<div class="product-stars"><span class="stars-display">★</span><span class="rating-num">' + parseFloat(p.rating).toFixed(1) + ' (' + Number(p.reviews).toLocaleString() + ')</span></div>'; }
   html += (p.code ? '<div class="code-row"><span class="code-label">CODE</span><span class="code-value">' + p.code + '</span></div>' : '');
-  html += '<div class="price-row" style="margin-top:auto"><span class="current-price">$' + p.price + '</span><span class="was-price">$' + p.was + '</span></div>';
+  html += '<div class="price-row" style="margin-top:auto"><span class="current-price">$' + money(p.price) + '</span><span class="was-price">$' + money(p.was) + '</span></div>';
   html += '</div></div>';
   return html;
 }
@@ -1773,7 +1776,7 @@ function openDrawer(productId) {
   }
 
   // Price
-  html += '<div class="drawer-price-row"><span class="drawer-price">$' + p.price + '</span><span class="drawer-was">$' + p.was + '</span><span class="drawer-off">' + p.off + '% OFF</span></div>';
+  html += '<div class="drawer-price-row"><span class="drawer-price">$' + money(p.price) + '</span><span class="drawer-was">$' + money(p.was) + '</span><span class="drawer-off">' + p.off + '% OFF</span></div>';
   if (p.found) html += '<div class="drawer-found">🕐 Found · ' + p.found + '</div>';
 
   // Code box
