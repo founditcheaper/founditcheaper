@@ -91,10 +91,14 @@ exports.handler = async function (event) {
   // acting is derived from the password, so uploads get tagged reliably and can't
   // be spoofed by the client.
   const role = (process.env.ADMIN_PASSWORD && password === process.env.ADMIN_PASSWORD) ? 'owner'
-             : (process.env.VA_PASSWORD && password === process.env.VA_PASSWORD) ? 'va'
+             : ((process.env.VA_PASSWORD && password === process.env.VA_PASSWORD) ||
+                (process.env.AGENT_PASSWORD && password === process.env.AGENT_PASSWORD)) ? 'va'
              : null;
   if (!role) return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
-  const uploader = role === 'va' ? 'Kuldeep' : 'Erik';
+  // Attribution: the password identifies who's adding, so uploads get tagged reliably.
+  const uploader = (process.env.VA_PASSWORD && password === process.env.VA_PASSWORD) ? 'Kuldeep'
+                 : (process.env.AGENT_PASSWORD && password === process.env.AGENT_PASSWORD) ? 'Promo Agent'
+                 : 'Erik';
 
   const gwUrl = process.env.SHEET_API_URL;
   const gwTok = process.env.SHEET_API_TOKEN;

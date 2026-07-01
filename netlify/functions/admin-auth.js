@@ -18,12 +18,17 @@ exports.handler = async function (event) {
   const user = String(body.username || '').trim().toLowerCase();
   const owner = process.env.ADMIN_PASSWORD;
   const va    = process.env.VA_PASSWORD;
+  const agent = process.env.AGENT_PASSWORD;
 
   if (owner && pass === owner) {
     return { statusCode: 200, body: JSON.stringify({ ok: true, role: 'owner', name: 'Erik' }) };
   }
   if (va && pass === va && user === 'kuldeep') {
     return { statusCode: 200, body: JSON.stringify({ ok: true, role: 'va', name: 'Kuldeep' }) };
+  }
+  // Promo-scraping agent — same restricted role as the VA (Picks + Promo only).
+  if (agent && pass === agent && user === 'promo-agent') {
+    return { statusCode: 200, body: JSON.stringify({ ok: true, role: 'va', name: 'Promo Agent' }) };
   }
   return { statusCode: 401, body: JSON.stringify({ ok: false, error: 'Invalid login' }) };
 };

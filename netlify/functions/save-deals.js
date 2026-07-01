@@ -80,9 +80,10 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON' }) };
   }
 
-  // Owner (Erik) and the VA (Kuldeep) may both manage Top Deal Picks.
+  // Owner (Erik), the VA (Kuldeep), and the promo agent may all manage Top Deal Picks.
   const _ok = (process.env.ADMIN_PASSWORD && password === process.env.ADMIN_PASSWORD)
-           || (process.env.VA_PASSWORD && password === process.env.VA_PASSWORD);
+           || (process.env.VA_PASSWORD && password === process.env.VA_PASSWORD)
+           || (process.env.AGENT_PASSWORD && password === process.env.AGENT_PASSWORD);
   if (!_ok) {
     return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
   }
