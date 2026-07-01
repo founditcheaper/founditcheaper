@@ -100,28 +100,44 @@ exports.handler = async function (event) {
   .s{width:46px;height:46px;border-radius:50%;border:4px solid rgba(245,200,66,.25);border-top-color:#f5c842;animation:sp .8s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   .t{font-size:16px;font-weight:800;letter-spacing:.3px}
+  .btn{display:inline-block;background:#f5c842;color:#0a1f33;font-weight:800;font-size:15px;
+       text-decoration:none;padding:13px 22px;border-radius:10px;letter-spacing:.3px}
   .h{font-size:13px;color:#8aa0b4}
-  a{color:#f5c842;font-weight:700}
+  a.web{color:#8aa0b4;font-weight:700}
 </style></head>
 <body>
   <div class="s"></div>
   <div class="t">Opening Amazon…</div>
-  <div class="h">If it doesn't open automatically, <a id="web" href="${webUrl}">tap here to continue</a>.</div>
+  <a id="appBtn" class="btn" href="${webUrl}">Open in the Amazon app</a>
+  <div class="h">or <a id="web" class="web" href="${webUrl}">continue on the web</a></div>
   <script>
   (function(){
     var web=${J(webUrl)}, ios=${J(iosApp)}, intent=${J(androidIntent)};
     var ua=navigator.userAgent||'';
     var isAndroid=/Android/i.test(ua);
-    var isIOS=/iPhone|iPad|iPod/i.test(ua) || (/(Mac).*(Mobile)/i.test(ua));
+    var isIOS=/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && 'ontouchend' in document);
+    var appUrl = isAndroid ? intent : ios;
     function go(u){ try{ window.location.href=u; }catch(e){} }
+    function openApp(){ go(appUrl); }
+
+    // Manual button = a guaranteed user-gesture path if the auto-open is blocked.
+    var btn=document.getElementById('appBtn');
+    if(btn){ btn.addEventListener('click', function(e){
+      if(isAndroid || isIOS){ e.preventDefault(); openApp(); }
+    }); }
+
     if(isAndroid){
-      // intent:// handles the app-or-web decision itself.
-      go(intent);
-      setTimeout(function(){ go(web); }, 2500);
+      // intent:// decides app-vs-web by itself (S.browser_fallback_url). No extra timer.
+      openApp();
     } else if(isIOS){
-      // Try the app; if it isn't installed the scheme does nothing, so fall back.
-      go(ios);
-      setTimeout(function(){ go(web); }, 1500);
+      // Try the app; only fall back to web if the app did NOT take over the screen.
+      var done=false;
+      function cancel(){ done=true; }
+      document.addEventListener('visibilitychange', function(){ if(document.hidden) cancel(); });
+      window.addEventListener('pagehide', cancel);
+      window.addEventListener('blur', cancel);
+      setTimeout(function(){ if(!done) go(web); }, 1400);
+      openApp();
     } else {
       // Desktop / anything else — straight to the web page.
       go(web);
