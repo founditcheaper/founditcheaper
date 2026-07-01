@@ -796,6 +796,19 @@
   </div>
 </div>
 
+<script>
+// Place the filter bar directly under the "Top Value" results bar (above the first
+// deals), instead of up under the search bar. Done here (inline, right after the
+// grid is parsed) so it moves before first paint — no visible jump. The filter bar
+// itself is unchanged; only its position moves.
+(function () {
+  if (/[?&]embed=picks(?:&|$)/.test(location.search)) return;   // embed shows picks only
+  var f = document.querySelector('.filters-bar-outer');
+  var rb = document.querySelector('.results-bar');
+  if (f && rb && rb.parentNode) rb.parentNode.insertBefore(f, rb.nextSibling);
+})();
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 const SUPABASE_URL      = 'https://kvscvenwhdfwiswcfmxq.supabase.co';
@@ -1665,8 +1678,10 @@ function _afterLoad() {
   // Separate queries — no JS deduplication needed
   var picksPromise = _sb.from('deals').select('*').eq('is_top_pick', true)
                        .order('active_date', { ascending: false }).order('rank');
+  // First page of the grid deals. Supabase caps each query at 1000 rows, so we
+  // page through the rest below (id is a stable tiebreaker so pages don't overlap).
   var allPromise   = _sb.from('deals').select('*').eq('is_top_pick', false)
-                       .order('active_date', { ascending: false }).order('rank').limit(5000);
+                       .order('active_date', { ascending: false }).order('rank').order('id').range(0, 999);
 
   // ── PHASE 1: carousel renders as soon as picks arrive ─────────────────
   try {
@@ -1732,19 +1747,22 @@ function _afterLoad() {
   try {
     var allRes = await allPromise;
     var _rows = (allRes && allRes.data) ? allRes.data.slice() : [];
-    // Supabase caps a single query at 1000 rows, and we sort newest-date-first — so
-    // once a day fills ~1000 fresh deals, older promo-code deals fall off the grid
-    // entirely. Promo deals are rare and valuable, so pull them in a dedicated query
-    // and merge them in. They always show; they just sort lower because they're older.
-    try {
-      var promoRes = await _sb.from('deals').select('*').eq('is_top_pick', false)
-        .not('code', 'is', null).neq('code', '')
-        .order('active_date', { ascending: false }).limit(1000);
-      if (promoRes && promoRes.data && promoRes.data.length) {
-        var _seenIds = {}; _rows.forEach(function(d) { _seenIds[d.id] = 1; });
-        promoRes.data.forEach(function(d) { if (!_seenIds[d.id]) _rows.push(d); });
+    // Page through the rest. Supabase returns at most 1000 rows per request, so a
+    // single query only ever loaded the newest ~1000 of ~2500 deals — meaning every
+    // filter (category, store, discount, promo…) silently missed the other ~1500.
+    // Keep fetching 1000 at a time until we've got them all (safety cap 6000).
+    if (_rows.length === 1000) {
+      var _from = 1000, _CAP = 6000;
+      while (_from < _CAP) {
+        var _pg = await _sb.from('deals').select('*').eq('is_top_pick', false)
+          .order('active_date', { ascending: false }).order('rank').order('id')
+          .range(_from, _from + 999);
+        if (_pg.error || !_pg.data || _pg.data.length === 0) break;
+        _rows = _rows.concat(_pg.data);
+        if (_pg.data.length < 1000) break;
+        _from += 1000;
       }
-    } catch (e) {}
+    }
     if (_rows.length > 0) {
       var _raw = _rows.map(function(d) {
         return {
