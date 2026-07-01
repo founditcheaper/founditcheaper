@@ -49,7 +49,7 @@
     .header-row1 { margin-bottom: 12px !important; }
     .header-row2 { margin-top: 0 !important; }
     /* On phones the filters collapse behind a single "Filters" button */
-    .filters-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-gold); border-radius: 8px; color: var(--text); font-size: 13px; font-weight: 800; cursor: pointer; font-family: 'Inter', sans-serif; }
+    .filters-toggle { display: flex !important; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-gold); border-radius: 8px; color: var(--text); font-size: 13px; font-weight: 800; cursor: pointer; font-family: 'Inter', sans-serif; }
     .filters-toggle .fbar-chev { width: 15px; height: 15px; transition: transform .2s; }
     .filters-toggle.open .fbar-chev { transform: rotate(180deg); }
     #filterPanel { display: none; margin-top: 10px; }
@@ -198,7 +198,7 @@
   /* PICKS SECTION (full width) */
   .picks-outer { padding: 20px 24px 0; max-width: 1200px; margin: 0 auto; width: 100%; }
   .filters-bar-outer { background: rgba(10,31,51,0.99); border-bottom: 2px solid var(--accent); }
-  .filters-top { max-width: 1200px; margin: 0 auto; width: 100%; padding: 10px 24px; box-sizing: border-box; }
+  .filters-top { max-width: 1200px; margin: 0 auto; width: 100%; padding: 6px 24px 10px; box-sizing: border-box; }
   .filters-toggle { display: none; }  /* shown only on phones */
   .picks-section-title { font-size: 11px; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
 
@@ -298,7 +298,7 @@
 
   .layout { padding: 20px 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
   .main { width: 100%; }
-  .filter-panel { background: var(--surface); border: 1px solid var(--border-gold); border-radius: 10px; overflow: hidden; margin-bottom: 0; }
+  .filter-panel { background: transparent; border: none; border-radius: 0; overflow: visible; margin-bottom: 0; }
   .filter-header { padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.07); background: rgba(245,200,66,0.07); display: flex; align-items: center; justify-content: space-between; }
   .filter-header h3 { font-size: 11px; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; color: var(--accent); }
   #filterBody { display: none; }
@@ -313,7 +313,7 @@
   .chip:hover { border-color: var(--accent); color: var(--accent); }
   .chip.active { background: var(--accent); border-color: var(--accent); color: #0a1f33; font-weight: 800; }
   /* ── Filter bar (tap a name to expand its options) ─────────────── */
-  .fbar { display: flex; gap: 8px; padding: 12px 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .fbar { display: flex; gap: 8px; padding: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .fbar::-webkit-scrollbar { display: none; }
   .fbar-btn { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid var(--border-gold); background: rgba(255,255,255,0.04); color: var(--text); cursor: pointer; white-space: nowrap; font-family: Inter, sans-serif; transition: all .15s; }
   .fbar-btn:hover { border-color: var(--accent); }
@@ -322,9 +322,9 @@
   .fbar-chev { width: 13px; height: 13px; transition: transform .2s; }
   .fbar-btn.showing .fbar-chev { transform: rotate(180deg); }
   .fbar-clear { margin-left: auto; color: var(--muted); border-style: dashed; }
-  .fdrop { display: none; padding: 13px 15px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .fdrop { display: none; padding: 12px 0 2px; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); }
   .fdrop.open { display: block; }
-  .active-filters { display: none; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0 14px 12px; }
+  .active-filters { display: none; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 0 0; }
   .active-filters.shown { display: flex; }
   .af-count { font-size: 11px; font-weight: 800; color: var(--accent); }
   .af-chip { font-size: 11px; font-weight: 600; color: var(--text); background: rgba(245,200,66,0.12); border: 1px solid rgba(245,200,66,0.35); border-radius: 12px; padding: 2px 9px; }
