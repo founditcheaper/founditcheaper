@@ -182,6 +182,27 @@
   }
   .roll-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(245,200,66,0.4); }
   .roll-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+  /* Bonus-roll state: make the button pulse so the player knows to click again */
+  .roll-btn.bonus { animation: bonusPulse 1s ease-in-out infinite; }
+  @keyframes bonusPulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(245,200,66,0.55), 0 4px 16px rgba(245,200,66,0.3); transform: scale(1); }
+    50%     { box-shadow: 0 0 26px 6px rgba(245,200,66,0.75), 0 4px 16px rgba(245,200,66,0.3); transform: scale(1.05); }
+  }
+  /* Bonus celebration banner */
+  .bonus-celebrate {
+    text-align: center; margin: 10px 0 4px;
+    padding: 12px 14px; border-radius: 10px;
+    background: linear-gradient(180deg, rgba(245,200,66,0.16), rgba(245,200,66,0.06));
+    border: 1px solid rgba(245,200,66,0.45);
+    animation: bonusPop 0.5s cubic-bezier(0.2,1.4,0.5,1) both;
+  }
+  .bonus-celebrate .bc-big { font-size: 20px; font-weight: 800; color: var(--accent); letter-spacing: .5px; }
+  .bonus-celebrate .bc-sub { font-size: 12px; color: var(--muted); font-weight: 600; margin-top: 3px; }
+  @keyframes bonusPop {
+    0%   { transform: scale(0.7); opacity: 0; }
+    60%  { transform: scale(1.06); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
 
   /* RESULT */
   .result-box {
@@ -659,21 +680,46 @@ async function rollDice() {
       buildResultHtml();
 
       if (isDoubles(d1, d2) && rollCount < maxRolls) {
-        setTimeout(doRoll, 900);
+        // Player earned a bonus roll — celebrate and wait for them to click again
+        offerBonusRoll(isSnakeEyes(d1, d2));
       } else {
-        // Done — save score
-        var finalTotal = totalPoints + streakBonus;
-        entry.weekScore = (entry.weekScore || 0) + finalTotal;
-        entry.lastRoll = today;
-        entry.name = player.username;
-        entry.tag = player.tag;
-        scores[player.tag] = entry;
-        saveScores();
-        updateScoreDisplay();
-        document.getElementById('playedMsg').style.display = 'block';
-        startCountdown();
+        finalizeRoll();
       }
     });
+  }
+
+  function offerBonusRoll(isSnake) {
+    var cel = document.createElement('div');
+    cel.className = 'bonus-celebrate';
+    cel.innerHTML = '<div class="bc-big">' + (isSnake ? '💀 Snake Eyes!' : '🔥 Doubles!') + ' You earned a bonus roll</div>'
+                  + '<div class="bc-sub">Tap the button to take it</div>';
+    resultBox.appendChild(cel);
+
+    var btn = document.getElementById('rollBtn');
+    btn.disabled = false;
+    btn.classList.add('bonus');
+    btn.textContent = '🎲 Take Bonus Roll';
+    btn.onclick = function () {
+      btn.classList.remove('bonus');
+      btn.disabled = true;
+      btn.onclick = rollDice;          // restore normal handler for future days
+      btn.textContent = 'Roll!';
+      if (cel.parentNode) cel.parentNode.removeChild(cel);
+      doRoll();
+    };
+  }
+
+  function finalizeRoll() {
+    var finalTotal = totalPoints + streakBonus;
+    entry.weekScore = (entry.weekScore || 0) + finalTotal;
+    entry.lastRoll = today;
+    entry.name = player.username;
+    entry.tag = player.tag;
+    scores[player.tag] = entry;
+    saveScores();
+    updateScoreDisplay();
+    document.getElementById('playedMsg').style.display = 'block';
+    startCountdown();
   }
 
   doRoll();
