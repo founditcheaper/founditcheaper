@@ -1786,14 +1786,34 @@ function _afterLoad() {
 <script>
 var currentDrawerProduct = null;
 
-function openDrawer(productId) {
-  var p = allProducts.find(function(x) { return x.id === productId; });
+async function openDrawer(productId) {
+  var pid = String(productId);
+  var p = allProducts.find(function(x) { return x.id === pid; });
   if (!p) {
     // Also search carousel picks (dailyPicks[n].items)
     for (var _i = 0; _i < dailyPicks.length; _i++) {
-      p = (dailyPicks[_i].items || []).find(function(x) { return x.id === productId; });
+      p = (dailyPicks[_i].items || []).find(function(x) { return x.id === pid; });
       if (p) break;
     }
+  }
+  if (!p) {
+    // Shared link to a deal that isn't in the loaded batch — fetch it directly so
+    // the drawer always opens no matter which deal was shared.
+    try {
+      var r = await _sb.from('deals').select('*').eq('id', pid).limit(1);
+      var d = r && r.data && r.data[0];
+      if (d) {
+        p = {
+          id: String(d.id), name: d.name, store: d.store, category: d.category || 'General',
+          brand: d.brand, brandName: d.brand_name || '', price: d.price, was: d.was,
+          off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
+          rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
+          found: formatFound(d.created_at, d.active_date), code: d.code || null,
+          verifiedLow: !!d.verified_low,
+          images: (function() { try { return JSON.parse(d.images || '[]'); } catch(e) { return []; } })(),
+        };
+      }
+    } catch (e) {}
   }
   if (!p) return;
   currentDrawerProduct = p;
