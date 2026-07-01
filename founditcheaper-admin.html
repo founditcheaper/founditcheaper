@@ -282,8 +282,8 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       </div>
 
       <div class="settings-card" style="margin-bottom:16px">
-        <div class="settings-title">🎁 This Week's Prize</div>
-        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Shown on the Daily Dice Roll page. Update it each week — changes go live immediately.</div>
+        <div class="settings-title">🎁 Prize & Competition Dates</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Shown on the Daily Dice Roll page. Update it anytime — changes go live immediately.</div>
         <div class="field-group" style="margin-bottom:10px">
           <label class="field-label">Prize</label>
           <input type="text" id="gamePrizeInput" class="field-input" placeholder="$25 Amazon Gift Card" maxlength="120">
@@ -292,7 +292,21 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
           <label class="field-label">Details / deadline line</label>
           <input type="text" id="gamePrizeSubInput" class="field-input" placeholder="Highest score by Sunday wins · One roll per day" maxlength="160">
         </div>
-        <button class="btn btn-primary" id="savePrizeBtn" onclick="saveGamePrize()">Save Prize</button>
+        <div class="field-group" style="margin-bottom:8px">
+          <label class="field-label">Competition dates — starting a new period resets the leaderboard</label>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+            <div><div style="font-size:10px;color:var(--muted);margin-bottom:3px">Start</div><input type="date" id="gameStartInput" class="field-input" style="max-width:170px"></div>
+            <div><div style="font-size:10px;color:var(--muted);margin-bottom:3px">End (last day to score)</div><input type="date" id="gameEndInput" class="field-input" style="max-width:170px"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+          <span style="font-size:11px;color:var(--muted)">Quick set (starts today):</span>
+          <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setGamePreset(1)">1 day</button>
+          <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setGamePreset(2)">2 days</button>
+          <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setGamePreset(3)">3 days</button>
+          <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setGamePreset(7)">1 week</button>
+        </div>
+        <button class="btn btn-primary" id="savePrizeBtn" onclick="saveGameSettings()">Save Game Settings</button>
         <span id="savePrizeMsg" style="font-size:12px;margin-left:10px"></span>
       </div>
       <div style="display:flex;gap:10px;margin-bottom:14px">
@@ -1076,24 +1090,35 @@ async function loadSettings() {
     }
     if (m.game_prize != null && document.getElementById('gamePrizeInput')) document.getElementById('gamePrizeInput').value = m.game_prize;
     if (m.game_prize_sub != null && document.getElementById('gamePrizeSubInput')) document.getElementById('gamePrizeSubInput').value = m.game_prize_sub;
+    if (m.game_period_start != null && document.getElementById('gameStartInput')) document.getElementById('gameStartInput').value = m.game_period_start;
+    if (m.game_period_end != null && document.getElementById('gameEndInput')) document.getElementById('gameEndInput').value = m.game_period_end;
   } catch (e) { /* settings table may not exist yet */ }
 }
-async function saveGamePrize() {
+function setGamePreset(days) {
+  var today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  var s = new Date(today + 'T12:00:00'); var e = new Date(s); e.setDate(s.getDate() + (days - 1));
+  document.getElementById('gameStartInput').value = today;
+  document.getElementById('gameEndInput').value = e.toLocaleDateString('en-CA');
+}
+async function saveGameSettings() {
   var prize = (document.getElementById('gamePrizeInput').value || '').trim();
   var sub = (document.getElementById('gamePrizeSubInput').value || '').trim();
+  var start = document.getElementById('gameStartInput').value;
+  var end = document.getElementById('gameEndInput').value;
   var msg = document.getElementById('savePrizeMsg');
   var btn = document.getElementById('savePrizeBtn');
+  if (start && end && end < start) { msg.style.color = '#f87171'; msg.textContent = 'End date must be on or after the start date.'; return; }
   btn.disabled = true; btn.textContent = 'Saving…';
   try {
     var res = await fetch('/.netlify/functions/save-settings', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: sessionPass, gamePrize: prize, gamePrizeSub: sub }),
+      body: JSON.stringify({ password: sessionPass, gamePrize: prize, gamePrizeSub: sub, gamePeriodStart: start, gamePeriodEnd: end }),
     });
     var d = await res.json();
     if (res.ok && d.ok) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Saved — live on the game page'; }
     else { msg.style.color = '#f87171'; msg.textContent = 'Failed' + (d.error ? ': ' + d.error : ''); }
   } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error'; }
-  btn.disabled = false; btn.textContent = 'Save Prize';
+  btn.disabled = false; btn.textContent = 'Save Game Settings';
 }
 
 // ── DICE GAME RESULTS (weekly winners, saved permanently) ──────────────

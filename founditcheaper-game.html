@@ -391,8 +391,16 @@ function formatDate(d) {
   return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
 }
 
+// Competition period — admin can set custom start/end dates (daily, 2-day,
+// weekly, etc.). Falls back to the current Sun–Sat week if not configured.
+var gamePeriod = null; // { start: Date, end: Date }
+function getPeriodBounds() {
+  if (gamePeriod && gamePeriod.start && gamePeriod.end) return gamePeriod;
+  return getWeekBounds();
+}
+
 function getWeekString() {
-  var b = getWeekBounds();
+  var b = getPeriodBounds();
   return formatDate(b.start) + ' – ' + formatDate(b.end);
 }
 
@@ -432,7 +440,7 @@ async function loadScores() {
     return;
   }
   try {
-    var weekStart = getWeekBounds().start.toISOString().split('T')[0];
+    var weekStart = getPeriodBounds().start.toISOString().split('T')[0];
     // Read the public view (names + IDs + scores only — no emails exposed).
     var res = await _sb.from('game_leaderboard').select('username,player_tag,week_score,last_roll,roll_days,streak').eq('week_start', weekStart);
     if (res.error) throw res.error;
@@ -454,7 +462,7 @@ async function saveScores() {
   localStorage.setItem(SCORES_KEY, JSON.stringify(scores));
   if (!USE_SUPABASE || !player) return;
   try {
-    var weekStart = getWeekBounds().start.toISOString().split('T')[0];
+    var weekStart = getPeriodBounds().start.toISOString().split('T')[0];
     var entry = scores[player.tag];
     if (!entry) return;
     await _sb.from('game_scores').upsert({
@@ -585,7 +593,7 @@ async function rollDice() {
   var entry = scores[player.tag] || { name: player.username, tag: player.tag, weekScore: 0, lastRoll: null, streak: 0, rollDays: [] };
   if (!entry.rollDays) entry.rollDays = [];
   var today = todayString();
-  var weekStart = getWeekBounds().start;
+  var weekStart = getPeriodBounds().start;
   var allDays = [], cursor = new Date(weekStart);
   var todayDate = new Date(); todayDate.setHours(0,0,0,0);
   while (cursor <= todayDate) {
@@ -594,7 +602,7 @@ async function rollDice() {
   }
   if (entry.rollDays.indexOf(today) === -1) entry.rollDays.push(today);
   var hasRolledEveryDay = allDays.every(function(d) { return entry.rollDays.indexOf(d) !== -1; });
-  var weekEnd = getWeekBounds().end;
+  var weekEnd = getPeriodBounds().end;
   var isLastDay = todayDate.toDateString() === new Date(weekEnd).toDateString();
   var streakBonus = (hasRolledEveryDay && isLastDay) ? allDays.length * 5 : 0;
   entry.streak = hasRolledEveryDay ? allDays.length : 0;
@@ -723,31 +731,34 @@ async function renderLeaderboard() {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────
-document.getElementById('weekRange').textContent = getWeekString();
-document.getElementById('lbWeekRange') && (document.getElementById('lbWeekRange').textContent = getWeekString());
-
 // Show 1 and 2 on the dice before the first roll.
 renderDie(document.getElementById('die1'), 1);
 renderDie(document.getElementById('die2'), 2);
 
-// Prize banner is editable from the admin panel (settings table).
-async function loadPrize() {
+// Prize + competition period are editable from the admin panel (settings table).
+async function loadGameSettings() {
   try {
-    var res = await _sb.from('settings').select('key,value').in('key', ['game_prize', 'game_prize_sub']);
+    var res = await _sb.from('settings').select('key,value').in('key', ['game_prize', 'game_prize_sub', 'game_period_start', 'game_period_end']);
     if (res && res.data) {
       var m = {}; res.data.forEach(function (r) { m[r.key] = r.value; });
       if (m.game_prize) document.getElementById('prizeText').textContent = m.game_prize;
       if (m.game_prize_sub) document.getElementById('prizeSub').textContent = m.game_prize_sub;
+      if (m.game_period_start && m.game_period_end) {
+        var s = new Date(m.game_period_start + 'T00:00:00'), e = new Date(m.game_period_end + 'T23:59:59');
+        if (!isNaN(s.getTime()) && !isNaN(e.getTime())) gamePeriod = { start: s, end: e };
+      }
     }
   } catch (e) {}
 }
-loadPrize();
 
 loadPlayer();
-loadScores().then(function() {
-  if (player && scores) {
-    showGame();
-  }
+// Load the competition period FIRST (scores group by it), then the scores.
+loadGameSettings().then(function () {
+  document.getElementById('weekRange').textContent = getWeekString();
+  var lb = document.getElementById('lbWeekRange'); if (lb) lb.textContent = getWeekString();
+  return loadScores();
+}).then(function () {
+  if (player && scores) showGame();
 });
 </script>
 </body>
