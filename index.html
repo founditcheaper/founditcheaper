@@ -1731,8 +1731,22 @@ function _afterLoad() {
   // ── PHASE 2: grid renders when non-pick deals arrive ──────────────────
   try {
     var allRes = await allPromise;
-    if (allRes.data && allRes.data.length > 0) {
-      var _raw = allRes.data.map(function(d) {
+    var _rows = (allRes && allRes.data) ? allRes.data.slice() : [];
+    // Supabase caps a single query at 1000 rows, and we sort newest-date-first — so
+    // once a day fills ~1000 fresh deals, older promo-code deals fall off the grid
+    // entirely. Promo deals are rare and valuable, so pull them in a dedicated query
+    // and merge them in. They always show; they just sort lower because they're older.
+    try {
+      var promoRes = await _sb.from('deals').select('*').eq('is_top_pick', false)
+        .not('code', 'is', null).neq('code', '')
+        .order('active_date', { ascending: false }).limit(1000);
+      if (promoRes && promoRes.data && promoRes.data.length) {
+        var _seenIds = {}; _rows.forEach(function(d) { _seenIds[d.id] = 1; });
+        promoRes.data.forEach(function(d) { if (!_seenIds[d.id]) _rows.push(d); });
+      }
+    } catch (e) {}
+    if (_rows.length > 0) {
+      var _raw = _rows.map(function(d) {
         return {
           id: String(d.id), name: d.name, store: d.store, category: d.category || 'General',
           brand: d.brand, brandName: d.brand_name || '', price: d.price, was: d.was,
@@ -1744,11 +1758,17 @@ function _afterLoad() {
           images: (function() { try { return JSON.parse(d.images || '[]'); } catch(e) { return []; } })(),
         };
       });
-      // Dedup color/size variants: keep one per base name (highest discount wins)
+      // Dedup color/size variants: keep one per base name. Highest discount wins,
+      // but never let a plain deal knock out a promo-code one (codes are the draw).
       var _bestByKey = {};
       _raw.forEach(function(p) {
         var key = _baseNameKey(p.name);
-        if (!_bestByKey[key] || p.off > _bestByKey[key].off) _bestByKey[key] = p;
+        var cur = _bestByKey[key];
+        if (!cur) { _bestByKey[key] = p; return; }
+        var pPromo = !!(p.code && p.code.trim()), curPromo = !!(cur.code && cur.code.trim());
+        if (pPromo && !curPromo) { _bestByKey[key] = p; return; }
+        if (!pPromo && curPromo) return;
+        if (p.off > cur.off) _bestByKey[key] = p;
       });
       allProducts = Object.values(_bestByKey);
     }
