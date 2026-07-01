@@ -893,34 +893,18 @@ function amazonAsin(url) {
 }
 function affiliateUrl(url, store) {
   if (!url || store !== 'Amazon') return url || '#';   // Walmart etc. use their stored affiliate link
-  // Link DIRECTLY to the tagged Amazon URL (not through our /deal/ redirect). A
-  // 302 redirect stops iOS/Android from opening the Amazon app via Universal /
-  // App Links — a direct amazon.com link lets the app open when it's installed.
-  // The affiliate tag is still on the URL, and we log the click separately (a
-  // fire-and-forget beacon on click) so we don't lose click stats.
+  // Route Amazon through our own /deal/<ASIN> linker. That page launches the
+  // Amazon APP (via its iOS scheme / Android intent) when installed — even from
+  // inside Instagram's in-app browser — and falls back to the tagged web page.
+  // It also logs the click and applies the founditchea09-20 tag server-side.
   var asin = amazonAsin(url);
-  if (asin) return 'https://www.amazon.com/dp/' + asin + '?tag=' + ASSOCIATE_TAG;
+  if (asin) return '/deal/' + asin;
+  // Fallback if no ASIN found: force our tag on the direct URL.
   try {
     var u = new URL(url);
     u.searchParams.set('tag', ASSOCIATE_TAG);
     return u.toString();
   } catch(e) { return url; }
-}
-// Non-blocking click log — hits our /deal linker just to record the click; the
-// browser still navigates to the direct Amazon link in the href.
-function logDealClick(url, store) {
-  try {
-    if (store === 'Amazon' && navigator.sendBeacon) {
-      var asin = amazonAsin(url);
-      if (asin) navigator.sendBeacon('/deal/' + asin + '?s=site');
-    }
-  } catch(e) {}
-}
-// In-app browsers (Instagram, Facebook, TikTok, etc.) open links in their own
-// webview and block the hand-off to the Amazon app. Detect them so we can nudge
-// the user to open in their real browser.
-function isInAppBrowser() {
-  return /Instagram|FBAN|FBAV|FB_IAB|TikTok|Musical|Snapchat|Line\/|Pinterest/i.test(navigator.userAgent || '');
 }
 var _dealLoadTimer = null;
 function showDealLoading() {
@@ -1939,12 +1923,7 @@ async function openDrawer(productId) {
   }
 
   // Buttons
-  var _asin = amazonAsin(p.url);
-  var _buyLog = (p.store === 'Amazon' && _asin) ? ' onclick="try{navigator.sendBeacon&&navigator.sendBeacon(\'/deal/' + _asin + '?s=site\')}catch(e){}"' : '';
-  html += '<a class="drawer-view-btn" href="' + affiliateUrl(p.url, p.store) + '"' + _buyLog + ' target="_blank" rel="noopener">View Deal on ' + sName + ' →</a>';
-  if (p.store === 'Amazon' && isInAppBrowser()) {
-    html += '<div style="font-size:11px;color:var(--muted);text-align:center;line-height:1.5;margin-top:8px;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.25);border-radius:8px;padding:8px 10px">Opening from the Instagram or Facebook app? To open this in the Amazon app, tap the <strong>⋯</strong> menu in the corner and choose <strong>Open in browser</strong>.</div>';
-  }
+  html += '<a class="drawer-view-btn" href="' + affiliateUrl(p.url, p.store) + '" target="_blank" rel="noopener">View Deal on ' + sName + ' →</a>';
   html += '<button class="drawer-share-btn" onclick="drawerShareDeal(this)">🔗 Share Deal</button>';
   html += '<div style="font-size:10px;color:var(--muted);text-align:center;line-height:1.5;margin-top:12px">founditcheaper earns from qualifying purchases, including as an Amazon Associate — at no extra cost to you. Prices &amp; codes can change. <a href="founditcheaper-legal.html" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:underline">Full disclosure</a></div>';
 

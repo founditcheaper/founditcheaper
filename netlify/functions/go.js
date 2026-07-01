@@ -1,13 +1,16 @@
 // Self-hosted deep linker — Amazon (replaces JoyLink for Amazon links).
 //
-// A shopper clicks /go/<ASIN> and this function:
-//   1. Validates the ASIN (so the endpoint can't be abused as an open redirect)
-//   2. Builds the Amazon product URL with the founditchea09-20 affiliate tag
-//   3. Logs the click to Supabase (fire-and-forget — never blocks the redirect)
-//   4. 302-redirects the shopper to Amazon
+// A shopper taps /deal/<ASIN> and this function serves a tiny interstitial page
+// that OPENS THE AMAZON APP when it's installed — even from inside an in-app
+// browser like Instagram or Facebook, which is the whole point of a deep link.
+// A plain https://amazon.com link can't do this from those webviews; you have to
+// launch the app's own URL scheme (iOS) / intent:// URL (Android). If the app
+// isn't installed, it falls back to the tagged Amazon web page.
 //
-// Only Amazon is wired up for now. Other stores can be added later once their
-// affiliate programs are connected — see the `store` handling below.
+//   1. Validate the ASIN (so the endpoint can't be abused as an open redirect)
+//   2. Build the app-scheme + web URLs, both carrying the founditchea09-20 tag
+//   3. Log the click to Supabase (fire-and-forget — never blocks anything)
+//   4. Return a page that jumps to the app, falling back to the web
 
 const AFFILIATE_TAG = process.env.AFFILIATE_TAG || 'founditchea09-20';
 
@@ -53,7 +56,7 @@ async function logClick(asin, event) {
       signal: ctrl.signal,
     });
   } catch {
-    // ignore — stats are best-effort, the redirect is what matters
+    // ignore — stats are best-effort, the deep link is what matters
   } finally {
     clearTimeout(timer);
   }
@@ -70,22 +73,69 @@ exports.handler = async function (event) {
     };
   }
 
-  // Build the plain Amazon product URL with only the affiliate tag.
-  // We intentionally do NOT append extra Amazon tracking params (e.g. ascsubtag)
-  // — the policy around them is murky, so we keep the link clean and standard.
-  // Channel tracking is handled by our own click log (the ?s= source), which
-  // never touches the Amazon URL.
-  const dest = `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`;
+  // Plain tagged web URL — the universal fallback (works everywhere).
+  const webUrl = `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`;
+  // iOS: the Amazon shopping app's own URL scheme opens the app to this product.
+  const iosApp = `com.amazon.mobile.shopping.web://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`;
+  // Android: an intent:// URL opens the Amazon app, with a built-in web fallback
+  // if the app isn't installed.
+  const androidIntent =
+    `intent://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}` +
+    `#Intent;scheme=https;package=com.amazon.mShop.android.shopping;` +
+    `S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
 
-  // Log without blocking the redirect.
+  // Log without blocking anything.
   await logClick(asin, event);
 
+  const J = JSON.stringify;
+  const html = `<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Opening Amazon…</title>
+<style>
+  html,body{margin:0;height:100%}
+  body{background:#0a1f33;color:#f5c842;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       display:flex;min-height:100%;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:24px;text-align:center}
+  .s{width:46px;height:46px;border-radius:50%;border:4px solid rgba(245,200,66,.25);border-top-color:#f5c842;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .t{font-size:16px;font-weight:800;letter-spacing:.3px}
+  .h{font-size:13px;color:#8aa0b4}
+  a{color:#f5c842;font-weight:700}
+</style></head>
+<body>
+  <div class="s"></div>
+  <div class="t">Opening Amazon…</div>
+  <div class="h">If it doesn't open automatically, <a id="web" href="${webUrl}">tap here to continue</a>.</div>
+  <script>
+  (function(){
+    var web=${J(webUrl)}, ios=${J(iosApp)}, intent=${J(androidIntent)};
+    var ua=navigator.userAgent||'';
+    var isAndroid=/Android/i.test(ua);
+    var isIOS=/iPhone|iPad|iPod/i.test(ua) || (/(Mac).*(Mobile)/i.test(ua));
+    function go(u){ try{ window.location.href=u; }catch(e){} }
+    if(isAndroid){
+      // intent:// handles the app-or-web decision itself.
+      go(intent);
+      setTimeout(function(){ go(web); }, 2500);
+    } else if(isIOS){
+      // Try the app; if it isn't installed the scheme does nothing, so fall back.
+      go(ios);
+      setTimeout(function(){ go(web); }, 1500);
+    } else {
+      // Desktop / anything else — straight to the web page.
+      go(web);
+    }
+  })();
+  </script>
+</body></html>`;
+
   return {
-    statusCode: 302,
+    statusCode: 200,
     headers: {
-      Location:       dest,
+      'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
     },
-    body: '',
+    body: html,
   };
 };
