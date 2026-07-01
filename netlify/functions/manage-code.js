@@ -87,9 +87,14 @@ exports.handler = async function (event) {
   catch { return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON' }) }; }
 
   const { password, action, amazon_link, promo_code, discount_price } = body;
-  if (!process.env.ADMIN_PASSWORD || password !== process.env.ADMIN_PASSWORD) {
-    return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
-  }
+  // Owner (Erik) and the VA (Kuldeep) may both manage promo deals. Which one is
+  // acting is derived from the password, so uploads get tagged reliably and can't
+  // be spoofed by the client.
+  const role = (process.env.ADMIN_PASSWORD && password === process.env.ADMIN_PASSWORD) ? 'owner'
+             : (process.env.VA_PASSWORD && password === process.env.VA_PASSWORD) ? 'va'
+             : null;
+  if (!role) return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
+  const uploader = role === 'va' ? 'Kuldeep' : 'Erik';
 
   const gwUrl = process.env.SHEET_API_URL;
   const gwTok = process.env.SHEET_API_TOKEN;
@@ -144,6 +149,7 @@ exports.handler = async function (event) {
               img: (prod && prod.img) || '', images: null, url: `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`,
               code: String(promo_code || ''), use_code_url: false, creator: false, brand: false,
               brand_name: (prod && prod.brandName) || null, active_date: today, is_top_pick: false,
+              uploaded_by: uploader,
             };
             const insRes = await fetch(`${sbUrl}/rest/v1/deals`, { method: 'POST', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(row) });
             instant = insRes.ok;

@@ -159,6 +159,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
   <div class="login-box">
     <div class="login-logo">🍌 founditcheaper</div>
     <div class="login-sub">Admin Panel</div>
+    <input type="text" class="login-input" id="loginUser" placeholder="Username (owner can leave blank)" autocapitalize="off" autocorrect="off" onkeydown="if(event.key==='Enter')login()">
     <input type="password" class="login-input" id="loginPass" placeholder="Enter password" onkeydown="if(event.key==='Enter')login()">
     <button class="login-btn" onclick="login()">Sign In</button>
     <div class="login-err" id="loginErr">Incorrect password. Try again.</div>
@@ -172,6 +173,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       <div class="admin-logo">🍌 <span>Admin</span></div>
     </div>
     <div class="header-actions">
+      <span id="whoBadge" style="display:none;align-items:center;gap:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--muted);font-size:12px;font-weight:700;padding:6px 12px;border-radius:20px;white-space:nowrap"></span>
       <span id="changesBadge" onclick="openChangesPanel()" title="Review unpublished changes" style="display:none;align-items:center;gap:6px;cursor:pointer;background:rgba(245,200,66,0.15);border:1px solid rgba(245,200,66,0.55);color:#f5c842;font-size:12px;font-weight:800;padding:6px 12px;border-radius:20px;white-space:nowrap"></span>
       <button class="btn btn-primary" onclick="saveAll()">🚀 Publish to Site</button>
       <button class="btn btn-ghost" onclick="logout()">Sign Out</button>
@@ -189,11 +191,11 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
 
     <!-- TABS -->
     <div class="tabs">
-      <button class="tab active" onclick="switchTab('picks')">📋 Today's Top Deal Picks</button>
-      <button class="tab" onclick="switchTab('promocodes')">🏷️ All Imported Promo Code Deals</button>
-      <button class="tab" onclick="switchTab('autopicker')">🤖 Auto-Fill / Randomizer Settings</button>
-      <button class="tab" onclick="switchTab('schedule')">📅 Schedule</button>
-      <button class="tab" onclick="switchTab('game')">🎲 Dice Game</button>
+      <button class="tab active" id="tabbtn-picks" onclick="switchTab('picks')">📋 Today's Top Deal Picks</button>
+      <button class="tab" id="tabbtn-promocodes" onclick="switchTab('promocodes')">🏷️ All Imported Promo Code Deals</button>
+      <button class="tab" id="tabbtn-autopicker" onclick="switchTab('autopicker')">🤖 Auto-Fill / Randomizer Settings</button>
+      <button class="tab" id="tabbtn-schedule" onclick="switchTab('schedule')">📅 Schedule</button>
+      <button class="tab" id="tabbtn-game" onclick="switchTab('game')">🎲 Dice Game</button>
     </div>
 
     <!-- TAB: TODAY'S PICKS -->
@@ -376,29 +378,39 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
 // Password is validated server-side via save-deals function; we store it
 // locally only for the session so publish calls can include it.
 var sessionPass = '';
+var sessionRole = 'owner';
 document.getElementById('adminWrap').style.display = 'none';
 
 async function login() {
+  var user = (document.getElementById('loginUser').value || '').trim();
   var pass = document.getElementById('loginPass').value;
   if (!pass) return;
-  // Quick local gate — real validation happens server-side on every publish
   var btn = document.querySelector('.login-btn');
   btn.textContent = 'Checking…';
   btn.disabled = true;
+  document.getElementById('loginErr').style.display = 'none';
   try {
-    var res = await fetch('/.netlify/functions/save-deals', {
+    var res = await fetch('/.netlify/functions/admin-auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pass, deals: [], activeDate: '1970-01-01' }),
+      body: JSON.stringify({ username: user, password: pass }),
     });
-    if (res.ok) {
+    var d = {}; try { d = await res.json(); } catch (e) {}
+    if (res.ok && d.ok) {
       sessionPass = pass;
-      try { localStorage.setItem('ficAdminPass', pass); } catch (e) {}
+      sessionRole = d.role || 'owner';
+      try {
+        localStorage.setItem('ficAdminPass', pass);
+        localStorage.setItem('ficAdminUser', user);
+        localStorage.setItem('ficAdminRole', sessionRole);
+      } catch (e) {}
       document.getElementById('loginWrap').style.display = 'none';
       document.getElementById('adminWrap').style.display = 'block';
+      applyRole(sessionRole, d.name);
       initAdmin();
     } else {
-      try { localStorage.removeItem('ficAdminPass'); } catch (e) {}
+      try { localStorage.removeItem('ficAdminPass'); localStorage.removeItem('ficAdminUser'); localStorage.removeItem('ficAdminRole'); } catch (e) {}
+      document.getElementById('loginErr').textContent = 'Incorrect username or password. Try again.';
       document.getElementById('loginErr').style.display = 'block';
     }
   } catch (e) {
@@ -407,18 +419,44 @@ async function login() {
   }
   btn.textContent = 'Sign In'; btn.disabled = false;
 }
+
+// Show only the tabs/controls a role may use. VA (Kuldeep) gets Top Deal Picks +
+// Imported Promo Code Deals; owner (Erik) gets everything. This is a UI convenience —
+// the real lock is server-side (owner-only functions reject the VA's password).
+function applyRole(role, name) {
+  var vaOnly = (role === 'va');
+  ['autopicker', 'schedule', 'game'].forEach(function (t) {
+    var b = document.getElementById('tabbtn-' + t);
+    if (b) b.style.display = vaOnly ? 'none' : '';
+  });
+  var sync = document.getElementById('syncCodesBtn');
+  if (sync) sync.style.display = vaOnly ? 'none' : '';   // VA doesn't use the sheet
+  var badge = document.getElementById('whoBadge');
+  if (badge) { badge.textContent = '👤 ' + (name || (vaOnly ? 'Kuldeep' : 'Erik')); badge.style.display = 'inline-flex'; }
+  if (vaOnly) {
+    var active = document.querySelector('.tab-content.active');
+    if (active && /autopicker|schedule|game/.test(active.id)) switchTab('picks');
+  }
+}
+
 function logout() {
-  try { localStorage.removeItem('ficAdminPass'); } catch (e) {}
+  try { localStorage.removeItem('ficAdminPass'); localStorage.removeItem('ficAdminUser'); localStorage.removeItem('ficAdminRole'); } catch (e) {}
+  sessionPass = ''; sessionRole = 'owner';
   document.getElementById('loginWrap').style.display = 'flex';
   document.getElementById('adminWrap').style.display = 'none';
   document.getElementById('loginPass').value = '';
 }
 
-// Stay logged in across refreshes — restore the saved password and sign in.
+// Stay logged in across refreshes — restore the saved login and sign in.
 window.addEventListener('DOMContentLoaded', function () {
   try {
-    var saved = localStorage.getItem('ficAdminPass');
-    if (saved) { document.getElementById('loginPass').value = saved; login(); }
+    var savedPass = localStorage.getItem('ficAdminPass');
+    var savedUser = localStorage.getItem('ficAdminUser') || '';
+    if (savedPass) {
+      document.getElementById('loginUser').value = savedUser;
+      document.getElementById('loginPass').value = savedPass;
+      login();
+    }
   } catch (e) {}
 });
 
@@ -481,10 +519,16 @@ async function loadPromoCodeDeals() {
   var list = document.getElementById('pcList');
   if (list) list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Loading…</div>';
   try {
-    var res = await fetch(_ADMIN_SB_URL + '/rest/v1/deals?code=not.is.null&select=id,name,price,was,off,code,img,url,store,is_top_pick,created_at&order=created_at.desc', {
-      headers: { apikey: _ADMIN_SB_KEY, Authorization: 'Bearer ' + _ADMIN_SB_KEY }
-    });
+    var _hdr = { apikey: _ADMIN_SB_KEY, Authorization: 'Bearer ' + _ADMIN_SB_KEY };
+    var _base = _ADMIN_SB_URL + '/rest/v1/deals?code=not.is.null&order=created_at.desc&select=';
+    var _cols = 'id,name,price,was,off,code,img,url,store,is_top_pick,created_at';
+    var res = await fetch(_base + _cols + ',uploaded_by', { headers: _hdr });
     _pcDeals = await res.json();
+    if (!Array.isArray(_pcDeals)) {
+      // uploaded_by column may not exist yet (SQL not run) — retry without it.
+      res = await fetch(_base + _cols, { headers: _hdr });
+      _pcDeals = await res.json();
+    }
     if (!Array.isArray(_pcDeals)) _pcDeals = [];
     // Dedup by ASIN (guards against transient duplicate rows), keeping the Top-Pick copy if any.
     var _byA = {};
@@ -530,7 +574,7 @@ function renderPromoCodeDeals() {
       + '<div style="flex:1;min-width:0">'
         + '<div style="font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + nameHtml + '</div>'
         + '<div style="font-size:12px;color:var(--muted)"><span style="color:#4ade80;font-weight:800">$' + d.price + '</span> · code <span style="color:#f5c842;font-weight:700">' + (d.code || '') + '</span> · ' + d.store + (inPicks ? ' &nbsp;' + status : '') + '</div>'
-        + '<div style="font-size:11px;color:var(--muted);margin-top:3px">🕒 Added ' + _fmtAdded(d.created_at) + '</div>'
+        + '<div style="font-size:11px;color:var(--muted);margin-top:3px">🕒 Added ' + _fmtAdded(d.created_at) + (d.uploaded_by ? ' · <span style="color:' + (d.uploaded_by === 'Kuldeep' ? '#7dd3fc' : '#f5c842') + ';font-weight:700">by ' + d.uploaded_by + '</span>' : '') + '</div>'
       + '</div>'
       + copyBtn + editBtn + actions
     + '</div>';
