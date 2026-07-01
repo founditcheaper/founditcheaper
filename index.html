@@ -592,7 +592,7 @@
       <button type="button" class="fbar-btn" id="fbtnCategory" onclick="toggleDrop('dCategory', this, event)">Category<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnPrice" onclick="toggleDrop('dPrice', this, event)">Price Range<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnBrand" onclick="toggleBrand()">Name Brands Only</button>
-      <button type="button" class="fbar-btn" id="fbtnVerified" onclick="toggleVerified(this)" title="Only deals that are at their lowest price in the last 30 days — we track each deal's price history.">✅ Verified Lowest</button>
+      <!-- Verified Lowest button hidden until price history accrues (~Aug 2026). Backend tracker still runs. Re-add: <button type="button" class="fbar-btn" id="fbtnVerified" onclick="toggleVerified(this)" title="Only deals at their lowest price in the last 30 days.">✅ Verified Lowest</button> -->
       <button type="button" class="fbar-btn" id="fbtnInflated" onclick="toggleInflated(this)" title="Hides suspiciously-high discounts (75%+) on no-name brands — the kind that are often fake markdowns.">🚫 Remove Inflated</button>
       <button type="button" class="fbar-btn fbar-clear" onclick="clearFilters()">Clear all</button>
     </div>
