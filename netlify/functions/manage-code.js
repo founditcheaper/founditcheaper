@@ -135,7 +135,7 @@ exports.handler = async function (event) {
           if (price > 0) {
             const off = regular > price ? Math.round((1 - price / regular) * 100) : 0;
             const name = (prod && prod.name) ? prod.name : (titleIn || ('Amazon deal ' + asin));
-            const today = new Date().toISOString().split('T')[0];
+            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
             const sb = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
             await fetch(`${sbUrl}/rest/v1/deals?url=like.*${asin}*&is_top_pick=eq.false`, { method: 'DELETE', headers: { ...sb, Prefer: 'return=minimal' } }).catch(() => {});
             const row = {
@@ -185,7 +185,7 @@ exports.handler = async function (event) {
       const sbUrl = process.env.SUPABASE_URL, sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       if (!sbUrl || !sbKey) return { statusCode: 500, body: JSON.stringify({ error: 'Config error' }) };
       const sb = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
       // When sending a deal back to the grid, make sure it's in the sheet first,
       // so the promo sync keeps it instead of pruning it as "not in the sheet".
       if (action === 'demote' && amazon_link) {

@@ -91,7 +91,7 @@ exports.handler = async function (event) {
 
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const date        = activeDate || new Date().toISOString().split('T')[0];
+  const date        = activeDate || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
   const headers     = {
     apikey:          supabaseKey,
     Authorization:   `Bearer ${supabaseKey}`,

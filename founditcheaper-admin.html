@@ -1139,7 +1139,7 @@ function removeBrand(idx) { ccBrands.splice(idx,1); renderBrands(); }
 // ── UTILS ─────────────────────────────────────────────────────────────
 async function saveAll() {
   if (!sessionPass) { showToast('⚠ Not logged in'); return; }
-  var today = new Date().toISOString().split('T')[0];
+  var today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); // Central date, not UTC
   showToast('Saving…');
   try {
     var res = await fetch('/.netlify/functions/save-deals', {

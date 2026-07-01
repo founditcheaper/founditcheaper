@@ -195,7 +195,7 @@ exports.handler = async function () {
     await fetch(`${sbUrl}/rest/v1/deals?store=eq.Amazon&is_top_pick=eq.false&code=is.null`, { method: 'DELETE', headers: { ...sbHeaders, Prefer: 'return=minimal' } });
   } catch (e) { console.error('[sync-deals-bg] clear failed:', e.message); }
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
   const rows = deals.map((d, i) => ({
     rank: i + 1, name: d.name, store: 'Amazon', category: d.category,
     price: d.price, was: d.was, off: d.off, rating: d.rating || 0, reviews: d.reviews || 0,

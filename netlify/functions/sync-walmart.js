@@ -201,7 +201,7 @@ exports.handler = async function () {
   } catch (e) { console.error('[sync-walmart] clear failed:', e.message); }
 
   // 3. Insert into Supabase
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
   const rows  = deals.map((d, i) => ({
     rank:         i + 1,
     name:         d.name,

@@ -172,8 +172,8 @@ async function fetchProduct(asin, token) {
   };
 }
 
-const todayStr = () => new Date().toISOString().split('T')[0];
-const daysAgo  = n => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().split('T')[0]; };
+const todayStr = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+const daysAgo  = n => new Date(Date.now() - n * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
 
 exports.handler = async function (event) {
   const sbUrl = process.env.SUPABASE_URL;
