@@ -1262,14 +1262,15 @@ async function gridEmailSignup() {
   var msg = document.getElementById('gridEmailMsg');
   if (!input || !input.value.includes('@')) return;
   var email = input.value.trim();
+  if (msg) { msg.style.display = 'block'; msg.style.color = 'var(--muted)'; msg.textContent = 'Joining…'; }
   try {
-    await fetch('/.netlify/functions/subscribe', {
+    var res = await fetch('/.netlify/functions/subscribe', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email, source: 'grid' }),
     });
-  } catch (e) {}
-  if (msg) { msg.style.display = 'block'; }
-  if (input) input.value = '';
+    if (res.ok) { if (msg) { msg.style.color = 'var(--green)'; msg.textContent = '✓ You\'re in!'; } input.value = ''; }
+    else if (msg) { msg.style.color = '#f87171'; msg.textContent = 'Try again.'; }
+  } catch (e) { if (msg) { msg.style.color = '#f87171'; msg.textContent = 'Network error.'; } }
 }
 
 
