@@ -22,10 +22,12 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Valid email required' }) };
   }
 
+  // Publication ID isn't secret (it just identifies the publication); default it
+  // so only the API key needs to be set in Netlify env.
   const apiKey = process.env.BEEHIIV_API_KEY;
-  const pubId  = process.env.BEEHIIV_PUBLICATION_ID;
-  if (!apiKey || !pubId) {
-    return { statusCode: 500, body: JSON.stringify({ ok: false, error: 'Newsletter not configured (missing Beehiiv keys)' }) };
+  const pubId  = process.env.BEEHIIV_PUBLICATION_ID || 'pub_856c3204-96c1-430f-93d6-01d6dda858fc';
+  if (!apiKey) {
+    return { statusCode: 500, body: JSON.stringify({ ok: false, error: 'Newsletter not configured (missing BEEHIIV_API_KEY)' }) };
   }
 
   try {
