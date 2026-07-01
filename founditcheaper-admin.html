@@ -193,6 +193,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       <button class="tab" onclick="switchTab('promocodes')">🏷️ All Imported Promo Code Deals</button>
       <button class="tab" onclick="switchTab('autopicker')">🤖 Auto-Fill / Randomizer Settings</button>
       <button class="tab" onclick="switchTab('schedule')">📅 Schedule</button>
+      <button class="tab" onclick="switchTab('game')">🎲 Dice Game</button>
     </div>
 
     <!-- TAB: TODAY'S PICKS -->
@@ -283,6 +284,20 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <button class="btn btn-primary" id="savePrizeBtn" onclick="saveGamePrize()">Save Prize</button>
         <span id="savePrizeMsg" style="font-size:12px;margin-left:10px"></span>
       </div>
+    </div>
+
+    <!-- TAB: DICE GAME (winners + weekly results) -->
+    <div class="tab-content" id="tab-game">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Dice Game — Winners & Results</div>
+          <div class="section-sub">Every week's standings are saved here permanently, so a weekly reset never loses a winner. Top score each week wins the prize.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <button class="btn btn-ghost" style="flex:1;min-width:0" onclick="loadGameResults()">↻ Refresh Results</button>
+      </div>
+      <div id="gameResults"></div>
     </div>
 
     <!-- TAB: PROMO CODE DEALS (All Deals grid) -->
@@ -408,11 +423,12 @@ async function syncCodes() {
 // ── TABS ─────────────────────────────────────────────────────────────
 function switchTab(id) {
   document.querySelectorAll('.tab').forEach(function(t,i) {
-    t.classList.toggle('active', ['picks','promocodes','autopicker','schedule'][i] === id);
+    t.classList.toggle('active', ['picks','promocodes','autopicker','schedule','game'][i] === id);
   });
   document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
   document.getElementById('tab-' + id).classList.add('active');
   if (id === 'promocodes') loadPromoCodeDeals();
+  if (id === 'game') loadGameResults();
 }
 
 // ── PROMO CODE DEALS (All Deals grid) — list + remove/block ────────────
@@ -1077,6 +1093,53 @@ async function saveGamePrize() {
     else { msg.style.color = '#f87171'; msg.textContent = 'Failed' + (d.error ? ': ' + d.error : ''); }
   } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error'; }
   btn.disabled = false; btn.textContent = 'Save Prize';
+}
+
+// ── DICE GAME RESULTS (weekly winners, saved permanently) ──────────────
+function _weekStartStr(dateObj) {
+  var s = new Date(dateObj); s.setDate(s.getDate() - s.getDay()); s.setHours(0, 0, 0, 0);
+  return s.toISOString().split('T')[0];
+}
+function _currentWeekStart() { return _weekStartStr(new Date()); }
+function _weekRangeLabel(weekStart) {
+  var start = new Date(weekStart + 'T12:00:00'); var end = new Date(start); end.setDate(start.getDate() + 6);
+  return start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' – ' + end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function _esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+
+async function loadGameResults() {
+  var el = document.getElementById('gameResults'); if (!el) return;
+  el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Loading…</div>';
+  try {
+    var res = await fetch(_ADMIN_SB_URL + '/rest/v1/game_scores?select=email,username,week_score,week_start,streak&order=week_start.desc,week_score.desc', { headers: { apikey: _ADMIN_SB_KEY, Authorization: 'Bearer ' + _ADMIN_SB_KEY } });
+    var rows = await res.json();
+    if (!Array.isArray(rows) || !rows.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No dice game plays yet.</div>'; return; }
+    var byWeek = {};
+    rows.forEach(function (r) { (byWeek[r.week_start] = byWeek[r.week_start] || []).push(r); });
+    var weeks = Object.keys(byWeek).filter(function (w) { return w >= '2020-01-01'; }).sort().reverse();
+    var cur = _currentWeekStart();
+    var html = '';
+    weeks.forEach(function (wk) {
+      var players = byWeek[wk].slice().sort(function (a, b) { return b.week_score - a.week_score; });
+      var winner = players[0];
+      var isCur = (wk === cur);
+      var badge = isCur
+        ? '<span style="font-size:11px;font-weight:800;color:#4ade80;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.4);padding:2px 8px;border-radius:4px;white-space:nowrap">● IN PROGRESS</span>'
+        : '<span style="font-size:11px;font-weight:800;color:#f5c842;background:rgba(245,200,66,0.12);border:1px solid rgba(245,200,66,0.35);padding:2px 8px;border-radius:4px;white-space:nowrap">✓ FINAL</span>';
+      html += '<div style="border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:14px;margin-bottom:14px">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap"><div style="font-size:15px;font-weight:800;color:#fff">' + _weekRangeLabel(wk) + '</div>' + badge + '</div>';
+      html += '<div style="background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.3);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:#fff">🏆 <strong>' + (isCur ? 'Leading: ' : 'Winner: ') + _esc(winner.username) + '</strong> — <span style="color:#f5c842;font-weight:800">' + winner.week_score + ' pts</span><br><span style="color:var(--muted);font-size:12px">' + _esc(winner.email) + '</span></div>';
+      html += '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">All players (' + players.length + ')</div>';
+      players.forEach(function (p, i) {
+        html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px">'
+          + '<span style="width:24px;font-weight:800;color:' + (i === 0 ? '#f5c842' : 'var(--muted)') + '">' + (i + 1) + '</span>'
+          + '<span style="flex:1;color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(p.username) + ' <span style="color:var(--muted);font-size:11px">· ' + _esc(p.email) + '</span></span>'
+          + '<span style="font-weight:800;color:#4ade80">' + p.week_score + '</span></div>';
+      });
+      html += '</div>';
+    });
+    el.innerHTML = html;
+  } catch (e) { el.innerHTML = '<div style="color:#f87171;font-size:13px;padding:20px;text-align:center">Could not load results.</div>'; }
 }
 async function saveRunTime(v) {
   try {
