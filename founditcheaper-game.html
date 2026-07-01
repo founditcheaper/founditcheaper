@@ -299,6 +299,15 @@
     font-size: 12px; color: var(--muted); font-weight: 500;
   }
   .your-rank-box strong { color: var(--accent); }
+
+  .see-deals-link {
+    display: block; text-align: center; margin-top: 18px;
+    padding: 15px 16px; border-radius: 10px; text-decoration: none;
+    background: rgba(245,200,66,0.1); border: 1px solid rgba(245,200,66,0.42);
+    color: var(--accent); font-weight: 800; font-size: 15px; letter-spacing: .3px;
+    transition: background .15s, transform .15s;
+  }
+  .see-deals-link:hover { background: rgba(245,200,66,0.18); transform: translateY(-1px); }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -392,6 +401,8 @@
         <div class="guide-row"><span class="guide-combo">📅 Perfect week bonus</span><span class="guide-pts">+5 pts × days played</span></div>
         <div class="guide-row"><span class="guide-combo" style="font-size:10px;color:var(--muted)">Roll every day Sun–Sat · Bonus only paid on final day</span><span class="guide-pts"></span></div>
       </div>
+
+      <a href="/" class="see-deals-link">👉 Click here to see all deals</a>
     </div>
 
   </div>
@@ -468,6 +479,19 @@ function getWeekString() {
 function todayString() {
   var d = DEMO ? demoTodayDate() : new Date();
   return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
+}
+
+// Supabase stores last_roll as a DATE (returns zero-padded "2026-07-01") while
+// todayString() is non-padded ("2026-7-1"). Normalize both before comparing so
+// "did I already roll today?" works after a page refresh.
+function normDay(s) {
+  if (!s) return '';
+  var p = String(s).split('T')[0].split('-');
+  if (p.length < 3) return String(s);
+  return parseInt(p[0],10) + '-' + parseInt(p[1],10) + '-' + parseInt(p[2],10);
+}
+function rolledToday(entry) {
+  return !!(entry && normDay(entry.lastRoll) === normDay(todayString()));
 }
 
 // ── PLAYER STATE ──────────────────────────────────────────────────────
@@ -611,7 +635,7 @@ function updateScoreDisplay() {
 
 function checkAlreadyPlayed() {
   var entry = scores[player.tag];
-  if (entry && entry.lastRoll === todayString()) {
+  if (rolledToday(entry)) {
     document.getElementById('rollBtn').disabled = true;
     document.getElementById('playedMsg').style.display = 'block';
     startCountdown();
@@ -655,6 +679,10 @@ function animateDice(die1El, die2El, callback) {
 }
 
 async function rollDice() {
+  // Guard: never allow a second roll on the same day (except in demo). Protects
+  // against the button somehow being enabled after a refresh.
+  if (!DEMO && rolledToday(scores[player.tag])) { checkAlreadyPlayed(); return; }
+
   document.getElementById('rollBtn').disabled = true;
   die1El = document.getElementById('die1');
   die2El = document.getElementById('die2');
@@ -672,8 +700,10 @@ async function rollDice() {
     allDays.push(cursor.getFullYear()+'-'+(cursor.getMonth()+1)+'-'+cursor.getDate());
     cursor.setDate(cursor.getDate()+1);
   }
-  if (entry.rollDays.indexOf(today) === -1) entry.rollDays.push(today);
-  var hasRolledEveryDay = allDays.every(function(d) { return entry.rollDays.indexOf(d) !== -1; });
+  // Normalize stored roll days (DB dates can be zero-padded) before comparing.
+  var rollSet = {}; entry.rollDays.forEach(function(d) { rollSet[normDay(d)] = 1; });
+  if (!rollSet[normDay(today)]) { entry.rollDays.push(today); rollSet[normDay(today)] = 1; }
+  var hasRolledEveryDay = allDays.every(function(d) { return rollSet[normDay(d)]; });
   var weekEnd = getPeriodBounds().end;
   var isLastDay = todayDate.toDateString() === new Date(weekEnd).toDateString();
   var streakBonus = (hasRolledEveryDay && isLastDay) ? allDays.length * 5 : 0;
