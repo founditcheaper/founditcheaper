@@ -117,13 +117,6 @@ exports.handler = async function (event) {
       if (!asin) return { statusCode: 400, body: JSON.stringify({ error: 'No Amazon ASIN found in that link' }) };
       const retailIn = parseFloat(String(body.retail_price || '').replace(/[^0-9.]/g, '')) || 0;
       const titleIn = String(body.title || '').trim();
-      // Safeguard: DealSeek's interstitial ("We're building DealSeek…") gets scraped
-      // as the title when the real product page wasn't reached — those come in with a
-      // junk title and no image. Never post them (no real Amazon product is named
-      // "DealSeek"). Bail before touching the sheet so it isn't stored anywhere.
-      if (/dealseek/i.test(titleIn)) {
-        return { statusCode: 200, body: JSON.stringify({ ok: false, skipped: true, error: 'Skipped — DealSeek placeholder (no real product title/image)' }) };
-      }
       const res = await callGateway({
         action: 'append',
         amazon_link: String(amazon_link || ''),
@@ -157,14 +150,21 @@ exports.handler = async function (event) {
               code: String(promo_code || ''), use_code_url: false, creator: false, brand: false,
               brand_name: (prod && prod.brandName) || null, active_date: today, is_top_pick: false,
               uploaded_by: uploader,
+              review_status: 'pending',   // held & hidden until review-deals scans it (~10 min)
             };
-            const insRes = await fetch(`${sbUrl}/rest/v1/deals`, { method: 'POST', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(row) });
+            let insRes = await fetch(`${sbUrl}/rest/v1/deals`, { method: 'POST', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(row) });
+            if (!insRes.ok) {
+              // review_status column may not exist yet (SQL not run) — retry without it.
+              const rowNoStatus = { ...row }; delete rowNoStatus.review_status;
+              insRes = await fetch(`${sbUrl}/rest/v1/deals`, { method: 'POST', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(rowNoStatus) });
+            }
             instant = insRes.ok;
           }
         }
       } catch (e) { /* sheet has it; the scheduled sync will pull it in even if this failed */ }
-      // Success if EITHER the sheet append or the instant insert worked.
-      return { statusCode: (res.ok || instant) ? 200 : 502, body: JSON.stringify({ ok: !!(res.ok || instant), asin, instant }) };
+      // Success if EITHER the sheet append or the instant insert worked. The deal is
+      // held (pending) and hidden until review-deals scans it, so report 'queued'.
+      return { statusCode: (res.ok || instant) ? 200 : 502, body: JSON.stringify({ ok: !!(res.ok || instant), asin, instant, queued: true }) };
     }
 
     if (action === 'remove') {
@@ -234,6 +234,19 @@ exports.handler = async function (event) {
         method: 'PATCH', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(patch),
       });
       return { statusCode: r.ok ? 200 : 502, body: JSON.stringify({ ok: r.ok, action: 'edit', id }) };
+    }
+
+    if (action === 'approve') {
+      // Manually publish a pending/flagged deal (from the admin review section).
+      const asin = (body.asin ? String(body.asin) : asinFromUrl(amazon_link)).toUpperCase();
+      if (!/^[A-Z0-9]{10}$/.test(asin)) return { statusCode: 400, body: JSON.stringify({ error: 'Invalid ASIN' }) };
+      const sbUrl = process.env.SUPABASE_URL, sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!sbUrl || !sbKey) return { statusCode: 500, body: JSON.stringify({ error: 'Config error' }) };
+      const sb = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
+      const r = await fetch(`${sbUrl}/rest/v1/deals?url=like.*${asin}*`, {
+        method: 'PATCH', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify({ review_status: 'live', flag_reason: null }),
+      });
+      return { statusCode: r.ok ? 200 : 502, body: JSON.stringify({ ok: r.ok, action: 'approve', asin }) };
     }
 
     return { statusCode: 400, body: JSON.stringify({ error: 'Unknown action' }) };

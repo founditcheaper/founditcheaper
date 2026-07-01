@@ -47,6 +47,13 @@
   schedule = "*/15 * * * *"
   timeout = 26
 
+# Moderation scanner for imported promo deals. Runs every 5 min: publishes pending
+# deals that pass review (older than 10 min), flags DealSeek/other deal-site junk, and
+# re-scans live promo deals for placeholder titles. Hidden deals never touch the site.
+[functions."review-deals"]
+  schedule = "*/5 * * * *"
+  timeout = 26
+
 # Daily price logger for the "Verified Lowest" filter. Records each deal's price
 # once a day (Central) and flags deals sitting at/near their 30-day low. Runs at
 # 7:40 UTC (2:40 AM CT), after the morning grid sync. Kickoff self-gates to the

@@ -1679,10 +1679,16 @@ function _afterLoad() {
   // Separate queries — no JS deduplication needed
   var picksPromise = _sb.from('deals').select('*').eq('is_top_pick', true)
                        .order('active_date', { ascending: false }).order('rank');
-  // First page of the grid deals. Supabase caps each query at 1000 rows, so we
-  // page through the rest below (id is a stable tiebreaker so pages don't overlap).
-  var allPromise   = _sb.from('deals').select('*').eq('is_top_pick', false)
-                       .order('active_date', { ascending: false }).order('rank').order('id').range(0, 999);
+  // Grid page fetch. Supabase caps each query at 1000 rows, so we page through the
+  // rest below (id is a stable tiebreaker). review_status='live' hides moderation-held
+  // deals (pending/flagged); if that column doesn't exist yet, the caller retries
+  // without the filter so nothing breaks before the SQL is run.
+  function _gridPage(from, useReview) {
+    var q = _sb.from('deals').select('*').eq('is_top_pick', false);
+    if (useReview) q = q.eq('review_status', 'live');
+    return q.order('active_date', { ascending: false }).order('rank').order('id').range(from, from + 999);
+  }
+  var allPromise = _gridPage(0, true);
 
   // ── PHASE 1: carousel renders as soon as picks arrive ─────────────────
   try {
@@ -1746,7 +1752,9 @@ function _afterLoad() {
 
   // ── PHASE 2: grid renders when non-pick deals arrive ──────────────────
   try {
+    var _useReview = true;
     var allRes = await allPromise;
+    if (allRes && allRes.error) { _useReview = false; allRes = await _gridPage(0, false); }   // column not there yet
     var _rows = (allRes && allRes.data) ? allRes.data.slice() : [];
     // Page through the rest. Supabase returns at most 1000 rows per request, so a
     // single query only ever loaded the newest ~1000 of ~2500 deals — meaning every
@@ -1755,9 +1763,7 @@ function _afterLoad() {
     if (_rows.length === 1000) {
       var _from = 1000, _CAP = 6000;
       while (_from < _CAP) {
-        var _pg = await _sb.from('deals').select('*').eq('is_top_pick', false)
-          .order('active_date', { ascending: false }).order('rank').order('id')
-          .range(_from, _from + 999);
+        var _pg = await _gridPage(_from, _useReview);
         if (_pg.error || !_pg.data || _pg.data.length === 0) break;
         _rows = _rows.concat(_pg.data);
         if (_pg.data.length < 1000) break;
