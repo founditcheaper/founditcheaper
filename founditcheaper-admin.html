@@ -275,13 +275,13 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       <div class="section-header">
         <div>
           <div class="section-title">All Imported Promo Code Deals</div>
-          <div class="section-sub">Promo-code deals, synced both ways with your Google Sheet. Add or remove here and the sheet updates to match.</div>
+          <div class="section-sub">Synced both ways with your Google Sheet. Deals go live on the site the moment you add them — no “Publish to Site” needed (that button is only for Top Deal Picks).</div>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-ghost" onclick="loadPromoCodeDeals()" title="Reload this list to see deals you just added">↻ Refresh List</button>
-          <button id="syncCodesBtn" class="btn btn-ghost" onclick="syncCodes()" title="Pull the latest sheet deals onto the site now">🔄 Sync Spreadsheet Now</button>
-          <button class="btn btn-ghost" onclick="recategorizeAll()" title="Re-tag every deal's category from its title (runs in the background)">🏷️ Re-categorize all</button>
-        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <button class="btn btn-ghost" style="flex:1;min-width:0" onclick="loadPromoCodeDeals()" title="Reload this list to see deals you just added">↻ Refresh List</button>
+        <button id="syncCodesBtn" class="btn btn-ghost" style="flex:1;min-width:0" onclick="syncCodes()" title="Pull the latest sheet deals onto the site now">🔄 Sync Spreadsheet Now</button>
+        <button class="btn btn-ghost" style="flex:1;min-width:0" onclick="recategorizeAll()" title="Re-tag every deal's category from its title (runs in the background)">🏷️ Re-categorize all</button>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:12px;border:1px solid rgba(245,200,66,0.25);border-radius:8px;margin-bottom:14px">
         <div style="flex:3;min-width:200px"><label class="field-label">Amazon link</label><input class="field-input" id="pcLink" placeholder="https://www.amazon.com/dp/..."></div>
