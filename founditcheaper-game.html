@@ -203,6 +203,23 @@
     60%  { transform: scale(1.06); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
   }
+  /* DEMO / TEST MODE controls */
+  #demoBar {
+    margin: 14px 0 4px; padding: 12px;
+    border: 1px dashed rgba(245,200,66,0.5); border-radius: 10px;
+    background: rgba(245,200,66,0.05); text-align: center;
+  }
+  .demo-flag { font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: .3px; }
+  .demo-day { font-size: 11px; color: var(--muted); margin: 5px 0 9px; font-weight: 600; }
+  .demo-controls { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .demo-btn {
+    background: rgba(255,255,255,0.06); color: #fff;
+    border: 1px solid rgba(255,255,255,0.18); border-radius: 8px;
+    padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+    font-family: 'Barlow Condensed', sans-serif; letter-spacing: .5px;
+  }
+  .demo-btn:hover { background: rgba(255,255,255,0.12); }
+  .demo-exit { border-color: rgba(255,120,120,0.4); color: #ff9a9a; }
 
   /* RESULT */
   .result-box {
@@ -350,6 +367,17 @@
         <span class="countdown">Next roll available in <span id="countdown">—</span></span>
       </div>
 
+      <!-- DEMO CONTROLS (only visible in ?demo=1 test mode) -->
+      <div id="demoBar" style="display:none">
+        <div class="demo-flag">🧪 DEMO MODE — nothing is saved, the live leaderboard is untouched</div>
+        <div class="demo-day" id="demoDayLabel"></div>
+        <div class="demo-controls">
+          <button class="demo-btn" onclick="demoNextDay()">📅 Next Day</button>
+          <button class="demo-btn" onclick="demoReset()">🔁 Reset Demo</button>
+          <button class="demo-btn demo-exit" onclick="exitDemo()">✕ Exit Demo</button>
+        </div>
+      </div>
+
       <div class="scoring-guide">
         <div class="guide-title">Scoring Guide</div>
         <div class="guide-row"><span class="guide-combo">🎲 Any roll</span><span class="guide-pts">Sum of both dice</span></div>
@@ -395,6 +423,17 @@ const WEEK_KEY   = 'fic_week_v1';
 const SCORES_KEY = 'fic_scores_v1';
 const PLAYER_KEY = 'fic_player_v1';
 
+// ── DEMO / TEST MODE ──────────────────────────────────────────────────
+// Add ?demo=1 to the URL (or use the button in the admin panel) to play a
+// full sandbox game: no login, unlimited rolls, simulated days, seeded
+// competitors. Nothing is written to Supabase and the live leaderboard is
+// never touched — it's a safe place to test the real game end-to-end.
+var DEMO = /[?&]demo=(1|true)(&|$)/.test(location.search);
+var demoDayOffset = 0;          // 0 = Sunday … 6 = Saturday (final day)
+var _demoStart = null;
+function demoStart() { if (!_demoStart) _demoStart = getWeekBounds().start; return _demoStart; }
+function demoTodayDate() { var d = new Date(demoStart()); d.setDate(d.getDate() + demoDayOffset); d.setHours(0,0,0,0); return d; }
+
 // Week boundaries
 function getWeekBounds() {
   var now = new Date();
@@ -416,6 +455,7 @@ function formatDate(d) {
 // weekly, etc.). Falls back to the current Sun–Sat week if not configured.
 var gamePeriod = null; // { start: Date, end: Date }
 function getPeriodBounds() {
+  if (DEMO) { var s = demoStart(); var e = new Date(s); e.setDate(s.getDate() + 6); e.setHours(23,59,59,999); return { start: s, end: e }; }
   if (gamePeriod && gamePeriod.start && gamePeriod.end) return gamePeriod;
   return getWeekBounds();
 }
@@ -426,7 +466,7 @@ function getWeekString() {
 }
 
 function todayString() {
-  var d = new Date();
+  var d = DEMO ? demoTodayDate() : new Date();
   return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
 }
 
@@ -456,6 +496,7 @@ function savePlayer() {
 var scores = {};
 
 async function loadScores() {
+  if (DEMO) return;   // demo keeps its own in-memory scores; never read live data
   if (!USE_SUPABASE) {
     try { var raw = localStorage.getItem(SCORES_KEY); if (raw) scores = JSON.parse(raw); } catch(e) {}
     return;
@@ -480,6 +521,7 @@ async function loadScores() {
 }
 
 async function saveScores() {
+  if (DEMO) return;   // demo never persists — no localStorage, no Supabase
   localStorage.setItem(SCORES_KEY, JSON.stringify(scores));
   if (!USE_SUPABASE || !player) return;
   try {
@@ -576,7 +618,9 @@ function checkAlreadyPlayed() {
   }
 }
 
+var _countdownTimer = null;
 function startCountdown() {
+  if (DEMO) { document.getElementById('countdown').textContent = 'use “Next Day” below'; return; }
   function update() {
     var now = new Date(), midnight = new Date();
     midnight.setHours(24,0,0,0);
@@ -586,7 +630,8 @@ function startCountdown() {
     var s = Math.floor((diff%60000)/1000);
     document.getElementById('countdown').textContent = h+'h '+m+'m '+s+'s';
   }
-  update(); setInterval(update, 1000);
+  if (_countdownTimer) clearInterval(_countdownTimer);
+  update(); _countdownTimer = setInterval(update, 1000);
 }
 
 function animateDice(die1El, die2El, callback) {
@@ -622,7 +667,7 @@ async function rollDice() {
   var today = todayString();
   var weekStart = getPeriodBounds().start;
   var allDays = [], cursor = new Date(weekStart);
-  var todayDate = new Date(); todayDate.setHours(0,0,0,0);
+  var todayDate = DEMO ? demoTodayDate() : new Date(); todayDate.setHours(0,0,0,0);
   while (cursor <= todayDate) {
     allDays.push(cursor.getFullYear()+'-'+(cursor.getMonth()+1)+'-'+cursor.getDate());
     cursor.setDate(cursor.getDate()+1);
@@ -803,15 +848,70 @@ async function loadGameSettings() {
   } catch (e) {}
 }
 
-loadPlayer();
-// Load the competition period FIRST (scores group by it), then the scores.
-loadGameSettings().then(function () {
+// ── DEMO MODE HELPERS ─────────────────────────────────────────────────
+var DEMO_DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function demoSeedScores() {
+  // A fresh demo player plus a couple of fake competitors so the leaderboard
+  // looks real. These never leave the browser.
+  scores = {
+    99999: { name: 'You (Demo)', tag: 99999, weekScore: 0, lastRoll: null, streak: 0, rollDays: [] },
+    54321: { name: 'RGV_Deals',  tag: 54321, weekScore: 47, lastRoll: null, streak: 0, rollDays: [] },
+    88012: { name: 'BananaKing', tag: 88012, weekScore: 38, lastRoll: null, streak: 0, rollDays: [] }
+  };
+}
+function updateDemoDayLabel() {
+  var el = document.getElementById('demoDayLabel');
+  if (!el) return;
+  el.textContent = 'Simulated day: ' + DEMO_DAY_NAMES[demoDayOffset] + ' — Day ' + (demoDayOffset + 1) + ' of 7'
+    + (demoDayOffset === 6 ? ' · final day, perfect-week bonus pays out on today’s roll' : '');
+}
+function _demoResetRollUI() {
+  document.getElementById('playedMsg').style.display = 'none';
+  document.getElementById('resultBox').innerHTML = '';
+  var rb = document.getElementById('rollBtn');
+  rb.disabled = false; rb.classList.remove('bonus'); rb.textContent = 'Roll!'; rb.onclick = rollDice;
+  renderDie(document.getElementById('die1'), 1);
+  renderDie(document.getElementById('die2'), 2);
+}
+function demoNextDay() {
+  if (demoDayOffset >= 6) { alert('Demo week is complete (Sunday–Saturday). Hit “Reset Demo” to run it again.'); return; }
+  demoDayOffset++;
+  _demoResetRollUI();
+  updateDemoDayLabel();
+  updateScoreDisplay();
+}
+function demoReset() {
+  demoDayOffset = 0;
+  demoSeedScores();
+  _demoResetRollUI();
+  updateDemoDayLabel();
+  updateScoreDisplay();
+}
+function exitDemo() { location.href = location.pathname; }  // drops ?demo and reloads the real game
+function demoStartGame() {
+  player = { username: 'You (Demo)', email: 'demo@founditcheaper.local', tag: 99999, demo: true };
+  demoSeedScores();
+  document.getElementById('demoBar').style.display = 'block';
+  updateDemoDayLabel();
   document.getElementById('weekRange').textContent = getWeekString();
   var lb = document.getElementById('lbWeekRange'); if (lb) lb.textContent = getWeekString();
-  return loadScores();
-}).then(function () {
-  if (player && scores) showGame();
-});
+  showGame();
+}
+
+loadPlayer();
+if (DEMO) {
+  // Sandbox: skip login + Supabase entirely, drop straight into a test game.
+  loadGameSettings().then(demoStartGame);
+} else {
+  // Load the competition period FIRST (scores group by it), then the scores.
+  loadGameSettings().then(function () {
+    document.getElementById('weekRange').textContent = getWeekString();
+    var lb = document.getElementById('lbWeekRange'); if (lb) lb.textContent = getWeekString();
+    return loadScores();
+  }).then(function () {
+    if (player && scores) showGame();
+  });
+}
 </script>
 </body>
 </html>

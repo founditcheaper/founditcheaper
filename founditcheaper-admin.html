@@ -309,6 +309,20 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <button class="btn btn-primary" id="savePrizeBtn" onclick="saveGameSettings()">Save Game Settings</button>
         <span id="savePrizeMsg" style="font-size:12px;margin-left:10px"></span>
       </div>
+
+      <div class="settings-card" style="margin-bottom:16px">
+        <div class="settings-title">🧪 Test & Restart the Game</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">
+          <strong>Demo game</strong> opens a full sandbox — roll as many times as you want, fast-forward through days, reset anytime. Nothing you do in the demo is saved and the real leaderboard is never touched.<br><br>
+          <strong>Clear all scores</strong> wipes every player's score for a true restart (use this to clear your own test rolls before launch). To start a fresh competition <em>without</em> deleting anything, just set new Competition dates above — a new date range gives everyone a clean leaderboard on its own.
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="window.open('founditcheaper-game.html?demo=1','_blank')">🧪 Open Demo Game</button>
+          <button class="btn btn-ghost" id="resetGameBtn" style="border-color:rgba(255,120,120,0.5);color:#ff9a9a" onclick="clearAllScores()">🗑️ Clear ALL Scores (restart)</button>
+        </div>
+        <span id="resetGameMsg" style="font-size:12px;margin-left:2px;display:block;margin-top:8px"></span>
+      </div>
+
       <div style="display:flex;gap:10px;margin-bottom:14px">
         <button class="btn btn-ghost" style="flex:1;min-width:0" onclick="loadGameResults()">↻ Refresh Results</button>
       </div>
@@ -1093,6 +1107,24 @@ async function loadSettings() {
     if (m.game_period_start != null && document.getElementById('gameStartInput')) document.getElementById('gameStartInput').value = m.game_period_start;
     if (m.game_period_end != null && document.getElementById('gameEndInput')) document.getElementById('gameEndInput').value = m.game_period_end;
   } catch (e) { /* settings table may not exist yet */ }
+}
+async function clearAllScores() {
+  var msg = document.getElementById('resetGameMsg');
+  var btn = document.getElementById('resetGameBtn');
+  if (!confirm('Clear ALL dice-game scores?\n\nThis permanently deletes every player\'s score and cannot be undone. The leaderboard resets to empty for a fresh start.\n\nContinue?')) return;
+  if (!confirm('Last check — this wipes the live leaderboard for everyone. Are you sure?')) return;
+  btn.disabled = true; var orig = btn.textContent; btn.textContent = 'Clearing…';
+  msg.style.color = 'var(--muted)'; msg.textContent = '';
+  try {
+    var res = await fetch('/.netlify/functions/reset-game', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass, scope: 'all' }),
+    });
+    var d = await res.json();
+    if (res.ok && d.ok) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Cleared ' + d.deleted + ' score(s) — leaderboard is now empty'; }
+    else { msg.style.color = '#f87171'; msg.textContent = 'Failed' + (d.error ? ': ' + d.error : ''); }
+  } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error'; }
+  btn.disabled = false; btn.textContent = orig;
 }
 function setGamePreset(days) {
   var today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
