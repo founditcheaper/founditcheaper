@@ -270,8 +270,19 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <button class="btn btn-primary" id="genNowBtn" onclick="generatePicksNow()">🎲 Generate fresh picks now</button>
       </div>
 
-      <div class="settings-card">
-        <div class="settings-title">🎲 Dice Game Prize</div>
+    </div>
+
+    <!-- TAB: DICE GAME (prize editor + winners + weekly results) -->
+    <div class="tab-content" id="tab-game">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Dice Game — Winners & Results</div>
+          <div class="section-sub">Every week's standings are saved here permanently, so a weekly reset never loses a winner. Top score each week wins the prize.</div>
+        </div>
+      </div>
+
+      <div class="settings-card" style="margin-bottom:16px">
+        <div class="settings-title">🎁 This Week's Prize</div>
         <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Shown on the Daily Dice Roll page. Update it each week — changes go live immediately.</div>
         <div class="field-group" style="margin-bottom:10px">
           <label class="field-label">Prize</label>
@@ -283,16 +294,6 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         </div>
         <button class="btn btn-primary" id="savePrizeBtn" onclick="saveGamePrize()">Save Prize</button>
         <span id="savePrizeMsg" style="font-size:12px;margin-left:10px"></span>
-      </div>
-    </div>
-
-    <!-- TAB: DICE GAME (winners + weekly results) -->
-    <div class="tab-content" id="tab-game">
-      <div class="section-header">
-        <div>
-          <div class="section-title">Dice Game — Winners & Results</div>
-          <div class="section-sub">Every week's standings are saved here permanently, so a weekly reset never loses a winner. Top score each week wins the prize.</div>
-        </div>
       </div>
       <div style="display:flex;gap:10px;margin-bottom:14px">
         <button class="btn btn-ghost" style="flex:1;min-width:0" onclick="loadGameResults()">↻ Refresh Results</button>
