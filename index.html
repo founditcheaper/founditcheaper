@@ -1745,14 +1745,18 @@ function _afterLoad() {
 </div>
 
 <!-- SHARED-LINK LOADING OVERLAY (shown while a shared ?deal= link fetches the deal) -->
-<div id="dealLoading" onclick="hideDealLoading()" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(6,18,30,0.82);backdrop-filter:blur(3px);align-items:center;justify-content:center;flex-direction:column;gap:14px">
-  <div class="deal-spinner"></div>
+<div id="dealLoading" onclick="hideDealLoading()" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(6,18,30,0.82);backdrop-filter:blur(3px);align-items:center;justify-content:center;flex-direction:column;gap:16px">
+  <div class="deal-banana">🍌</div>
   <div style="font-size:14px;font-weight:700;color:#f5c842;letter-spacing:.5px">Loading deal…</div>
 </div>
 
 <style>
-  .deal-spinner { width:44px;height:44px;border-radius:50%;border:4px solid rgba(245,200,66,0.25);border-top-color:#f5c842;animation:dealspin 0.8s linear infinite; }
-  @keyframes dealspin { to { transform: rotate(360deg); } }
+  .deal-banana { font-size:56px;line-height:1;animation:bananaSpin 1.1s ease-in-out infinite;will-change:transform; }
+  @keyframes bananaSpin {
+    0%   { transform: rotate(0deg) scale(1); }
+    50%  { transform: rotate(180deg) scale(1.15); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
   #productDrawer { transition: transform 0.3s ease; }
   @media (min-width: 640px) {
     #productDrawer {
