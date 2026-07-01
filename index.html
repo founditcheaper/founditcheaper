@@ -862,10 +862,13 @@ function formatFound(createdAt, activeDate) {
   return null;
 }
 function affiliateUrl(url, store) {
-  if (!url || store !== 'Amazon') return url || '#';
+  if (!url || store !== 'Amazon') return url || '#';   // Walmart etc. use their stored affiliate link
+  // Route Amazon through our own /deal/<ASIN> linker (adds the tag + logs the click).
+  var m = (url).match(/\/dp\/([A-Z0-9]{10})/i) || (url).match(/\b(B0[A-Z0-9]{8})\b/i);
+  if (m) return '/deal/' + m[1].toUpperCase();
+  // Fallback if no ASIN found: force our tag on the direct URL.
   try {
     var u = new URL(url);
-    // Always force our tag — overwrites any stale/wrong tag baked into stored URLs.
     u.searchParams.set('tag', ASSOCIATE_TAG);
     return u.toString();
   } catch(e) { return url; }
