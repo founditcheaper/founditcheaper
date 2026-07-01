@@ -887,17 +887,50 @@ function formatFound(createdAt, activeDate) {
   }
   return null;
 }
+function amazonAsin(url) {
+  var m = (url || '').match(/\/dp\/([A-Z0-9]{10})/i) || (url || '').match(/\b(B0[A-Z0-9]{8})\b/i);
+  return m ? m[1].toUpperCase() : null;
+}
 function affiliateUrl(url, store) {
   if (!url || store !== 'Amazon') return url || '#';   // Walmart etc. use their stored affiliate link
-  // Route Amazon through our own /deal/<ASIN> linker (adds the tag + logs the click).
-  var m = (url).match(/\/dp\/([A-Z0-9]{10})/i) || (url).match(/\b(B0[A-Z0-9]{8})\b/i);
-  if (m) return '/deal/' + m[1].toUpperCase();
-  // Fallback if no ASIN found: force our tag on the direct URL.
+  // Link DIRECTLY to the tagged Amazon URL (not through our /deal/ redirect). A
+  // 302 redirect stops iOS/Android from opening the Amazon app via Universal /
+  // App Links — a direct amazon.com link lets the app open when it's installed.
+  // The affiliate tag is still on the URL, and we log the click separately (a
+  // fire-and-forget beacon on click) so we don't lose click stats.
+  var asin = amazonAsin(url);
+  if (asin) return 'https://www.amazon.com/dp/' + asin + '?tag=' + ASSOCIATE_TAG;
   try {
     var u = new URL(url);
     u.searchParams.set('tag', ASSOCIATE_TAG);
     return u.toString();
   } catch(e) { return url; }
+}
+// Non-blocking click log — hits our /deal linker just to record the click; the
+// browser still navigates to the direct Amazon link in the href.
+function logDealClick(url, store) {
+  try {
+    if (store === 'Amazon' && navigator.sendBeacon) {
+      var asin = amazonAsin(url);
+      if (asin) navigator.sendBeacon('/deal/' + asin + '?s=site');
+    }
+  } catch(e) {}
+}
+// In-app browsers (Instagram, Facebook, TikTok, etc.) open links in their own
+// webview and block the hand-off to the Amazon app. Detect them so we can nudge
+// the user to open in their real browser.
+function isInAppBrowser() {
+  return /Instagram|FBAN|FBAV|FB_IAB|TikTok|Musical|Snapchat|Line\/|Pinterest/i.test(navigator.userAgent || '');
+}
+var _dealLoadTimer = null;
+function showDealLoading() {
+  var el = document.getElementById('dealLoading'); if (el) el.style.display = 'flex';
+  if (_dealLoadTimer) clearTimeout(_dealLoadTimer);
+  _dealLoadTimer = setTimeout(hideDealLoading, 8000);   // safety: never trap the user
+}
+function hideDealLoading() {
+  var el = document.getElementById('dealLoading'); if (el) el.style.display = 'none';
+  if (_dealLoadTimer) { clearTimeout(_dealLoadTimer); _dealLoadTimer = null; }
 }
 function copyCode(code, btn) {
   navigator.clipboard.writeText(code).then(function() {
@@ -1597,10 +1630,13 @@ function _afterLoad() {
   }, 200);
   var params = new URLSearchParams(window.location.search);
   var dealId = params.get('deal');
-  if (dealId) setTimeout(function() {
-    openDrawer(dealId);
-    window.history.replaceState({}, '', window.location.pathname);
-  }, 600);
+  if (dealId) {
+    showDealLoading();   // cover the wait immediately so a shared link never looks blank
+    setTimeout(function() {
+      openDrawer(dealId);
+      window.history.replaceState({}, '', window.location.pathname);
+    }, 400);
+  }
 }
 
 // Load picks (is_top_pick=true) and grid deals (is_top_pick=false) in parallel
@@ -1706,10 +1742,13 @@ function _afterLoad() {
   updateDualPrice();
   var params = new URLSearchParams(window.location.search);
   var dealId = params.get('deal');
-  if (dealId) setTimeout(function() {
-    openDrawer(dealId);
-    window.history.replaceState({}, '', window.location.pathname);
-  }, 600);
+  if (dealId) {
+    showDealLoading();   // cover the wait immediately so a shared link never looks blank
+    setTimeout(function() {
+      openDrawer(dealId);
+      window.history.replaceState({}, '', window.location.pathname);
+    }, 400);
+  }
 })();
 </script>
 <!-- PRODUCT DETAIL DRAWER -->
@@ -1721,7 +1760,15 @@ function _afterLoad() {
   <div id="drawerContent" style="padding:0 18px 40px"></div>
 </div>
 
+<!-- SHARED-LINK LOADING OVERLAY (shown while a shared ?deal= link fetches the deal) -->
+<div id="dealLoading" onclick="hideDealLoading()" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(6,18,30,0.82);backdrop-filter:blur(3px);align-items:center;justify-content:center;flex-direction:column;gap:14px">
+  <div class="deal-spinner"></div>
+  <div style="font-size:14px;font-weight:700;color:#f5c842;letter-spacing:.5px">Loading deal…</div>
+</div>
+
 <style>
+  .deal-spinner { width:44px;height:44px;border-radius:50%;border:4px solid rgba(245,200,66,0.25);border-top-color:#f5c842;animation:dealspin 0.8s linear infinite; }
+  @keyframes dealspin { to { transform: rotate(360deg); } }
   #productDrawer { transition: transform 0.3s ease; }
   @media (min-width: 640px) {
     #productDrawer {
@@ -1799,7 +1846,9 @@ async function openDrawer(productId) {
   }
   if (!p) {
     // Shared link to a deal that isn't in the loaded batch — fetch it directly so
-    // the drawer always opens no matter which deal was shared.
+    // the drawer always opens no matter which deal was shared. Show a loading
+    // overlay while the fetch is in flight (takes ~1–2s).
+    showDealLoading();
     try {
       var r = await _sb.from('deals').select('*').eq('id', pid).limit(1);
       var d = r && r.data && r.data[0];
@@ -1816,7 +1865,7 @@ async function openDrawer(productId) {
       }
     } catch (e) {}
   }
-  if (!p) return;
+  if (!p) { hideDealLoading(); return; }
   currentDrawerProduct = p;
 
   var storeNames = { 'Amazon':'Amazon', 'Walmart':'Walmart', 'HomeDepot':'Home Depot', 'BestBuy':'Best Buy', 'Lowes':"Lowe's" };
@@ -1890,7 +1939,12 @@ async function openDrawer(productId) {
   }
 
   // Buttons
-  html += '<a class="drawer-view-btn" href="' + affiliateUrl(p.url, p.store) + '" target="_blank" rel="noopener">View Deal on ' + sName + ' →</a>';
+  var _asin = amazonAsin(p.url);
+  var _buyLog = (p.store === 'Amazon' && _asin) ? ' onclick="try{navigator.sendBeacon&&navigator.sendBeacon(\'/deal/' + _asin + '?s=site\')}catch(e){}"' : '';
+  html += '<a class="drawer-view-btn" href="' + affiliateUrl(p.url, p.store) + '"' + _buyLog + ' target="_blank" rel="noopener">View Deal on ' + sName + ' →</a>';
+  if (p.store === 'Amazon' && isInAppBrowser()) {
+    html += '<div style="font-size:11px;color:var(--muted);text-align:center;line-height:1.5;margin-top:8px;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.25);border-radius:8px;padding:8px 10px">Opening from the Instagram or Facebook app? To open this in the Amazon app, tap the <strong>⋯</strong> menu in the corner and choose <strong>Open in browser</strong>.</div>';
+  }
   html += '<button class="drawer-share-btn" onclick="drawerShareDeal(this)">🔗 Share Deal</button>';
   html += '<div style="font-size:10px;color:var(--muted);text-align:center;line-height:1.5;margin-top:12px">founditcheaper earns from qualifying purchases, including as an Amazon Associate — at no extra cost to you. Prices &amp; codes can change. <a href="founditcheaper-legal.html" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:underline">Full disclosure</a></div>';
 
@@ -1898,6 +1952,7 @@ async function openDrawer(productId) {
   document.getElementById('drawerOverlay').style.display = 'block';
   document.getElementById('productDrawer').style.display = 'block';
   document.body.style.overflow = 'hidden';
+  hideDealLoading();
 
   // Show thumbnails: first slot is always the main deal image; extra slots from stored/API images.
   // This guarantees clicking thumb[0] always restores the original view.
