@@ -26,7 +26,9 @@ exports.handler = async function (event) {
     }
     filter = `week_start=eq.${body.weekStart}`;
   } else {
-    filter = `player_tag=gte.0`;   // always-true filter → matches every row
+    // week_start is NOT NULL in the schema, so this matches EVERY row — including
+    // old rows whose player_tag is null (player_tag=gte.0 would skip those).
+    filter = `week_start=not.is.null`;
   }
 
   try {
