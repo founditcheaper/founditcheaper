@@ -339,19 +339,19 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
           <div class="section-sub">Synced both ways with your Google Sheet. Deals go live on the site the moment you add them — no “Publish to Site” needed (that button is only for Top Deal Picks).</div>
         </div>
       </div>
-      <div style="display:flex;gap:10px;margin-bottom:14px">
-        <button class="btn btn-ghost" style="flex:1;min-width:0" onclick="loadPromoCodeDeals()" title="Reload this list to see deals you just added">↻ Refresh List</button>
-        <button id="syncCodesBtn" class="btn btn-ghost" style="flex:1;min-width:0" onclick="syncCodes()" title="Pull the latest sheet deals onto the site now">🔄 Sync Spreadsheet Now</button>
-        <!-- Re-categorize all button removed 2026-06-30 (one-time backfill done). Re-add if categories change:
-        <button class="btn btn-ghost" style="flex:1;min-width:0" onclick="recategorizeAll()" title="Re-tag every deal's category from its title (runs in the background)">🏷️ Re-categorize all</button> -->
-      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:12px;border:1px solid rgba(245,200,66,0.25);border-radius:8px;margin-bottom:14px">
         <div style="flex:3;min-width:200px"><label class="field-label">Amazon link</label><input class="field-input" id="pcLink" placeholder="https://www.amazon.com/dp/..."></div>
         <div style="flex:1;min-width:110px"><label class="field-label">Promo code</label><input class="field-input" id="pcCode" placeholder="SAVE20"></div>
         <div style="flex:1;min-width:100px"><label class="field-label">After-code price</label><input class="field-input no-spin" id="pcPrice" type="number" placeholder="19.99"></div>
         <button class="btn btn-green" id="pcAddBtn" onclick="addPromoDeal()" style="flex-shrink:0">+ Add Deal</button>
       </div>
-      <div id="pcTodayStat" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <div id="pcTodayStat" style="display:flex;gap:10px;flex-wrap:wrap"></div>
+        <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost" onclick="loadPromoCodeDeals()" title="Reload this list to see deals you just added">↻ Refresh List</button>
+          <button id="syncCodesBtn" class="btn btn-ghost" onclick="syncCodes()" title="Pull the latest sheet deals onto the site now">🔄 Sync Spreadsheet Now</button>
+        </div>
+      </div>
       <input class="field-input" id="pcSearch" placeholder="Search promo deals by name or code..." style="margin-bottom:12px" oninput="renderPromoCodeDeals()">
       <div id="pcList"></div>
     </div>
@@ -539,15 +539,17 @@ async function loadPromoCodeDeals() {
 }
 function renderPromoCodeDeals() {
   var list = document.getElementById('pcList'); if (!list) return;
+  var q = (document.getElementById('pcSearch').value || '').toLowerCase();
+  var items = _pcDeals.filter(function(d) { return !q || (d.name||'').toLowerCase().indexOf(q) >= 0 || (d.code||'').toLowerCase().indexOf(q) >= 0; });
   var stat = document.getElementById('pcTodayStat');
   if (stat) {
     var todayN = _addedTodayCount();
-    stat.innerHTML =
+    var sHtml =
       '<div style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.45);border-radius:8px;padding:10px 14px;font-size:13px;color:#fff"><span style="font-size:22px;font-weight:900;color:#4ade80">' + todayN + '</span> <span style="color:var(--muted)">added today (Central)</span></div>'
       + '<div style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;color:#fff"><span style="font-size:22px;font-weight:900;color:#f5c842">' + _pcDeals.length + '</span> <span style="color:var(--muted)">total promo deals</span></div>';
+    if (q) sHtml += '<div style="background:rgba(125,211,252,0.1);border:1px solid rgba(125,211,252,0.5);border-radius:8px;padding:10px 14px;font-size:13px;color:#fff"><span style="font-size:22px;font-weight:900;color:#7dd3fc">' + items.length + '</span> <span style="color:var(--muted)">search result' + (items.length === 1 ? '' : 's') + '</span></div>';
+    stat.innerHTML = sHtml;
   }
-  var q = (document.getElementById('pcSearch').value || '').toLowerCase();
-  var items = _pcDeals.filter(function(d) { return !q || (d.name||'').toLowerCase().indexOf(q) >= 0 || (d.code||'').toLowerCase().indexOf(q) >= 0; });
   if (!items.length) { list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No promo code deals' + (q ? ' match your search' : ' yet — your VA\'s sheet feeds these in') + '.</div>'; return; }
   list.innerHTML = items.map(function(d) {
     var asin = _asinFromUrl(d.url);
