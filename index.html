@@ -1092,19 +1092,23 @@ function getFiltered() {
     f.forEach(function(p) { (groups[p.store] = groups[p.store] || []).push(p); });
     Object.keys(groups).forEach(function(s) {
       groups[s].sort(function(a, b) { return valueScore(b) - valueScore(a); });
-      groups[s].forEach(function(p, i) { p._rank = i + (p._jit || 0) * 2.5; });
+      groups[s].forEach(function(p, i) { p._rank = i + (p._jit || 0) * 3.5; });
     });
     f.sort(function(a, b) { return a._rank - b._rank; });
     // Spread similar products apart: walk the ranked list, but for each slot pick
     // the next best deal whose type differs from the one just placed — so you don't
     // get six headphones (or three vacuums) in a row. (_tk cached so this stays fast
     // even with 1000+ deals.)
-    f.forEach(function(p) { if (p._tk === undefined) p._tk = typeKey(p); });
+    // Spread categories apart: when filling each slot, skip past any deal whose
+    // category appeared in the last few placed — so the top reads as a varied mix
+    // across departments instead of clusters of headphones / knife sets, etc.
+    var SPREAD = 4;
+    f.forEach(function(p) { if (p._ck === undefined) p._ck = p.category || typeKey(p); });
     var pool = f.slice(), out = [];
     while (pool.length) {
-      var prev = out.length ? out[out.length - 1]._tk : null;
+      var recent = out.slice(-SPREAD).map(function(x) { return x._ck; });
       var idx = 0;
-      for (var i = 0; i < pool.length; i++) { if (pool[i]._tk !== prev) { idx = i; break; } }
+      for (var i = 0; i < pool.length; i++) { if (recent.indexOf(pool[i]._ck) === -1) { idx = i; break; } }
       out.push(pool.splice(idx, 1)[0]);
     }
     return out;
