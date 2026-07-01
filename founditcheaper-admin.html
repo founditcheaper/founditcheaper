@@ -452,6 +452,7 @@ function renderPromoCodeDeals() {
       ? '<span style="font-size:11px;font-weight:800;color:#f5c842;background:rgba(245,200,66,0.12);border:1px solid rgba(245,200,66,0.35);padding:2px 8px;border-radius:4px;white-space:nowrap">★ In Top Deal Picks</span>'
       : '';
     var editBtn = '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="openEditDeal(\'' + d.id + '\')">Edit</button>';
+    var copyBtn = '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="copyDealLink(\'' + d.id + '\', this)">🔗 Copy Link</button>';
     var actions = inPicks
       ? '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="demoteFromPicks(\'' + asin + '\')">Move back to All Deals</button>'
         + '<button class="abtn abtn-red" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="removePromoDeal(\'' + asin + '\', this)">Remove</button>'
@@ -470,7 +471,7 @@ function renderPromoCodeDeals() {
         + '<div style="font-size:12px;color:var(--muted)"><span style="color:#4ade80;font-weight:800">$' + d.price + '</span> · code <span style="color:#f5c842;font-weight:700">' + (d.code || '') + '</span> · ' + d.store + (inPicks ? ' &nbsp;' + status : '') + '</div>'
         + '<div style="font-size:11px;color:var(--muted);margin-top:3px">🕒 Added ' + _fmtAdded(d.created_at) + '</div>'
       + '</div>'
-      + editBtn + actions
+      + copyBtn + editBtn + actions
     + '</div>';
   }).join('');
 }
@@ -544,6 +545,17 @@ async function removePromoDeal(asin, btn) {
       btn.textContent = 'Remove'; btn.disabled = false;
     }
   } catch (e) { showToast('Network error'); btn.textContent = 'Remove'; btn.disabled = false; }
+}
+
+// ── COPY A SHAREABLE DEAL LINK (opens the deal on the site, code + buy shown) ──
+function copyDealLink(id, btn) {
+  var url = window.location.origin + '/?deal=' + id;
+  var done = function () { var o = btn.textContent; btn.textContent = '✓ Copied'; btn.disabled = true; setTimeout(function () { btn.textContent = o; btn.disabled = false; }, 1500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(done).catch(function () { window.prompt('Copy this deal link:', url); });
+  } else {
+    window.prompt('Copy this deal link:', url);
+  }
 }
 
 // ── RE-CATEGORIZE ALL DEALS (one-time backfill to new Amazon categories) ──
