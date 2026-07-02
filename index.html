@@ -1083,12 +1083,13 @@ function startPicksAutoScroll() {
   // Card scroll-snap would fight a slow pixel drift (snapping back each frame),
   // so turn it off while auto-scrolling; stop() restores it for manual swiping.
   slider.style.scrollSnapType = 'none';
-  var pos = slider.scrollLeft, dir = 1;
+  var pos = slider.scrollLeft, dir = 1, startedAt = Date.now();
   _picksAuto = setInterval(function() {
     if (_picksUserStopped || !document.body.contains(slider)) { clearInterval(_picksAuto); _picksAuto = null; return; }
     var max = slider.scrollWidth - slider.clientWidth;
     if (max <= 4) return;                       // not enough to scroll
-    pos += 1.0 * dir;                            // ~62px/sec drift
+    var ease = Math.min(1, (Date.now() - startedAt) / 600);   // ease in over ~0.6s so it glides into motion (no jerky start)
+    pos += 1.0 * dir * ease;                     // ~62px/sec at full speed
     if (pos >= max) { pos = max; dir = -1; }     // reached end → drift back
     else if (pos <= 0) { pos = 0; dir = 1; }
     slider.scrollLeft = pos;
