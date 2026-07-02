@@ -1054,6 +1054,37 @@ function initSliderScroll(groupId, count) {
   });
 }
 
+// Slowly auto-scroll the Top Picks carousel back and forth. Stops for good the
+// moment the visitor clicks or touches it, so it never fights their browsing.
+var _picksAuto = null;            // interval handle
+var _picksUserStopped = false;    // once true, never auto-scroll again this session
+function startPicksAutoScroll() {
+  if (_picksUserStopped) return;
+  var slider = document.getElementById('slider-today');
+  if (!slider) return;
+  if (_picksAuto) { clearInterval(_picksAuto); _picksAuto = null; }
+  function stop() {
+    _picksUserStopped = true;
+    if (_picksAuto) { clearInterval(_picksAuto); _picksAuto = null; }
+  }
+  var wrap = slider.parentElement || slider;   // covers cards + the arrow buttons
+  if (!wrap._ficAutoBound) {
+    wrap._ficAutoBound = true;
+    wrap.addEventListener('pointerdown', stop, { passive: true });
+    wrap.addEventListener('touchstart', stop, { passive: true });
+  }
+  var pos = slider.scrollLeft, dir = 1;
+  _picksAuto = setInterval(function() {
+    if (_picksUserStopped || !document.body.contains(slider)) { clearInterval(_picksAuto); _picksAuto = null; return; }
+    var max = slider.scrollWidth - slider.clientWidth;
+    if (max <= 4) return;                       // not enough to scroll
+    pos += 0.4 * dir;                            // ~25px/sec — a slow drift
+    if (pos >= max) { pos = max; dir = -1; }     // reached end → drift back
+    else if (pos <= 0) { pos = 0; dir = 1; }
+    slider.scrollLeft = pos;
+  }, 16);
+}
+
 function pickCardHtml(item, rank) {
   var storeMap2 = { 'Amazon':'amz','Walmart':'wmt','HomeDepot':'hd','BestBuy':'bby','Lowes':'low' };
   var storeNames = { 'Amazon':'Amazon','Walmart':'Walmart','HomeDepot':'Home Depot','BestBuy':'Best Buy','Lowes':"Lowe's" };
@@ -1660,6 +1691,7 @@ function _afterLoad() {
         setTimeout(function() { slider.scrollTo({ left: 0, behavior: 'smooth' }); }, 700);
       }, 800);
     }
+    setTimeout(startPicksAutoScroll, 1800);   // begin the slow drift after the intro peek
   }, 200);
   var params = new URLSearchParams(window.location.search);
   var dealId = params.get('deal');
@@ -1746,6 +1778,7 @@ function _afterLoad() {
             setTimeout(function() { slider.scrollTo({ left: 0, behavior: 'smooth' }); }, 700);
           }, 800);
         }
+        setTimeout(startPicksAutoScroll, 1800);   // begin the slow drift after the intro peek
       }, 200);
     }
   } catch (e) {}
