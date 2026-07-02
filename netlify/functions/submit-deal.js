@@ -182,9 +182,11 @@ exports.handler = async function (event) {
       await fetch(`${sbUrl}/rest/v1/deals?url=like.*${d.asin}*&uploaded_by=eq.Seller%20Submission&review_status=eq.pending`, { method: 'DELETE', headers: { ...sb, Prefer: 'return=minimal' } }).catch(() => {});
       let ins = await fetch(`${sbUrl}/rest/v1/deals`, { method: 'POST', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(row) });
       if (!ins.ok) {
-        // ends_at / review_status column may not exist yet — retry without the optional ones.
-        const fallback = { ...row }; delete fallback.ends_at; delete fallback.review_status;
-        ins = await fetch(`${sbUrl}/rest/v1/deals`, { method: 'POST', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(fallback) });
+        // ends_at column may be missing — retry WITHOUT it but KEEP review_status='pending',
+        // so a seller deal never slips onto the site unreviewed. If that still fails, skip it
+        // (leave it in the raw submission) rather than publish it live.
+        const noEnds = { ...row }; delete noEnds.ends_at;
+        ins = await fetch(`${sbUrl}/rest/v1/deals`, { method: 'POST', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(noEnds) });
       }
       if (ins.ok) imported++;
     } catch (e) { /* skip this one */ }
