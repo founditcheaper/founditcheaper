@@ -1088,7 +1088,7 @@ function startPicksAutoScroll() {
     if (_picksUserStopped || !document.body.contains(slider)) { clearInterval(_picksAuto); _picksAuto = null; return; }
     var max = slider.scrollWidth - slider.clientWidth;
     if (max <= 4) return;                       // not enough to scroll
-    pos += 0.6 * dir;                            // ~37px/sec — a slow drift
+    pos += 1.0 * dir;                            // ~62px/sec drift
     if (pos >= max) { pos = max; dir = -1; }     // reached end → drift back
     else if (pos <= 0) { pos = 0; dir = 1; }
     slider.scrollLeft = pos;
