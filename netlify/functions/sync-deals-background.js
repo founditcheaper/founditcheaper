@@ -6,7 +6,10 @@
 
 const AFFILIATE_TAG = 'founditchea09-20';
 const MIN_DISCOUNT  = 10;       // % off — wide net per Erik
-const MAX_DISCOUNT  = 80;       // cap fake/inflated-MSRP deals
+const MAX_DISCOUNT  = 80;       // (legacy) kept for reference; superseded by the brand/no-name caps below
+const BRAND_MAX     = 90;       // recognized brands (and cheap items) may go this high
+const NONAME_MAX    = 65;       // no-name brands capped here — the fake-inflated-MSRP zone
+const CHEAP_EXEMPT  = 25;       // …unless the ORIGINAL price is under $25 (low-risk clearance)
 const MIN_PRICE     = 5;        // skip sub-$5 junk
 const MIN_RATING    = 3.0;      // only cut clearly-bad rated items; 0/unknown is KEPT
 const TIME_CAP_MS   = 780000;   // 13 min — stay safely under the 15-min background limit
@@ -140,10 +143,14 @@ async function discoverDeals() {
         const pct = listing?.price?.savings?.percentage;
         if (price < MIN_PRICE || was <= price) continue;
         const off = (typeof pct === 'number' && pct > 0) ? Math.round(pct) : Math.round((1 - price / was) * 100);
-        if (off < MIN_DISCOUNT || off > MAX_DISCOUNT) continue;
+        if (off < MIN_DISCOUNT) continue;
         const name = it.itemInfo?.title?.displayValue || '';
         const brandName = it.itemInfo?.byLineInfo?.brand?.displayValue || '';
         const brand = isBrand(name, brandName);
+        // Inflated-price cap: recognized brands (and cheap items under $25 original price)
+        // may go up to BRAND_MAX; everything else is held to NONAME_MAX.
+        const offCap = (brand || was < CHEAP_EXEMPT) ? BRAND_MAX : NONAME_MAX;
+        if (off > offCap) continue;
         const rating = it.customerReviews?.starRating?.value || 0;
         if (rating > 0 && rating < MIN_RATING) continue;
         newOnPage++;
