@@ -1066,6 +1066,7 @@ function startPicksAutoScroll() {
   function stop() {
     _picksUserStopped = true;
     if (_picksAuto) { clearInterval(_picksAuto); _picksAuto = null; }
+    slider.style.scrollSnapType = '';         // restore card snapping for manual swipes
   }
   var wrap = slider.parentElement || slider;   // covers cards + the arrow buttons
   if (!wrap._ficAutoBound) {
@@ -1073,6 +1074,9 @@ function startPicksAutoScroll() {
     wrap.addEventListener('pointerdown', stop, { passive: true });
     wrap.addEventListener('touchstart', stop, { passive: true });
   }
+  // Card scroll-snap would fight a slow pixel drift (snapping back each frame),
+  // so turn it off while auto-scrolling; stop() restores it for manual swiping.
+  slider.style.scrollSnapType = 'none';
   var pos = slider.scrollLeft, dir = 1;
   _picksAuto = setInterval(function() {
     if (_picksUserStopped || !document.body.contains(slider)) { clearInterval(_picksAuto); _picksAuto = null; return; }
