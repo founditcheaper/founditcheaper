@@ -310,6 +310,11 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         </div>
         <button class="btn btn-primary" id="savePrizeBtn" onclick="saveGameSettings()">Save Game Settings</button>
         <span id="savePrizeMsg" style="font-size:12px;margin-left:10px"></span>
+        <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:14px;padding-top:14px">
+          <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:8px">Ends the game right now, before the end date — the page shows no game running and no one can roll. Scores are kept. To start it back up, just set new Competition dates and Save.</div>
+          <button class="btn btn-ghost" id="forceEndBtn" style="border-color:rgba(255,120,120,0.5);color:#ff9a9a" onclick="forceEndGame()">⏹ Force End Game Now</button>
+          <span id="forceEndMsg" style="font-size:12px;margin-left:10px"></span>
+        </div>
       </div>
 
       <div class="settings-card" style="margin-bottom:16px">
@@ -1290,6 +1295,22 @@ async function saveGameSettings() {
     else { msg.style.color = '#f87171'; msg.textContent = 'Failed' + (d.error ? ': ' + d.error : ''); }
   } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error'; }
   btn.disabled = false; btn.textContent = 'Save Game Settings';
+}
+async function forceEndGame() {
+  if (!confirm('Force end the game now? The dice page will show no game running and no one can roll. Scores are kept. You can start a new game anytime by setting Competition dates and saving.')) return;
+  var msg = document.getElementById('forceEndMsg');
+  var btn = document.getElementById('forceEndBtn');
+  btn.disabled = true; btn.textContent = 'Ending…';
+  try {
+    var res = await fetch('/.netlify/functions/save-settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass, gameEnded: true }),
+    });
+    var d = await res.json();
+    if (res.ok && d.ok) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Game ended — live on the game page'; }
+    else { msg.style.color = '#f87171'; msg.textContent = 'Failed' + (d.error ? ': ' + d.error : ''); }
+  } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error'; }
+  btn.disabled = false; btn.textContent = '⏹ Force End Game Now';
 }
 
 // ── DICE GAME RESULTS (weekly winners, saved permanently) ──────────────

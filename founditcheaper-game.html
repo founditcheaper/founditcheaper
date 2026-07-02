@@ -516,10 +516,12 @@ function formatDate(d) {
 // weekly, etc.). Falls back to the current Sun–Sat week if not configured.
 var gamePeriod = null; // { start: Date, end: Date }
 var _gameStart = null, _gameEnd = null;   // raw YYYY-MM-DD from admin settings (for the live check)
+var _gameEnded = false;                    // admin "force end" override (ends the round regardless of dates)
 // A game is "live" only when an admin has set a competition period that covers today.
 // (Demo mode is always playable.) No configured period → no game → don't let anyone roll.
 function gameIsLive() {
   if (typeof DEMO !== 'undefined' && DEMO) return true;
+  if (_gameEnded) return false;   // admin force-ended this round
   if (!_gameStart || !_gameEnd) return false;
   var today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
   return today >= _gameStart && today <= _gameEnd;
@@ -978,9 +980,10 @@ renderDie(document.getElementById('die2'), 2);
 // Prize + competition period are editable from the admin panel (settings table).
 async function loadGameSettings() {
   try {
-    var res = await _sb.from('settings').select('key,value').in('key', ['game_prize', 'game_prize_sub', 'game_period_start', 'game_period_end']);
+    var res = await _sb.from('settings').select('key,value').in('key', ['game_prize', 'game_prize_sub', 'game_period_start', 'game_period_end', 'game_ended']);
     if (res && res.data) {
       var m = {}; res.data.forEach(function (r) { m[r.key] = r.value; });
+      _gameEnded = (m.game_ended === '1' || m.game_ended === 'true');
       if (m.game_prize) document.getElementById('prizeText').textContent = m.game_prize;
       if (m.game_prize_sub) document.getElementById('prizeSub').textContent = m.game_prize_sub;
       if (m.game_period_start && m.game_period_end) {
