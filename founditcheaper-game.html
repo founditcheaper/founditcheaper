@@ -709,7 +709,7 @@ function showGame() {
   document.getElementById('gameArea').style.display = 'block';
   document.getElementById('playerNameDisplay').innerHTML = player.username + ' <span style="color:var(--muted);font-weight:600">#' + player.tag + '</span>';
   var idn = document.getElementById('playerIdNote');
-  if (idn) idn.innerHTML = 'Your player ID is <strong style="color:var(--accent)">#' + player.tag + '</strong> — this is how you\'ll spot yourself on the leaderboard. Same email always gets you the same ID.';
+  if (idn) idn.innerHTML = 'Your player ID is <strong style="color:var(--accent)">#' + player.tag + '</strong><br>This is how you\'ll spot yourself on the leaderboard.<br>Same email always gets you the same ID.';
   updateScoreDisplay();
   checkAlreadyPlayed();
   var pw = document.getElementById('perfectWeekRows'); if (pw) pw.style.display = gameIsFullWeek() ? '' : 'none';
