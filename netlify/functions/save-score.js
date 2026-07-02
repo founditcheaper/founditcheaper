@@ -33,12 +33,13 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Bad score' }) };
   }
 
-  // last_roll is a DATE (the day the player last rolled) — it drives the
-  // one-roll-per-day check, NOT a numeric dice value. Pass it through as a
-  // date string (the client may send an unpadded YYYY-M-D), else null.
+  // last_roll is the TIMESTAMP of the player's most recent roll — it drives the
+  // one-roll-per-hour cooldown, NOT a numeric dice value. Accept an ISO timestamp
+  // (what the client sends via Date.toISOString()); else null.
   let lastRoll = null;
-  if (body.last_roll != null && /^\d{4}-\d{1,2}-\d{1,2}$/.test(String(body.last_roll))) {
-    lastRoll = String(body.last_roll);
+  if (body.last_roll != null) {
+    const s = String(body.last_roll);
+    if (/^\d{4}-\d{2}-\d{2}T/.test(s) && !isNaN(Date.parse(s))) lastRoll = s;
   }
 
   // roll_days: array of YYYY-MM-DD strings, deduped and capped.

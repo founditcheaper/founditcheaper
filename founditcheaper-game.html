@@ -330,7 +330,7 @@
   <div class="prize-banner">
     <div class="prize-eyebrow">🎁 This Round's Prize</div>
     <div class="prize-text" id="prizeText">$25 Amazon Gift Card</div>
-    <div class="prize-sub" id="prizeSub">Highest score by the end of the round wins · One roll per day</div>
+    <div class="prize-sub" id="prizeSub">Highest score by the end of the round wins · One roll per hour</div>
     <div class="week-range" id="weekRange"></div>
   </div>
 
@@ -354,7 +354,7 @@
     <div id="emailGate" class="email-gate">
       <div class="gate-icon">🎲</div>
       <div class="gate-title">Daily Dice Roll</div>
-      <div class="gate-sub">Enter your email and pick a display name to play.<br>One roll per day. Points stack all week. Top score wins.</div>
+      <div class="gate-sub">Enter your email and pick a display name to play.<br>One roll per hour. Points stack all round. Top score wins.</div>
       <div class="email-input-wrap">
         <input type="text" class="username-input" id="usernameInput" placeholder="Display name (e.g. DealHunter_RGV)" maxlength="20">
         <input type="email" class="email-input" id="emailInput" placeholder="your@email.com">
@@ -385,8 +385,8 @@
       </div>
 
       <div id="playedMsg" style="display:none" class="played-msg">
-        ✓ You already rolled today!<br>
-        <span class="countdown">Next roll available in <span id="countdown">—</span></span>
+        ✓ You already rolled this hour<br>
+        <span class="countdown"><span id="countdown">—</span></span>
       </div>
 
       <!-- DEMO CONTROLS (only visible in ?demo=1 test mode) -->
@@ -563,8 +563,16 @@ function normDay(s) {
   if (p.length < 3) return String(s);
   return parseInt(p[0],10) + '-' + parseInt(p[1],10) + '-' + parseInt(p[2],10);
 }
-function rolledToday(entry) {
-  return !!(entry && normDay(entry.lastRoll) === normDay(todayString()));
+// One roll per hour. last_roll holds the timestamp of the most recent roll (live) or
+// the demo day string (demo). A live player is locked until an hour has passed; demo
+// stays day-based so the "Next Day" button still lets you roll again.
+var ROLL_COOLDOWN_MS = 3600000;   // 1 hour
+function rollLocked(entry) {
+  if (!entry || !entry.lastRoll) return false;
+  if (DEMO) return normDay(entry.lastRoll) === normDay(todayString());
+  var lastMs = Date.parse(entry.lastRoll);
+  if (isNaN(lastMs)) return false;
+  return Date.now() < lastMs + ROLL_COOLDOWN_MS;
 }
 
 // ── PLAYER STATE ──────────────────────────────────────────────────────
@@ -745,7 +753,7 @@ function updateScoreDisplay() {
 
 function checkAlreadyPlayed() {
   var entry = scores[player.tag];
-  if (rolledToday(entry)) {
+  if (rollLocked(entry)) {
     document.getElementById('rollBtn').disabled = true;
     document.getElementById('playedMsg').style.display = 'block';
     startCountdown();
@@ -754,15 +762,23 @@ function checkAlreadyPlayed() {
 
 var _countdownTimer = null;
 function startCountdown() {
-  if (DEMO) { document.getElementById('countdown').textContent = 'use “Next Day” below'; return; }
+  var cd = document.getElementById('countdown');
+  if (DEMO) { if (cd) cd.textContent = 'use “Next Day” below to roll again'; return; }
+  var entry = player ? scores[player.tag] : null;
+  var lastMs = entry && entry.lastRoll ? Date.parse(entry.lastRoll) : NaN;
+  if (isNaN(lastMs)) return;
+  var nextMs = lastMs + ROLL_COOLDOWN_MS;
   function update() {
-    var now = new Date(), midnight = new Date();
-    midnight.setHours(24,0,0,0);
-    var diff = midnight - now;
-    var h = Math.floor(diff/3600000);
-    var m = Math.floor((diff%3600000)/60000);
+    var diff = nextMs - Date.now();
+    if (diff <= 0) {   // cooldown over — let them roll again without a refresh
+      if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
+      document.getElementById('playedMsg').style.display = 'none';
+      var b = document.getElementById('rollBtn'); if (b) { b.disabled = false; b.textContent = 'Roll!'; }
+      return;
+    }
+    var m = Math.floor(diff/60000);
     var s = Math.floor((diff%60000)/1000);
-    document.getElementById('countdown').textContent = h+'h '+m+'m '+s+'s';
+    if (cd) cd.textContent = 'Next roll in ' + m + 'm ' + s + 's';
   }
   if (_countdownTimer) clearInterval(_countdownTimer);
   update(); _countdownTimer = setInterval(update, 1000);
@@ -791,9 +807,9 @@ function animateDice(die1El, die2El, callback) {
 async function rollDice() {
   // Guard: no live game → nothing to roll into (nothing would be saved/counted).
   if (!gameIsLive()) { applyGameLiveState(); return; }
-  // Guard: never allow a second roll on the same day (except in demo). Protects
-  // against the button somehow being enabled after a refresh.
-  if (!DEMO && rolledToday(scores[player.tag])) { checkAlreadyPlayed(); return; }
+  // Guard: never allow a roll while the one-hour cooldown is active (except in demo).
+  // Protects against the button somehow being enabled after a refresh.
+  if (!DEMO && rollLocked(scores[player.tag])) { checkAlreadyPlayed(); return; }
 
   document.getElementById('rollBtn').disabled = true;
   die1El = document.getElementById('die1');
@@ -814,11 +830,14 @@ async function rollDice() {
   }
   // Normalize stored roll days (DB dates can be zero-padded) before comparing.
   var rollSet = {}; entry.rollDays.forEach(function(d) { rollSet[normDay(d)] = 1; });
-  if (!rollSet[normDay(today)]) { entry.rollDays.push(today); rollSet[normDay(today)] = 1; }
+  var firstRollToday = !rollSet[normDay(today)];
+  if (firstRollToday) { entry.rollDays.push(today); rollSet[normDay(today)] = 1; }
   var hasRolledEveryDay = allDays.every(function(d) { return rollSet[normDay(d)]; });
   var weekEnd = getPeriodBounds().end;
   var isLastDay = todayDate.toDateString() === new Date(weekEnd).toDateString();
-  var streakBonus = (gameIsFullWeek() && hasRolledEveryDay && isLastDay) ? allDays.length * 5 : 0;
+  // Pay the perfect-week bonus once — on the first roll of the final day — not on every
+  // hourly roll that day.
+  var streakBonus = (firstRollToday && gameIsFullWeek() && hasRolledEveryDay && isLastDay) ? allDays.length * 5 : 0;
   entry.streak = hasRolledEveryDay ? allDays.length : 0;
 
   // Roll sequence. bonusRemaining = how many extra rolls the FIRST roll earned:
@@ -838,7 +857,7 @@ async function rollDice() {
     });
     if (rolls.length > 1 || streakBonus > 0) {
       html += '<div style="text-align:center;padding:10px;font-size:14px;color:var(--accent);font-weight:800;border-top:1px solid rgba(255,255,255,0.08);margin-top:4px">';
-      html += 'Total today: '+(totalPoints+streakBonus)+' pts';
+      html += 'Roll total: '+(totalPoints+streakBonus)+' pts';
       if (streakBonus > 0) html += '<div style="font-size:11px;color:var(--green);font-weight:600;margin-top:2px">+'+streakBonus+' perfect week bonus included!</div>';
       html += '</div>';
     }
@@ -920,7 +939,7 @@ async function rollDice() {
   function finalizeRoll() {
     var finalTotal = totalPoints + streakBonus;
     entry.weekScore = (entry.weekScore || 0) + finalTotal;
-    entry.lastRoll = today;
+    entry.lastRoll = DEMO ? today : new Date().toISOString();   // live: timestamp for the hourly cooldown
     entry.name = player.username;
     entry.tag = player.tag;
     scores[player.tag] = entry;
