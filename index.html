@@ -230,6 +230,10 @@
 
   /* PICKS SECTION (full width) */
   .picks-outer { padding: 20px 24px 0; max-width: 1200px; margin: 0 auto; width: 100%; }
+  /* In the dice-game embed, let the carousel span the full iframe width so it lines
+     up with the game content (no extra side inset making it look narrower). */
+  .fic-embed .picks-outer { padding-left: 0; padding-right: 0; }
+  .fic-embed .picks-slider-wrap { padding-left: 0; padding-right: 0; }
   .filters-bar-outer { background: transparent; border-bottom: none; }
   .filters-top { width: 100%; padding: 0 0 10px; box-sizing: border-box; }
   .filters-toggle { display: none; }  /* shown only on phones */
@@ -831,6 +835,7 @@ function postEmbedHeight() {
 }
 function initEmbed() {
   if (!EMBED) return;
+  document.documentElement.classList.add('fic-embed');   // widens the carousel edge-to-edge in the iframe
   document.body.style.background = 'transparent';
   document.documentElement.style.background = 'transparent';
   document.body.style.margin = '0';
@@ -1082,7 +1087,7 @@ function startPicksAutoScroll() {
     if (_picksUserStopped || !document.body.contains(slider)) { clearInterval(_picksAuto); _picksAuto = null; return; }
     var max = slider.scrollWidth - slider.clientWidth;
     if (max <= 4) return;                       // not enough to scroll
-    pos += 0.4 * dir;                            // ~25px/sec — a slow drift
+    pos += 0.6 * dir;                            // ~37px/sec — a slow drift
     if (pos >= max) { pos = max; dir = -1; }     // reached end → drift back
     else if (pos <= 0) { pos = 0; dir = 1; }
     slider.scrollLeft = pos;
