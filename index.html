@@ -1724,10 +1724,19 @@ function _afterLoad() {
   // looks like they landed on the wrong page). openDrawer hides the overlay when it opens.
   var _sharedDealId = new URLSearchParams(window.location.search).get('deal');
   if (_sharedDealId) {
-    showDealLoading();
-    openDrawer(_sharedDealId).finally(function () {
-      window.history.replaceState({}, '', window.location.pathname);
-    });
+    showDealLoading();   // instant cover overlay (this fn is defined in this same script block)
+    // openDrawer is declared in a LATER <script> block, so it isn't defined yet while this
+    // one runs (function declarations don't hoist across blocks). Wait for DOMContentLoaded
+    // — by then every block has executed and openDrawer exists. This still fires early, in
+    // parallel with the grid load kicked off below, so the single-row fetch opens the
+    // drawer in ~0.3s and the shopper never sees the wrong grid.
+    var _openShared = function () {
+      openDrawer(_sharedDealId).finally(function () {
+        window.history.replaceState({}, '', window.location.pathname);
+      });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _openShared);
+    else _openShared();
   }
 
   // Separate queries — no JS deduplication needed
