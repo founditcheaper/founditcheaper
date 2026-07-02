@@ -311,23 +311,24 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <button class="btn btn-primary" id="savePrizeBtn" onclick="saveGameSettings()">Save Game Settings</button>
         <span id="savePrizeMsg" style="font-size:12px;margin-left:10px"></span>
         <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:14px;padding-top:14px">
-          <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:8px">Ends the game right now, before the end date — the page shows no game running and no one can roll. Scores are kept. To start it back up, just set new Competition dates and Save.</div>
-          <button class="btn btn-ghost" id="forceEndBtn" style="border-color:rgba(255,120,120,0.5);color:#ff9a9a" onclick="forceEndGame()">⏹ Force End Game Now</button>
-          <span id="forceEndMsg" style="font-size:12px;margin-left:10px"></span>
+          <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:8px"><strong>Force End</strong> stops the game now, before the end date — the page shows no game running and no one can roll; scores are kept. Start it back up by setting new Competition dates and saving. <strong>Clear ALL Scores</strong> wipes every player's score for a true restart (use it to clear test rolls before launch).</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-ghost" id="forceEndBtn" style="border-color:rgba(255,120,120,0.5);color:#ff9a9a" onclick="forceEndGame()">⏹ Force End Game Now</button>
+            <button class="btn btn-ghost" id="resetGameBtn" style="border-color:rgba(255,120,120,0.5);color:#ff9a9a" onclick="clearAllScores()">🗑️ Clear ALL Scores (restart)</button>
+          </div>
+          <span id="forceEndMsg" style="font-size:12px;display:block;margin-top:8px"></span>
+          <span id="resetGameMsg" style="font-size:12px;display:block;margin-top:4px"></span>
         </div>
       </div>
 
       <div class="settings-card" style="margin-bottom:16px">
         <div class="settings-title">🧪 Test & Restart the Game</div>
         <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">
-          <strong>Demo game</strong> opens a full sandbox — roll as many times as you want, fast-forward through days, reset anytime. Nothing you do in the demo is saved and the real leaderboard is never touched.<br><br>
-          <strong>Clear all scores</strong> wipes every player's score for a true restart (use this to clear your own test rolls before launch). To start a fresh competition <em>without</em> deleting anything, just set new Competition dates above — a new date range gives everyone a clean leaderboard on its own.
+          <strong>Demo game</strong> opens a full sandbox — roll as many times as you want, fast-forward through days, reset anytime. Nothing you do in the demo is saved and the real leaderboard is never touched. To start a fresh competition <em>without</em> deleting anything, just set new Competition dates above — a new date range gives everyone a clean leaderboard on its own. (Force End and Clear ALL Scores live up in the Prize &amp; Competition Dates card.)
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="window.open('founditcheaper-game.html?demo=1','_blank')">🧪 Open Demo Game</button>
-          <button class="btn btn-ghost" id="resetGameBtn" style="border-color:rgba(255,120,120,0.5);color:#ff9a9a" onclick="clearAllScores()">🗑️ Clear ALL Scores (restart)</button>
         </div>
-        <span id="resetGameMsg" style="font-size:12px;margin-left:2px;display:block;margin-top:8px"></span>
       </div>
 
       <div style="display:flex;gap:10px;margin-bottom:14px">
