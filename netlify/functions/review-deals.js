@@ -117,7 +117,18 @@ exports.handler = async function () {
     }
   } catch (e) { /* ignore */ }
 
-  const result = { ok: true, published, flagged, flaggedLive, heldForApi, pendingSeen: pending.length };
+  // C) Expiry sweep — remove any deal whose seller-set end date (ends_at) has passed.
+  // (The frontend also hides these instantly; this keeps the table + admin tidy.)
+  let expired = 0;
+  try {
+    const nowIso = new Date().toISOString();
+    const del = await fetch(`${sbUrl}/rest/v1/deals?ends_at=lt.${encodeURIComponent(nowIso)}&is_top_pick=eq.false`, {
+      method: 'DELETE', headers: { ...H, Prefer: 'return=representation' },
+    });
+    if (del.ok) { const gone = await del.json().catch(() => []); expired = Array.isArray(gone) ? gone.length : 0; }
+  } catch (e) { /* ignore — the ends_at column may not exist yet */ }
+
+  const result = { ok: true, published, flagged, flaggedLive, heldForApi, expired, pendingSeen: pending.length };
   console.log('[review-deals]', JSON.stringify(result));
   return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(result) };
 };

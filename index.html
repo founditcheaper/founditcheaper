@@ -1236,6 +1236,9 @@ function getFiltered() {
     }
     // Verified Lowest: only deals flagged as at/near their 30-day low
     if (state.verifiedOnly && !p.verifiedLow) return false;
+    // Expiry: a seller-set end date that has passed hides the deal instantly (a cleanup
+    // job also removes the row; this makes it disappear the moment it lapses).
+    if (p.endsAt && new Date(p.endsAt).getTime() < Date.now()) return false;
     return true;
   });
   if (state.sort === 'value') {
@@ -1841,6 +1844,7 @@ function _afterLoad() {
           rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
           found: formatFound(d.created_at, d.active_date), code: d.code || null,
           verifiedLow: !!d.verified_low,   // at/near its 30-day low (set by the price-tracking job)
+          endsAt: d.ends_at || null,       // seller-set expiry — deal is hidden once this passes
           _jit: Math.random(),   // stable per-load jitter so the Top Value sort interleaves stores
           images: (function() { try { return JSON.parse(d.images || '[]'); } catch(e) { return []; } })(),
         };
@@ -1991,6 +1995,7 @@ async function openDrawer(productId) {
           rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
           found: formatFound(d.created_at, d.active_date), code: d.code || null,
           verifiedLow: !!d.verified_low,
+          endsAt: d.ends_at || null,       // seller-set expiry — deal is hidden once this passes
           images: (function() { try { return JSON.parse(d.images || '[]'); } catch(e) { return []; } })(),
         };
       }

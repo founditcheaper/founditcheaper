@@ -192,7 +192,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
     <!-- TABS -->
     <div class="tabs">
       <button class="tab active" id="tabbtn-picks" onclick="switchTab('picks')">📋 Today's Top Deal Picks</button>
-      <button class="tab" id="tabbtn-promocodes" onclick="switchTab('promocodes')">🏷️ All Imported Promo Code Deals</button>
+      <button class="tab" id="tabbtn-promocodes" onclick="_pcSource='';switchTab('promocodes')">🏷️ Promo &amp; Seller Deals</button>
       <button class="tab" id="tabbtn-autopicker" onclick="switchTab('autopicker')">🤖 Auto-Fill / Randomizer Settings</button>
       <button class="tab" id="tabbtn-schedule" onclick="switchTab('schedule')">📅 Schedule</button>
       <button class="tab" id="tabbtn-game" onclick="switchTab('game')">🎲 Dice Game</button>
@@ -553,7 +553,8 @@ function renderPromoCodeDeals() {
   _pcDeals.forEach(function(d) { counts[_statusOf(d)]++; });
   var items = _pcDeals.filter(function(d) {
     var okSearch = !q || (d.name||'').toLowerCase().indexOf(q) >= 0 || (d.code||'').toLowerCase().indexOf(q) >= 0;
-    return okSearch && (_pcStatus === 'all' || _statusOf(d) === _pcStatus);
+    var okSource = !_pcSource || (d.uploaded_by === _pcSource);
+    return okSearch && okSource && (_pcStatus === 'all' || _statusOf(d) === _pcStatus);
   });
   var stat = document.getElementById('pcTodayStat');
   if (stat) {
@@ -575,6 +576,17 @@ function renderPromoCodeDeals() {
     + _chip('pending', '⏳ Pending (' + counts.pending + ')', '#f5c842')
     + _chip('flagged', '⚑ Flagged (' + counts.flagged + ')', '#f87171')
     + '</div>';
+  // Source filter — lets you view just the seller-submitted deals (they run through the
+  // exact same pending → scan → approve flow as agent deals; only the source tag differs).
+  var sellerN = _pcDeals.filter(function(d){ return d.uploaded_by === 'Seller Submission'; }).length;
+  function _srcChip(v, label, color) {
+    var on = _pcSource === v;
+    return '<button class="btn" style="padding:6px 11px;font-size:12px;border:1px solid ' + (on ? color : 'var(--border)') + ';background:' + (on ? 'rgba(255,255,255,0.07)' : 'transparent') + ';color:' + (on ? color : '#cfd8e3') + '" onclick="pcSetSource(\'' + v + '\')">' + label + '</button>';
+  }
+  chips = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+      + _srcChip('', 'All sources', '#f5c842')
+      + _srcChip('Seller Submission', '🧑‍💼 Seller submitted (' + sellerN + ')', '#7dd3fc')
+      + '</div>' + chips;
   if (!items.length) { list.innerHTML = chips + '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No ' + (_pcStatus !== 'all' ? _pcStatus + ' ' : '') + 'promo code deals' + (q ? ' match your search' : '') + '.</div>'; _pcShownAsins = []; pcRefreshBulkBar(); return; }
   // ASINs currently shown (for select-all). Deals without an ASIN can't be bulk-removed.
   _pcShownAsins = items.map(function(d) { return _asinFromUrl(d.url); }).filter(Boolean);
@@ -630,6 +642,8 @@ function renderPromoCodeDeals() {
 }
 var _pcStatus = 'all';
 function pcSetStatus(v) { _pcStatus = v; renderPromoCodeDeals(); }
+var _pcSource = '';   // '' = all sources; 'Seller Submission' = seller-submitted only
+function pcSetSource(v) { _pcSource = v; renderPromoCodeDeals(); }
 async function approvePromoDeal(asin) {
   showToast('Publishing…');
   try {

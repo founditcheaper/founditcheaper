@@ -244,10 +244,13 @@ exports.handler = async function (event) {
   // 2. Current coded deals already on the site
   let existing = [];
   try {
-    const res = await fetch(`${sbUrl}/rest/v1/deals?store=eq.Amazon&is_top_pick=eq.false&code=not.is.null&select=id,url,code,price,active_date`, { headers: sbHeaders });
+    const res = await fetch(`${sbUrl}/rest/v1/deals?store=eq.Amazon&is_top_pick=eq.false&code=not.is.null&select=id,url,code,price,active_date,uploaded_by`, { headers: sbHeaders });
     existing = await res.json();
     if (!Array.isArray(existing)) existing = [];
   } catch (e) { console.error('[sync-codes] load existing failed:', e.message); }
+  // Seller-submitted deals are their own stream (not in the VA's sheet) and are managed
+  // by review-deals + their own ends_at expiry — never let this sheet-sync prune them.
+  existing = existing.filter(d => d.uploaded_by !== 'Seller Submission');
 
   // Map ASIN -> one row; if the same ASIN has multiple grid rows, drop the extras.
   const existingByAsin = {};
