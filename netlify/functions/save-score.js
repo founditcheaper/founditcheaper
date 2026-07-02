@@ -28,10 +28,17 @@ exports.handler = async function (event) {
   }
 
   const weekScore = clampInt(body.week_score, 0, 1000000);
-  const lastRoll  = clampInt(body.last_roll, 0, 100);
   const streak    = clampInt(body.streak, 0, 100000);
   if (weekScore === null) {
     return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Bad score' }) };
+  }
+
+  // last_roll is a DATE (the day the player last rolled) — it drives the
+  // one-roll-per-day check, NOT a numeric dice value. Pass it through as a
+  // date string (the client may send an unpadded YYYY-M-D), else null.
+  let lastRoll = null;
+  if (body.last_roll != null && /^\d{4}-\d{1,2}-\d{1,2}$/.test(String(body.last_roll))) {
+    lastRoll = String(body.last_roll);
   }
 
   // roll_days: array of YYYY-MM-DD strings, deduped and capped.
