@@ -701,8 +701,12 @@ async function startPlaying() {
   if (!email || !email.includes('@')) { alert('Please enter a valid email.'); return; }
   player = { username: username, email: email, tag: tagFromEmail(email) };
   savePlayer();
+  await loadScores();   // pull any existing score for this period first, so signing back in never wipes it
   if (!scores[player.tag]) {
     scores[player.tag] = { name: username, tag: player.tag, weekScore: 0, lastRoll: null, streak: 0, rollDays: [] };
+    await saveScores();
+  } else if (scores[player.tag].name !== username) {
+    scores[player.tag].name = username;   // signing in with a new display name updates it (score kept)
     await saveScores();
   }
   // Subscribe to email list silently
