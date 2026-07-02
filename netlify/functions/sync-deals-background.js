@@ -35,7 +35,9 @@ const BRANDS = [
 ];
 
 function isBrand(name, brandName) {
-  const hay = `${(brandName || '')} ${(name || '')}`.toLowerCase();
+  // Judge by the real brand FIELD only — scanning the product title falsely flags no-name
+  // accessories that merely say "for Apple / iPhone / Samsung / Google" as branded.
+  const hay = ` ${(brandName || '').toLowerCase()} `;
   return BRANDS.some(b => hay.includes(b));
 }
 

@@ -1219,11 +1219,13 @@ function getFiltered() {
     if (state_minPrice > 0 && p.price < state_minPrice) return false;
     if (state.maxPrice > 0 && p.price > state.maxPrice) return false;
     if (state.minStars > 0 && p.rating > 0 && p.rating < state.minStars) return false;
-    if (state.brandOnly && !p.brand && !_isBrand(p.name)) return false;
+    if (state.brandOnly && !_isBrand(p.brandName)) return false;
     // Remove Inflated: hide deals above their allowed cap — recognized brands (and cheap
     // items whose original price is under $25) may go up to 90%; no-name items are held to 65%.
+    // "Brand" is judged by the actual brand FIELD (p.brandName), never the product title —
+    // otherwise a no-name charger titled "…for Apple / iPhone / Samsung…" would look branded.
     if (state.hideInflated) {
-      var _brandDeal = p.brand || _isBrand(p.name);
+      var _brandDeal = _isBrand(p.brandName);
       var _offCap = (_brandDeal || Number(p.was || 0) < 25) ? 90 : 65;
       if ((p.off || 0) > _offCap) return false;
     }
