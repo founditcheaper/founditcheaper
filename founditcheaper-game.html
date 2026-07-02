@@ -303,6 +303,14 @@
   .your-rank-box strong { color: var(--accent); }
 
   .picks-embed-wrap { margin: 26px auto 0; max-width: 1200px; }
+  /* Desktop only: break the carousel out of the 600px game column to ~3/4 of the
+     screen width, centered. (Mobile keeps the full game-width behavior above.) */
+  @media (min-width: 640px) {
+    .picks-embed-wrap {
+      width: 75vw; max-width: 75vw;
+      position: relative; left: 50%; margin-left: -37.5vw;
+    }
+  }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
