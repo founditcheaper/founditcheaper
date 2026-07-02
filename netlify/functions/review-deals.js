@@ -9,11 +9,8 @@
 // It also re-scans already-LIVE promo deals for banned keywords (cheap, no API) to catch
 // junk that only reveals itself after publishing, plus any that predate this system.
 //
-// Safety: the trustworthy check is the banned-keyword TITLE scan (no API needed), which
-// catches DealSeek/JoyLink poison. It does NOT flag on a missing image (cosmetic; the
-// frontend hides broken images), and it only flags "not a real product" when Amazon
-// EXPLICITLY reports the ASIN invalid — never on an empty/ineligible API response, which
-// would otherwise nuke real deals while the Creators API is still in its eligibility window.
+// Safety: it NEVER flags on "no image" while the Amazon API is down (that would nuke the
+// whole feed on an outage) — in that case it just leaves the deal pending for next run.
 
 const TOKEN_ENDPOINT = 'https://api.amazon.com/auth/o2/token';
 const ITEMS_ENDPOINT = 'https://creatorsapi.amazon/catalog/v1/getItems';
@@ -60,14 +57,8 @@ async function fetchProduct(asin, token) {
   const reason = data.reason || data.errors?.[0]?.reason;
   if (reason === 'AssociateNotEligible' || res.status === 403 || res.status === 429 || res.status >= 500) return { apiDown: true };
   const item = data.itemsResult?.items?.[0];
-  if (item) return { name: item.itemInfo?.title?.displayValue || '', img: item.images?.primary?.large?.url || '' };
-  // No item came back. Only call it a fake ASIN if Amazon EXPLICITLY says the item
-  // is invalid/inaccessible. An empty response (which is what we get while the account
-  // isn't fully eligible yet) means "can't verify", NOT "fake" — treat it as apiDown so
-  // we never flag a real deal just because the API couldn't serve it.
-  const errs = data.errors || data.itemsResult?.errors || [];
-  const explicitInvalid = errs.some(e => /ItemNotAccessible|InvalidParameterValue|NoResult|ItemNotFound/i.test((e && (e.code || e.__type || e.reason)) || ''));
-  return explicitInvalid ? { notFound: true } : { apiDown: true };
+  if (!item) return { notFound: true };
+  return { name: item.itemInfo?.title?.displayValue || '', img: item.images?.primary?.large?.url || '' };
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -99,12 +90,11 @@ exports.handler = async function () {
     await sleep(API_SPACING);
 
     const name = prod.name || d.name || '';
+    const img  = prod.img  || d.img  || '';
     let reason = '';
     if (BANNED.test(name)) reason = 'deal-site placeholder title';
     else if (prod.notFound) reason = 'not a real Amazon product';
-    // A missing image is NOT a reason to flag: the frontend hides broken images, and
-    // while the Amazon API is ineligible it can't supply one anyway. Publish regardless;
-    // images backfill automatically once the API returns them on a later scan.
+    else if (!img) { if (prod.apiDown) { heldForApi++; continue; } reason = 'no product image'; }
 
     if (reason) { await patch(d.id, { review_status: 'flagged', flag_reason: reason }); flagged++; }
     else {
