@@ -343,6 +343,13 @@
   <!-- GAME PANEL -->
   <div class="panel active" id="panel-game">
 
+    <!-- Shown when no competition is live (no admin-set period covering today) -->
+    <div id="noGameNotice" style="display:none;text-align:center;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.4);border-radius:12px;padding:26px 16px;margin:0 0 4px">
+      <div style="font-size:40px;margin-bottom:8px">🎲</div>
+      <div style="font-size:18px;font-weight:800;color:var(--accent);margin-bottom:6px">No game running right now</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6">The next round hasn't started yet. Check back soon — in the meantime, browse the deals below.</div>
+    </div>
+
     <!-- EMAIL GATE (shown when not signed in) -->
     <div id="emailGate" class="email-gate">
       <div class="gate-icon">🎲</div>
@@ -498,6 +505,15 @@ function formatDate(d) {
 // Competition period — admin can set custom start/end dates (daily, 2-day,
 // weekly, etc.). Falls back to the current Sun–Sat week if not configured.
 var gamePeriod = null; // { start: Date, end: Date }
+var _gameStart = null, _gameEnd = null;   // raw YYYY-MM-DD from admin settings (for the live check)
+// A game is "live" only when an admin has set a competition period that covers today.
+// (Demo mode is always playable.) No configured period → no game → don't let anyone roll.
+function gameIsLive() {
+  if (typeof DEMO !== 'undefined' && DEMO) return true;
+  if (!_gameStart || !_gameEnd) return false;
+  var today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  return today >= _gameStart && today <= _gameEnd;
+}
 function getPeriodBounds() {
   if (DEMO) { var s = demoStart(); var e = new Date(s); e.setDate(s.getDate() + 6); e.setHours(23,59,59,999); return { start: s, end: e }; }
   if (gamePeriod && gamePeriod.start && gamePeriod.end) return gamePeriod;
@@ -660,6 +676,7 @@ async function startPlaying() {
 }
 
 function showGame() {
+  if (!applyGameLiveState()) return;   // no live game → notice shown, don't open the game
   document.getElementById('emailGate').style.display = 'none';
   document.getElementById('gameArea').style.display = 'block';
   document.getElementById('playerNameDisplay').innerHTML = player.username + ' <span style="color:var(--muted);font-weight:600">#' + player.tag + '</span>';
@@ -667,6 +684,22 @@ function showGame() {
   if (idn) idn.innerHTML = 'Your player ID is <strong style="color:var(--accent)">#' + player.tag + '</strong> — this is how you\'ll spot yourself on the leaderboard. Same email always gets you the same ID.';
   updateScoreDisplay();
   checkAlreadyPlayed();
+}
+
+// Reflect whether a competition is live. If NOT, show the "no game" notice, hide the
+// gate + game so nobody rolls into a void, and relabel the prize banner. Returns live.
+function applyGameLiveState() {
+  var live = gameIsLive();
+  var notice = document.getElementById('noGameNotice');
+  if (notice) notice.style.display = live ? 'none' : 'block';
+  if (!live) {
+    var gate = document.getElementById('emailGate'); if (gate) gate.style.display = 'none';
+    var area = document.getElementById('gameArea'); if (area) area.style.display = 'none';
+    var pt = document.getElementById('prizeText'); if (pt) pt.textContent = 'No game running right now';
+    var ps = document.getElementById('prizeSub'); if (ps) ps.textContent = 'Check back soon for the next round';
+    var wr = document.getElementById('weekRange'); if (wr) wr.textContent = '';
+  }
+  return live;
 }
 
 function updateScoreDisplay() {
@@ -727,6 +760,8 @@ function animateDice(die1El, die2El, callback) {
 }
 
 async function rollDice() {
+  // Guard: no live game → nothing to roll into (nothing would be saved/counted).
+  if (!gameIsLive()) { applyGameLiveState(); return; }
   // Guard: never allow a second roll on the same day (except in demo). Protects
   // against the button somehow being enabled after a refresh.
   if (!DEMO && rolledToday(scores[player.tag])) { checkAlreadyPlayed(); return; }
@@ -935,6 +970,7 @@ async function loadGameSettings() {
       if (m.game_prize) document.getElementById('prizeText').textContent = m.game_prize;
       if (m.game_prize_sub) document.getElementById('prizeSub').textContent = m.game_prize_sub;
       if (m.game_period_start && m.game_period_end) {
+        _gameStart = m.game_period_start; _gameEnd = m.game_period_end;   // raw YYYY-MM-DD for the live check
         var s = new Date(m.game_period_start + 'T00:00:00'), e = new Date(m.game_period_end + 'T23:59:59');
         if (!isNaN(s.getTime()) && !isNaN(e.getTime())) gamePeriod = { start: s, end: e };
       }
@@ -1048,6 +1084,9 @@ if (DEMO) {
     var lb = document.getElementById('lbWeekRange'); if (lb) lb.textContent = getWeekString();
     return loadScores();
   }).then(function () {
+    // Always reflect live/no-game first (shows the notice + hides the gate if no game),
+    // then open the game only when it's actually live and the player is signed in.
+    if (!applyGameLiveState()) return;
     if (player && scores) showGame();
   });
 }
