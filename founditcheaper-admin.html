@@ -340,9 +340,10 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:12px;border:1px solid rgba(245,200,66,0.25);border-radius:8px;margin-bottom:14px">
-        <div style="flex:3;min-width:200px"><label class="field-label">Amazon link</label><input class="field-input" id="pcLink" placeholder="https://www.amazon.com/dp/..."></div>
-        <div style="flex:1;min-width:110px"><label class="field-label">Promo code</label><input class="field-input" id="pcCode" placeholder="SAVE20"></div>
-        <div style="flex:1;min-width:100px"><label class="field-label">After-code price</label><input class="field-input no-spin" id="pcPrice" type="number" placeholder="19.99"></div>
+        <div style="flex:3;min-width:180px"><label class="field-label">Amazon link</label><input class="field-input" id="pcLink" placeholder="https://www.amazon.com/dp/..."></div>
+        <div style="flex:1;min-width:120px"><label class="field-label">Promo code <span style="color:var(--muted);font-weight:400">(optional)</span></label><input class="field-input" id="pcCode" placeholder="blank = normal deal"></div>
+        <div style="flex:1;min-width:90px"><label class="field-label">Deal price</label><input class="field-input no-spin" id="pcPrice" type="number" placeholder="19.99"></div>
+        <div style="flex:1;min-width:90px"><label class="field-label">List price <span style="color:var(--muted);font-weight:400">(was)</span></label><input class="field-input no-spin" id="pcWas" type="number" placeholder="29.99"></div>
         <button class="btn btn-green" id="pcAddBtn" onclick="addPromoDeal()" style="flex-shrink:0">+ Add Deal</button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
@@ -675,20 +676,23 @@ async function addPromoDeal() {
   var link = (document.getElementById('pcLink').value || '').trim();
   var code = (document.getElementById('pcCode').value || '').trim();
   var price = (document.getElementById('pcPrice').value || '').trim();
+  var was = (document.getElementById('pcWas').value || '').trim();
   if (!link) { showToast('Paste an Amazon link first'); return; }
+  if (!price) { showToast('Enter the deal price'); return; }
   var btn = document.getElementById('pcAddBtn');
   btn.textContent = 'Adding…'; btn.disabled = true;
   try {
     var res = await fetch('/.netlify/functions/manage-code', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: sessionPass, action: 'add', amazon_link: link, promo_code: code, discount_price: price })
+      body: JSON.stringify({ password: sessionPass, action: 'add', amazon_link: link, promo_code: code, discount_price: price, retail_price: was })
     });
     var data = await res.json();
     if (res.ok && data.ok) {
       document.getElementById('pcLink').value = '';
       document.getElementById('pcCode').value = '';
       document.getElementById('pcPrice').value = '';
-      showToast(data.instant ? 'Added — live on the site now' : 'Added to the sheet — will appear shortly');
+      document.getElementById('pcWas').value = '';
+      showToast(data.instant ? (code ? 'Promo deal added — live now' : 'Deal added — live now') : 'Added to the sheet — will appear shortly');
       loadPromoCodeDeals();
     } else {
       showToast('Add failed: ' + (data.error || ('HTTP ' + res.status)));
