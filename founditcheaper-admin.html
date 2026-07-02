@@ -308,7 +308,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
           <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setGamePreset(3)">3 days</button>
           <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setGamePreset(7)">1 week</button>
         </div>
-        <button class="btn btn-primary" id="savePrizeBtn" onclick="saveGameSettings()">Save Game Settings</button>
+        <button class="btn btn-primary" id="savePrizeBtn" onclick="saveGameSettings()">Start New Game</button>
         <span id="savePrizeMsg" style="font-size:12px;margin-left:10px"></span>
         <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:14px;padding-top:14px">
           <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:8px"><strong>Force End</strong> stops the game now, before the end date — the page shows no game running and no one can roll; scores are kept. Start it back up by setting new Competition dates and saving. <strong>Clear ALL Scores</strong> wipes every player's score for a true restart (use it to clear test rolls before launch).</div>
@@ -1295,7 +1295,7 @@ async function saveGameSettings() {
     if (res.ok && d.ok) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Saved — live on the game page'; }
     else { msg.style.color = '#f87171'; msg.textContent = 'Failed' + (d.error ? ': ' + d.error : ''); }
   } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error'; }
-  btn.disabled = false; btn.textContent = 'Save Game Settings';
+  btn.disabled = false; btn.textContent = 'Start New Game';
 }
 async function forceEndGame() {
   if (!confirm('Force end the game now? The dice page will show no game running and no one can roll. Scores are kept. You can start a new game anytime by setting Competition dates and saving.')) return;
