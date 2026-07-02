@@ -1,0 +1,33 @@
+# founditcheaper.net — robots.txt
+# STAGING COPY. Goes live only when moved to the site root (/robots.txt) after the
+# custom domain is connected. See GO-LIVE-CHECKLIST.md.
+
+User-agent: *
+Allow: /
+# Keep the admin panel, affiliate redirects, and backend out of search results
+Disallow: /founditcheaper-admin.html
+Disallow: /deal/
+Disallow: /go/
+Disallow: /.netlify/
+
+# --- AI assistants: ALLOWED (brand discovery). Change "Allow: /" to "Disallow: /"
+# under any one of these to block it. ---
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://founditcheaper.net/sitemap.xml

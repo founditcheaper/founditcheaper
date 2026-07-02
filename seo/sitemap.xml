@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- STAGING COPY for founditcheaper.net. Goes live only when moved to the site root
+     (/sitemap.xml) after the custom domain is connected. See GO-LIVE-CHECKLIST.md. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://founditcheaper.net/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://founditcheaper.net/founditcheaper-game.html</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>

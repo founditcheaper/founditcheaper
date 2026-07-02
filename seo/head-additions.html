@@ -1,0 +1,42 @@
+<!-- ============================================================================
+     STAGING — index.html <head> additions for GO-LIVE (custom domain connected).
+     Do NOT add these while the site is still on the netlify.app URL: the canonical
+     tag points at founditcheaper.net and would confuse crawlers until that domain
+     actually serves the site.
+
+     At go-live: paste the two blocks below into index.html <head>, and update the
+     existing og:url / og:image / twitter:image values from founditcheaper.netlify.app
+     to founditcheaper.net.
+     ============================================================================ -->
+
+<!-- 1) Canonical — tells Google the one true URL for this page -->
+<link rel="canonical" href="https://founditcheaper.net/">
+
+<!-- 2) Structured data — BRAND-LEVEL ONLY (no product prices).
+     Deliberately NO Product/Offer schema with Amazon prices: Amazon's Associates
+     agreement restricts displaying/caching Amazon prices outside their live API, and
+     Google caches structured-data prices. (A Walmart-only Product feed could be added
+     later if desired.) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "founditcheaper",
+  "url": "https://founditcheaper.net/",
+  "description": "Hundreds of Amazon and Walmart deals, updated daily. Filter by category, discount, and promo codes. No hype, just prices."
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "founditcheaper",
+  "url": "https://founditcheaper.net/",
+  "logo": "https://founditcheaper.net/assets/logo.png",
+  "sameAs": [
+    "https://www.instagram.com/founditcheaper"
+  ]
+}
+</script>
+
+<!-- NOTE: confirm the Instagram URL above is your exact handle before go-live. -->
