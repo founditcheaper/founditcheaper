@@ -1718,6 +1718,18 @@ function _afterLoad() {
 (async function loadFromSupabase() {
   if (SUPABASE_URL === 'YOUR_SUPABASE_URL') { _afterLoad(); return; }
 
+  // Shared ?deal= link → open THAT product instantly. Show the cover overlay and fetch
+  // just that one row RIGHT NOW, in parallel with the grid load below — so the shopper
+  // sees their product in ~0.3s instead of watching the whole grid render first (which
+  // looks like they landed on the wrong page). openDrawer hides the overlay when it opens.
+  var _sharedDealId = new URLSearchParams(window.location.search).get('deal');
+  if (_sharedDealId) {
+    showDealLoading();
+    openDrawer(_sharedDealId).finally(function () {
+      window.history.replaceState({}, '', window.location.pathname);
+    });
+  }
+
   // Separate queries — no JS deduplication needed
   var picksPromise = _sb.from('deals').select('*').eq('is_top_pick', true)
                        .order('active_date', { ascending: false }).order('rank');
@@ -1844,15 +1856,8 @@ function _afterLoad() {
   // rendered — so that heavy Phase-2 reflow happens while the carousel is still,
   // not mid-drift (which read as a glitch right as the deals number loaded).
   setTimeout(startPicksAutoScroll, 300);
-  var params = new URLSearchParams(window.location.search);
-  var dealId = params.get('deal');
-  if (dealId) {
-    showDealLoading();   // cover the wait immediately so a shared link never looks blank
-    setTimeout(function() {
-      openDrawer(dealId);
-      window.history.replaceState({}, '', window.location.pathname);
-    }, 400);
-  }
+  // NOTE: shared ?deal= links are opened at the TOP of this function (right away, in
+  // parallel with this grid load) — not here — so the product shows near-instantly.
 })();
 </script>
 <!-- PRODUCT DETAIL DRAWER -->
