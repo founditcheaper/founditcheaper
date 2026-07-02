@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Seller "Submit Your Deals" page. Posts to /.netlify/functions/submit-deal, which
+     captures each submission in deal_submissions for review. noindex — sellers reach it
+     via the hamburger menu, it doesn't need to rank. -->
+<title>Submit a Deal — founditcheaper</title>
+<meta name="robots" content="noindex">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
+  :root{
+    --bg-deep:#0a1f33; --border:rgba(255,255,255,0.1); --border-gold:rgba(245,200,66,0.3);
+    --accent:#f5c842; --text:#fff; --text-soft:rgba(255,255,255,0.82); --muted:rgba(255,255,255,0.42); --green:#4ade80;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:linear-gradient(180deg,#0a1f33 0%,#0c2136 100%);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
+  /* Header (matches the site) */
+  .top{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:2px solid var(--accent);max-width:1200px;margin:0 auto}
+  .logo-wrap{display:flex;align-items:center;gap:10px;text-decoration:none}
+  .logo-badge{width:38px;height:38px;border-radius:50%;border:2px solid var(--accent);background:#0c2136 url('/assets/logo.png') center/cover;flex-shrink:0}
+  .logo-txt{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px;line-height:1;color:#fff}
+  .logo-txt sub{display:block;font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;font-family:'Inter',sans-serif}
+  .back{font-size:11px;font-weight:600;color:var(--muted);text-decoration:none;border:1px solid rgba(255,255,255,0.15);padding:6px 11px;border-radius:6px}
+  .back:hover{color:var(--text);border-color:rgba(255,255,255,0.3)}
+  /* Card */
+  .wrap{max-width:560px;margin:0 auto;padding:26px 18px 60px}
+  .eyebrow{color:var(--accent);font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;text-align:center;margin-bottom:8px}
+  h1{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:34px;line-height:1.05;text-align:center;margin-bottom:10px}
+  .lede{text-align:center;color:var(--text-soft);font-size:14px;line-height:1.6;max-width:440px;margin:0 auto 22px}
+  .lede b{color:var(--accent)}
+  .card{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:16px;padding:22px}
+  .label{display:block;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text-soft);margin:0 0 7px}
+  .field{width:100%;background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;padding:12px 14px;outline:none}
+  .field:focus{border-color:var(--accent)}
+  .field::placeholder{color:var(--muted)}
+  textarea.field{min-height:190px;resize:vertical;line-height:1.6;font-size:13px;white-space:pre}
+  .group{margin-bottom:18px}
+  .hint{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.5}
+  .filebox{display:flex;align-items:center;gap:12px;background:rgba(0,0,0,0.2);border:1px dashed var(--border);border-radius:10px;padding:12px 14px}
+  .filebox label{font-size:12px;font-weight:700;color:#0a1f33;background:var(--accent);padding:7px 12px;border-radius:7px;cursor:pointer;white-space:nowrap}
+  .filebox span{font-size:12px;color:var(--muted)}
+  .submit{width:100%;background:var(--accent);color:#0a1f33;border:none;border-radius:11px;padding:15px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:19px;letter-spacing:.5px;cursor:pointer;margin-top:4px}
+  .submit:hover{filter:brightness(1.05)}
+  .after{margin-top:16px;background:rgba(245,200,66,0.06);border:1px solid var(--border-gold);border-radius:10px;padding:12px 14px}
+  .after-title{font-size:12px;font-weight:800;color:var(--accent);margin-bottom:5px}
+  .after p{font-size:12px;color:var(--text-soft);line-height:1.6}
+  .ok{display:none;text-align:center;padding:30px 10px}
+  .ok .big{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:26px;color:var(--green);margin-bottom:8px}
+  .ok p{color:var(--text-soft);font-size:14px;line-height:1.6}
+</style>
+</head>
+<body>
+  <div class="top">
+    <a class="logo-wrap" href="/">
+      <div class="logo-badge"></div>
+      <div class="logo-txt">founditcheaper<sub>Deals Hub</sub></div>
+    </a>
+    <a class="back" href="/">← Back to Deals</a>
+  </div>
+
+  <div class="wrap">
+    <div id="formView">
+      <div class="eyebrow">🏷️ For Amazon Sellers</div>
+      <h1>Submit Your Deals</h1>
+      <p class="lede">Get your promo codes in front of <b>1,000,000+ deal hunters</b> across all platforms. Paste your deals exactly as you'd email them — no account needed.</p>
+
+      <div class="card">
+        <div class="group">
+          <label class="label" for="email">Your email</label>
+          <input class="field" type="email" id="email" placeholder="you@brand.com">
+          <div class="hint">So we can reach you about your deals. Never shown on the site.</div>
+        </div>
+
+        <div class="group">
+          <label class="label" for="deals">Your deals</label>
+          <textarea class="field" id="deals" placeholder="Product name: Wireless Charging Station
+Sale price: $17.99
+Original price: $59.99
+Promo code: SAVE20
+Amazon link: https://www.amazon.com/dp/B0XXXXXXXX
+
+(paste as many as you want — one block per deal)"></textarea>
+          <div class="hint">We pull the product name, image, and price straight from Amazon — so the <b style="color:var(--text-soft)">link, promo code, and sale price</b> are really all we need.</div>
+        </div>
+
+        <div class="group">
+          <label class="label">Or attach a CSV / text file <span style="color:var(--muted);font-weight:600">(optional)</span></label>
+          <div class="filebox">
+            <label for="file">Choose file</label>
+            <span id="fileName">No file chosen</span>
+            <input type="file" id="file" accept=".csv,.txt" style="display:none">
+          </div>
+        </div>
+
+        <button class="submit" id="submitBtn" onclick="submitDeals()">Submit Deals</button>
+        <div id="submitErr" style="display:none;color:#ff9a9a;font-size:12px;text-align:center;margin-top:10px"></div>
+
+        <div class="after">
+          <div class="after-title">What happens next</div>
+          <p>Every deal is checked before it goes live — we verify the Amazon link and hold it briefly for review. Clean deals get posted to the site and can be featured to our audience.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="ok" id="okView">
+      <div class="big">✓ Got it — thanks</div>
+      <p>Your deals are in the review queue. We'll verify them against Amazon and post the clean ones. Keep an eye on your inbox.</p>
+    </div>
+  </div>
+
+<script>
+  var _fileText = '', _fileName = '';
+  document.getElementById('file').addEventListener('change', function(e){
+    var f = e.target.files[0];
+    document.getElementById('fileName').textContent = (f && f.name) || 'No file chosen';
+    _fileText = ''; _fileName = f ? f.name : '';
+    if (f) { var rd = new FileReader(); rd.onload = function(){ _fileText = String(rd.result || '').slice(0, 200000); }; rd.readAsText(f); }
+  });
+  async function submitDeals(){
+    var email = (document.getElementById('email').value || '').trim();
+    var deals = (document.getElementById('deals').value || '').trim();
+    var err = document.getElementById('submitErr');
+    var btn = document.getElementById('submitBtn');
+    err.style.display = 'none';
+    if (!email || email.indexOf('@') === -1) { err.textContent = 'Please enter a valid email.'; err.style.display = 'block'; return; }
+    if (!deals && !_fileText) { err.textContent = 'Paste at least one deal, or attach a file.'; err.style.display = 'block'; return; }
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      var res = await fetch('/.netlify/functions/submit-deal', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, deals: deals, fileName: _fileName, fileText: _fileText }),
+      });
+      var d = await res.json();
+      if (res.ok && d.ok) {
+        document.getElementById('formView').style.display = 'none';
+        document.getElementById('okView').style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        err.textContent = (d && d.error) || 'Something went wrong — try again.'; err.style.display = 'block';
+        btn.disabled = false; btn.textContent = 'Submit Deals';
+      }
+    } catch (e) {
+      err.textContent = 'Network error — try again.'; err.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Submit Deals';
+    }
+  }
+</script>
+</body>
+</html>
