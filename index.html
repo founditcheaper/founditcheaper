@@ -1694,14 +1694,15 @@ function _afterLoad() {
   setTimeout(function() {
     initSliderScroll('today', dailyPicks[0] ? dailyPicks[0].items.length : 0);
     var slider = document.getElementById('slider-today');
-    if (slider && !sessionStorage.getItem('peeked')) {
+    var willPeek = slider && !sessionStorage.getItem('peeked');
+    if (willPeek) {
       sessionStorage.setItem('peeked', '1');
       setTimeout(function() {
         slider.scrollTo({ left: 80, behavior: 'smooth' });
         setTimeout(function() { slider.scrollTo({ left: 0, behavior: 'smooth' }); }, 700);
       }, 800);
     }
-    setTimeout(startPicksAutoScroll, 1800);   // begin the slow drift after the intro peek
+    setTimeout(startPicksAutoScroll, willPeek ? 1700 : 400);   // after the intro peek, else start quickly
   }, 200);
   var params = new URLSearchParams(window.location.search);
   var dealId = params.get('deal');
@@ -1781,14 +1782,15 @@ function _afterLoad() {
           initSliderScroll('past-' + (_pi - 1), dailyPicks[_pi].items.length);
         }
         var slider = document.getElementById('slider-today');
-        if (slider && !sessionStorage.getItem('peeked')) {
+        var willPeek = slider && !sessionStorage.getItem('peeked');
+        if (willPeek) {
           sessionStorage.setItem('peeked', '1');
           setTimeout(function() {
             slider.scrollTo({ left: 80, behavior: 'smooth' });
             setTimeout(function() { slider.scrollTo({ left: 0, behavior: 'smooth' }); }, 700);
           }, 800);
         }
-        setTimeout(startPicksAutoScroll, 1800);   // begin the slow drift after the intro peek
+        setTimeout(startPicksAutoScroll, willPeek ? 1700 : 400);   // after the intro peek, else start quickly
       }, 200);
     }
   } catch (e) {}
