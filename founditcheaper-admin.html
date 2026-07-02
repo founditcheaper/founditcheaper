@@ -581,6 +581,7 @@ function renderPromoCodeDeals() {
   var allSelected = _pcShownAsins.length && _pcShownAsins.every(function(a) { return _pcSelected[a]; });
   var toolbar = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">'
     + '<button class="btn btn-ghost" style="padding:7px 12px" onclick="pcSelectAllShown()">' + (allSelected ? '☐ Clear selection' : '☑ Select all shown (' + _pcShownAsins.length + ')') + '</button>'
+    + '<button id="pcApproveSelBtn" class="btn" style="padding:7px 12px;background:rgba(74,222,128,0.95);color:#0a2a14;border:none;font-weight:700" onclick="pcApproveSelected()">✓ Approve selected (0)</button>'
     + '<button id="pcRemoveSelBtn" class="btn" style="padding:7px 12px;background:rgba(220,38,38,0.9);color:#fff;border:none" onclick="pcRemoveSelected()">🗑 Remove selected (0)</button>'
     + '</div>';
   list.innerHTML = chips + toolbar + items.map(function(d) {
@@ -646,17 +647,41 @@ var _pcSelected = {};   // asin -> true (transient; cleared on reload)
 var _pcShownAsins = [];
 function pcToggleSel(asin, on) { if (on) _pcSelected[asin] = true; else delete _pcSelected[asin]; pcRefreshBulkBar(); }
 function pcRefreshBulkBar() {
-  var btn = document.getElementById('pcRemoveSelBtn'); if (!btn) return;
   var n = Object.keys(_pcSelected).length;
-  btn.textContent = '🗑 Remove selected (' + n + ')';
-  btn.disabled = n === 0;
-  btn.style.opacity = n === 0 ? '0.45' : '1';
-  btn.style.cursor = n === 0 ? 'default' : 'pointer';
+  var setState = function (btn, label) {
+    if (!btn) return;
+    btn.textContent = label + ' (' + n + ')';
+    btn.disabled = n === 0;
+    btn.style.opacity = n === 0 ? '0.45' : '1';
+    btn.style.cursor = n === 0 ? 'default' : 'pointer';
+  };
+  setState(document.getElementById('pcApproveSelBtn'), '✓ Approve selected');
+  setState(document.getElementById('pcRemoveSelBtn'), '🗑 Remove selected');
 }
 function pcSelectAllShown() {
   var allSel = _pcShownAsins.length && _pcShownAsins.every(function (a) { return _pcSelected[a]; });
   _pcShownAsins.forEach(function (a) { if (allSel) delete _pcSelected[a]; else _pcSelected[a] = true; });
   renderPromoCodeDeals();
+}
+async function pcApproveSelected() {
+  var asins = Object.keys(_pcSelected);
+  if (!asins.length) return;
+  if (!confirm('Approve ' + asins.length + ' selected deal' + (asins.length === 1 ? '' : 's') + '?\n\nThey publish to the site now.')) return;
+  var btn = document.getElementById('pcApproveSelBtn'); if (btn) btn.disabled = true;
+  var ok = 0, fail = 0;
+  for (var i = 0; i < asins.length; i++) {
+    if (btn) btn.textContent = 'Approving ' + (i + 1) + '/' + asins.length + '…';
+    try {
+      var res = await fetch('/.netlify/functions/manage-code', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: sessionPass, action: 'approve', asin: asins[i] }),
+      });
+      if (res.ok) ok++; else fail++;
+    } catch (e) { fail++; }
+  }
+  _pcSelected = {};
+  showToast('Approved ' + ok + (fail ? ' · ' + fail + ' failed' : ''));
+  loadPromoCodeDeals();
 }
 async function pcRemoveSelected() {
   var asins = Object.keys(_pcSelected);
