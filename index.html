@@ -1693,16 +1693,7 @@ function _afterLoad() {
   resetAndRender();
   setTimeout(function() {
     initSliderScroll('today', dailyPicks[0] ? dailyPicks[0].items.length : 0);
-    var slider = document.getElementById('slider-today');
-    var willPeek = slider && !sessionStorage.getItem('peeked');
-    if (willPeek) {
-      sessionStorage.setItem('peeked', '1');
-      setTimeout(function() {
-        slider.scrollTo({ left: 80, behavior: 'smooth' });
-        setTimeout(function() { slider.scrollTo({ left: 0, behavior: 'smooth' }); }, 700);
-      }, 800);
-    }
-    setTimeout(startPicksAutoScroll, willPeek ? 1700 : 400);   // after the intro peek, else start quickly
+    setTimeout(startPicksAutoScroll, 400);   // the drift is the "this slides" cue now — start quickly, no separate peek
   }, 200);
   var params = new URLSearchParams(window.location.search);
   var dealId = params.get('deal');
@@ -1781,16 +1772,7 @@ function _afterLoad() {
         for (var _pi = 1; _pi < dailyPicks.length; _pi++) {
           initSliderScroll('past-' + (_pi - 1), dailyPicks[_pi].items.length);
         }
-        var slider = document.getElementById('slider-today');
-        var willPeek = slider && !sessionStorage.getItem('peeked');
-        if (willPeek) {
-          sessionStorage.setItem('peeked', '1');
-          setTimeout(function() {
-            slider.scrollTo({ left: 80, behavior: 'smooth' });
-            setTimeout(function() { slider.scrollTo({ left: 0, behavior: 'smooth' }); }, 700);
-          }, 800);
-        }
-        setTimeout(startPicksAutoScroll, willPeek ? 1700 : 400);   // after the intro peek, else start quickly
+        setTimeout(startPicksAutoScroll, 400);   // the drift is the "this slides" cue now — start quickly, no separate peek
       }, 200);
     }
   } catch (e) {}
