@@ -28,45 +28,75 @@ function extractAsin(url) {
   return b ? b[1].toUpperCase() : null;
 }
 
-// Human date string -> YYYY-MM-DD, or '' if not sensible / not within ~2 years.
-function parseExpiry(v) {
-  if (!v) return '';
-  v = String(v).trim().replace(/(\d)(st|nd|rd|th)/gi, '$1');
-  let d = new Date(v);
-  if (isNaN(d.getTime())) {
-    const m = v.match(/^(\d{1,2})[\/\-](\d{1,2})$/);   // MM/DD -> assume this year
-    if (m) d = new Date(new Date().getFullYear(), +m[1] - 1, +m[2]);
-  }
-  if (isNaN(d.getTime())) return '';
-  const now = Date.now(), t = d.getTime();
-  if (t < now - 2 * 86400000 || t > now + 730 * 86400000) return '';
-  return d.toISOString().slice(0, 10);
+function firstAmazonUrl(s) {
+  const m = String(s || '').match(/https?:\/\/[^\s"'<>]*amazon\.[a-z.]+\/[^\s"'<>]*/i);
+  return m ? m[0] : '';
+}
+function withTag(url) {
+  if (!url) return url;
+  const u = url.replace(/([?&])tag=[^&]*/i, '$1').replace(/[?&]$/, '');
+  return u + (u.includes('?') ? '&' : '?') + 'tag=' + AFFILIATE_TAG;
 }
 
-// Turn the pasted text into an array of { asin, code, sale, orig, expires, title }.
+// Human date string -> YYYY-MM-DD (date-only, timezone-safe), or '' if not sensible / >2yr.
+function parseExpiry(v) {
+  if (!v) return '';
+  v = String(v).trim();
+  let y, mo, da, m = v.match(/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+  if (m) { y = +m[1]; mo = +m[2]; da = +m[3]; }
+  else {
+    const d = new Date(v.replace(/(\d)(st|nd|rd|th)/gi, '$1') + ' 12:00');   // noon avoids tz edges
+    if (!isNaN(d.getTime())) { y = d.getFullYear(); mo = d.getMonth() + 1; da = d.getDate(); }
+    else { const mm = v.match(/^(\d{1,2})[\/\-](\d{1,2})\b/); if (mm) { y = new Date().getFullYear(); mo = +mm[1]; da = +mm[2]; } }
+  }
+  if (!y || !mo || !da) return '';
+  const t = new Date(y, mo - 1, da).getTime(), now = Date.now();
+  if (isNaN(t) || t < now - 2 * 86400000 || t > now + 730 * 86400000) return '';
+  const p = n => String(n).padStart(2, '0');
+  return y + '-' + p(mo) + '-' + p(da);
+}
+
+// Parse the pasted text -> [{ asin, buyUrl, code, sale, orig, expires, title }].
+// Accepts ANY Amazon link: a /dp/ or /gp/product/ link yields an ASIN (auto-verifiable);
+// a /promocode/ link has no ASIN — the buy button IS the (tagged) promo link, which
+// auto-applies the code at cart. Those land Pending for an agent to resolve the product.
 function parseSubmittedDeals(text) {
   if (!text) return [];
   const blocks = String(text).split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
   const deals = [];
   for (const block of blocks) {
     if (deals.length >= MAX_DEALS) break;
-    const asin = extractAsin(block);
-    if (!asin) continue;
-    const get = (labels) => {
-      for (const line of block.split('\n')) {
-        const m = line.match(/^[\s*>\-]*([A-Za-z ]+?)\s*[:\-]\s*(.+)$/);
-        if (m) { const key = m[1].trim().toLowerCase(); if (labels.some(l => key.includes(l))) return m[2].trim(); }
-      }
+    const link = firstAmazonUrl(block);
+    if (!link) continue;                          // needs an Amazon link of some kind
+    const asin = extractAsin(link) || extractAsin(block);
+    const kvs = block.split('\n').map(function (l) {
+      const m = l.match(/^[\s*>\-"]*([A-Za-z ]+?)\s*[:\-]\s*(.+)$/);
+      return m ? { key: m[1].trim().toLowerCase(), val: m[2].trim() } : null;
+    }).filter(Boolean);
+    const getStr = (inc, exc) => {
+      for (const kv of kvs) { if (exc && exc.some(x => kv.key.includes(x))) continue; if (inc.some(x => kv.key.includes(x))) return kv.val; }
       return '';
     };
-    const price = (labels) => { const n = parseFloat(String(get(labels)).replace(/[^0-9.]/g, '')); return isFinite(n) && n > 0 ? n : 0; };
+    const getPrice = (inc, exc) => {
+      for (const kv of kvs) {
+        if (exc.some(x => kv.key.includes(x))) continue;
+        if (!inc.some(x => kv.key.includes(x))) continue;
+        if (/%/.test(kv.val)) continue;                        // skip "40%" percentage lines
+        const n = parseFloat(kv.val.replace(/[^0-9.]/g, ''));
+        if (isFinite(n) && n > 0) return n;
+      }
+      return 0;
+    };
+    let expires = '';
+    for (const kv of kvs) { if (kv.key.includes('start')) continue; if (/expir|valid|end|good through/.test(kv.key)) { const e = parseExpiry(kv.val); if (e) { expires = e; break; } } }
     deals.push({
-      asin,
-      code:    get(['promo code', 'discount code', 'coupon code', 'code']).replace(/[^A-Za-z0-9]/g, '').toUpperCase(),
-      sale:    price(['sale price', 'discount price', 'deal price', 'after code', 'after-code', 'price']),
-      orig:    price(['original price', 'retail price', 'list price', 'regular price', 'was']),
-      expires: parseExpiry(get(['expiration date', 'expiration', 'expires', 'expiry', 'end date', 'ends', 'valid until', 'valid through', 'good through'])),
-      title:   get(['product name', 'product title', 'title', 'item', 'product', 'name']).slice(0, 250),
+      asin: asin || null,
+      buyUrl: asin ? `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}` : withTag(link),
+      code: getStr(['promo code', 'discount code', 'coupon code', 'code'], ['start', 'end']).replace(/[^A-Za-z0-9]/g, '').toUpperCase(),
+      sale: getPrice(['discount', 'sale', 'deal', 'after', 'price'], ['original', 'retail', 'list', 'regular', 'was', 'msrp']),
+      orig: getPrice(['original', 'retail', 'list', 'regular', 'was', 'msrp'], []),
+      expires,
+      title: getStr(['product description', 'product name', 'product title', 'title', 'item', 'product', 'name'], []).slice(0, 250),
     });
   }
   return deals;
@@ -157,29 +187,34 @@ exports.handler = async function (event) {
 
   for (const d of parsed) {
     let prod = null;
-    try { if (!token) token = await getToken(); prod = await fetchProduct(d.asin, token); } catch (e) { /* API may be ineligible/down */ }
+    // Only the Amazon API can verify/enrich an ASIN. Promo-code-link deals (no ASIN)
+    // can't be verified here — they go in with the seller's title/price and no image,
+    // so they stay Pending for an agent to resolve the real product later.
+    if (d.asin) { try { if (!token) token = await getToken(); prod = await fetchProduct(d.asin, token); } catch (e) { /* API ineligible/down */ } }
     const apiPrice = (prod && prod.apiPrice) || 0;
     const price = d.sale > 0 ? d.sale : apiPrice;                 // after-code price (seller wins)
     if (!(price > 0)) continue;                                  // can't price it -> leave in raw submission only
     let was = Math.max(apiPrice, d.orig, price);
     if (!(was > 0)) was = price;
     const off = was > price ? Math.round((1 - price / was) * 100) : 0;
-    const name = (prod && prod.name) ? prod.name : (d.title || ('Amazon deal ' + d.asin));
+    const name = (prod && prod.name) ? prod.name : (d.title || 'Amazon promo deal');
 
     const row = {
       rank: 900, name: name.slice(0, 250), store: 'Amazon', category: inferCategory(name),
       price, was, off, rating: (prod && prod.rating) || 0, reviews: (prod && prod.reviews) || 0,
       img: (prod && prod.img) || '', images: null,
-      url: `https://www.amazon.com/dp/${d.asin}?tag=${AFFILIATE_TAG}`,
+      url: d.buyUrl,                                              // /dp/ASIN?tag= OR the tagged promo-code link
       code: d.code || null, use_code_url: false, creator: false, brand: false,
       brand_name: (prod && prod.brandName) || null, active_date: today, is_top_pick: false,
       uploaded_by: SELLER_TAG, review_status: 'pending',
       ends_at: d.expires ? (d.expires + 'T23:59:59Z') : null,
     };
+    // Dedup a re-submit by ASIN, or by the promo-code id for link-only deals.
+    const dedupKey = d.asin || ((d.buyUrl.match(/promocode\/([A-Za-z0-9]+)/i) || [])[1]) || '';
     try {
-      // Only clear a PRIOR PENDING SELLER row for this ASIN (i.e. a re-submit) — never
-      // touch live deals or anyone else's deals. A public form must not delete live rows.
-      await fetch(`${sbUrl}/rest/v1/deals?url=like.*${d.asin}*&uploaded_by=eq.Seller%20Submission&review_status=eq.pending`, { method: 'DELETE', headers: { ...sb, Prefer: 'return=minimal' } }).catch(() => {});
+      // Only clear a PRIOR PENDING SELLER row for this key (a re-submit) — never touch
+      // live deals or anyone else's deals. A public form must not delete live rows.
+      if (dedupKey) await fetch(`${sbUrl}/rest/v1/deals?url=like.*${dedupKey}*&uploaded_by=eq.Seller%20Submission&review_status=eq.pending`, { method: 'DELETE', headers: { ...sb, Prefer: 'return=minimal' } }).catch(() => {});
       let ins = await fetch(`${sbUrl}/rest/v1/deals`, { method: 'POST', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(row) });
       if (!ins.ok) {
         // ends_at column may be missing — retry WITHOUT it but KEEP review_status='pending',
