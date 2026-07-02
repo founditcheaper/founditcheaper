@@ -328,7 +328,7 @@
 
   <!-- PRIZE BANNER -->
   <div class="prize-banner">
-    <div class="prize-eyebrow">🎁 This Week's Prize</div>
+    <div class="prize-eyebrow">🎁 This Round's Prize</div>
     <div class="prize-text" id="prizeText">$25 Amazon Gift Card</div>
     <div class="prize-sub" id="prizeSub">Highest score by Sunday wins · One roll per day</div>
     <div class="week-range" id="weekRange"></div>
@@ -368,7 +368,7 @@
       <div class="player-info">
         <div class="player-name" id="playerNameDisplay"></div>
         <div style="text-align:right">
-          <div class="player-score"><span>This week · </span><span id="playerScoreDisplay">0</span> pts</div>
+          <div class="player-score"><span>This round · </span><span id="playerScoreDisplay">0</span> pts</div>
           <div id="refBonusNote" style="display:none;font-size:11px;color:#7dd3fc;font-weight:700;margin-top:2px"></div>
         </div>
       </div>
@@ -445,7 +445,7 @@
     <div class="leaderboard-wrap">
       <div class="lb-header">
         <div>
-          <div class="lb-title">🏆 This Week</div>
+          <div class="lb-title">🏆 This Round</div>
           <div class="lb-week" id="lbWeekRange"></div>
         </div>
         <div style="font-size:11px;color:var(--muted)">Top 10</div>
@@ -935,7 +935,7 @@ async function renderLeaderboard() {
   entries.sort(function(a,b) { return b.score - a.score; });
 
   if (entries.length === 0) {
-    rows.innerHTML = '<div class="lb-empty">No scores yet this week.<br>Be the first to roll! 🎲</div>';
+    rows.innerHTML = '<div class="lb-empty">No scores yet this round.<br>Be the first to roll! 🎲</div>';
     yourRankBox.style.display = 'none';
     return;
   }
@@ -965,7 +965,7 @@ async function renderLeaderboard() {
       yourRankBox.innerHTML = 'You\'re ranked <strong>#' + (myRank + 1) + '</strong> with <strong>' + entries[myRank].score + ' pts</strong> · Keep rolling to climb!';
     } else if (myRank >= 0) {
       yourRankBox.style.display = 'block';
-      yourRankBox.innerHTML = 'You\'re ranked <strong>#' + (myRank + 1) + '</strong> this week · ' + (myRank === 0 ? '👑 You\'re in the lead!' : 'Keep rolling!');
+      yourRankBox.innerHTML = 'You\'re ranked <strong>#' + (myRank + 1) + '</strong> this round · ' + (myRank === 0 ? '👑 You\'re in the lead!' : 'Keep rolling!');
     } else {
       yourRankBox.style.display = 'none';
     }
