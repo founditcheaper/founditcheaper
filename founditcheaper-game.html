@@ -603,18 +603,22 @@ async function saveScores() {
   try {
     var weekStart = getPeriodBounds().start.toISOString().split('T')[0];
     var entry = scores[player.tag];
-    if (!entry) return;
-    await _sb.from('game_scores').upsert({
-      email:      player.email,
-      username:   entry.name,
-      player_tag: player.tag,
-      week_score: entry.weekScore,
-      last_roll:  entry.lastRoll,
-      roll_days:  entry.rollDays || [],
-      streak:     entry.streak || 0,
-      week_start: weekStart,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'email,week_start' });
+    if (!entry || !player.email) return;
+    // game_scores is locked from the public key (it holds emails), so the write
+    // goes through the service-role save-score function instead of a direct upsert.
+    await fetch('/.netlify/functions/save-score', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email:      player.email,
+        username:   entry.name,
+        player_tag: player.tag,
+        week_score: entry.weekScore,
+        last_roll:  entry.lastRoll,
+        roll_days:  entry.rollDays || [],
+        streak:     entry.streak || 0,
+        week_start: weekStart,
+      }),
+    });
   } catch(e) {}
 }
 
