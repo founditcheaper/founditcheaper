@@ -1773,7 +1773,8 @@ function _afterLoad() {
         for (var _pi = 1; _pi < dailyPicks.length; _pi++) {
           initSliderScroll('past-' + (_pi - 1), dailyPicks[_pi].items.length);
         }
-        setTimeout(startPicksAutoScroll, 400);   // the drift is the "this slides" cue now — start quickly, no separate peek
+        // NOTE: auto-scroll is started in Phase 2 (after the grid + banner render),
+        // so its heavy reflow doesn't stutter the drift's first moments.
       }, 200);
     }
   } catch (e) {}
@@ -1832,6 +1833,10 @@ function _afterLoad() {
   updateDealsBanner();
   // Initialize dual price slider visual state
   updateDualPrice();
+  // Start the carousel drift only NOW — after the grid + "deals found" banner have
+  // rendered — so that heavy Phase-2 reflow happens while the carousel is still,
+  // not mid-drift (which read as a glitch right as the deals number loaded).
+  setTimeout(startPicksAutoScroll, 300);
   var params = new URLSearchParams(window.location.search);
   var dealId = params.get('deal');
   if (dealId) {
