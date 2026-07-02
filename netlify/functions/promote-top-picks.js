@@ -82,11 +82,13 @@ exports.handler = async function (event) {
 
   // Candidates come from the GRID only (is_top_pick=false), so each day's set
   // rotates instead of re-picking the same deals. Variant-dedup, keep best score.
-  const cres = await fetch(`${sbUrl}/rest/v1/deals?select=id,name,off,rating,reviews,brand,code,store,is_top_pick&limit=5000`, { headers: H });
+  const cres = await fetch(`${sbUrl}/rest/v1/deals?select=id,name,off,rating,reviews,brand,code,store,is_top_pick,img,review_status&limit=5000`, { headers: H });
   const rows = await cres.json();
   const best = {};
   for (const r of (rows || [])) {
     if ((Number(r.off) || 0) < MIN_OFF) continue;
+    if (!(r.img || '').trim()) continue;                                          // no image → never a Top Pick
+    if (r.review_status === 'flagged' || r.review_status === 'pending') continue; // only clean, published deals
     const k = baseNameKey(r.name);
     r._s = score(r);
     if (!best[k] || r._s > best[k]._s) best[k] = r;
