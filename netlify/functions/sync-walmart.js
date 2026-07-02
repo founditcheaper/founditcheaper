@@ -8,17 +8,13 @@
 const crypto = require('crypto');
 
 const BASE         = 'https://developer.api.walmart.com/api-proxy/service/affil/product/v2';
-const MIN_DISCOUNT = 10;   // % off — wide net per Erik
-const MAX_DISCOUNT = 80;   // (legacy) kept for reference; superseded by the brand/no-name caps below
+const MIN_DISCOUNT = 10;   // % off floor — inflated deals are filtered on the SITE, not at pull-in
 const MIN_PRICE    = 5;    // skip sub-$5 junk
 const MIN_RATING   = 3.0;  // only cut clearly-bad rated items; 0/unknown is KEPT
 const MIN_REVIEWS  = 0;    // KEEP no-name / low-review products (promo-code sources)
-const BRAND_MAX    = 90;   // recognized brands (and cheap items) may go this high; above = likely a price error
-const NONAME_MAX   = 65;   // no-name brands capped here — the fake-inflated-MSRP zone
-const CHEAP_EXEMPT = 25;   // …unless the ORIGINAL price is under $25 (low-risk clearance)
 
-// Recognized brands: a >MAX_DISCOUNT deal is trustworthy if it's a real brand
-// (real brands rarely fake-inflate MSRP). Per Erik: brand + big discount = great deal.
+// Recognized brands — flags each deal as a real brand (stored on the row). The site's
+// "Remove Inflated" filter trusts brands with big discounts and only reins in no-name ones.
 const BRANDS = [
   'dewalt','milwaukee','makita','ryobi','craftsman','black+decker','black & decker','bosch',
   'stanley','ridgid','kobalt','skil','porter-cable','metabo','hart','greenworks','ego',
@@ -158,11 +154,9 @@ exports.handler = async function () {
       if (price < MIN_PRICE || was <= price) continue;     // real markdown + skip sub-$5 junk
       const off = Math.round((1 - price / was) * 100);
       if (off < MIN_DISCOUNT) continue;
-      // Inflated-price cap: recognized brands (and cheap items under $25 original price)
-      // may go up to BRAND_MAX; no-name items are held to NONAME_MAX.
+      // Inflated deals are NOT filtered at pull-in — the default-on "Remove Inflated"
+      // filter on the site hides them (visitors can turn it off to see everything).
       const brand = isBrand(it.name, it.brandName);
-      const offCap = (brand || was < CHEAP_EXEMPT) ? BRAND_MAX : NONAME_MAX;
-      if (off > offCap) continue;
       const rating  = parseFloat(it.customerRating) || 0;
       const reviews = Number(it.numReviews) || 0;
       if (rating > 0 && rating < MIN_RATING) continue;
