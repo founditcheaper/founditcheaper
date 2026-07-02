@@ -416,8 +416,10 @@
           <span class="guide-pts guide-special" style="text-align:right">Roll again × 2<br><span style="font-weight:500;font-size:11px">All rolls added</span></span>
         </div>
         <div class="guide-row"><span class="guide-combo" style="font-size:10px;color:var(--muted)">Doubles on a bonus roll do not earn another bonus roll</span><span class="guide-pts"></span></div>
-        <div class="guide-row"><span class="guide-combo">📅 Perfect week bonus</span><span class="guide-pts">+5 pts × days played</span></div>
-        <div class="guide-row"><span class="guide-combo" style="font-size:10px;color:var(--muted)">Roll every day Sun–Sat · Bonus only paid on final day</span><span class="guide-pts"></span></div>
+        <div id="perfectWeekRows">
+          <div class="guide-row"><span class="guide-combo">📅 Perfect week bonus</span><span class="guide-pts">+5 pts × days played</span></div>
+          <div class="guide-row"><span class="guide-combo" style="font-size:10px;color:var(--muted)">Roll every day of the week · Bonus only paid on final day</span><span class="guide-pts"></span></div>
+        </div>
       </div>
 
       <!-- Invite / referral -->
@@ -531,6 +533,16 @@ function getPeriodBounds() {
   if (gamePeriod && gamePeriod.start && gamePeriod.end) return gamePeriod;
   return getWeekBounds();
 }
+// How many calendar days the competition spans (inclusive).
+function periodDayCount() {
+  var b = getPeriodBounds(); if (!b || !b.start || !b.end) return 0;
+  var s = new Date(b.start); s.setHours(0,0,0,0);
+  var e = new Date(b.end);   e.setHours(0,0,0,0);
+  return Math.round((e - s) / 86400000) + 1;
+}
+// The perfect-attendance bonus only makes sense for a week-long (or longer) game, so
+// we only show its Scoring Guide text and pay it out when the game spans 7+ days.
+function gameIsFullWeek() { return periodDayCount() >= 7; }
 
 function getWeekString() {
   var b = getPeriodBounds();
@@ -700,6 +712,7 @@ function showGame() {
   if (idn) idn.innerHTML = 'Your player ID is <strong style="color:var(--accent)">#' + player.tag + '</strong> — this is how you\'ll spot yourself on the leaderboard. Same email always gets you the same ID.';
   updateScoreDisplay();
   checkAlreadyPlayed();
+  var pw = document.getElementById('perfectWeekRows'); if (pw) pw.style.display = gameIsFullWeek() ? '' : 'none';
 }
 
 // Reflect whether a competition is live. If NOT, show the "no game" notice, hide the
@@ -805,7 +818,7 @@ async function rollDice() {
   var hasRolledEveryDay = allDays.every(function(d) { return rollSet[normDay(d)]; });
   var weekEnd = getPeriodBounds().end;
   var isLastDay = todayDate.toDateString() === new Date(weekEnd).toDateString();
-  var streakBonus = (hasRolledEveryDay && isLastDay) ? allDays.length * 5 : 0;
+  var streakBonus = (gameIsFullWeek() && hasRolledEveryDay && isLastDay) ? allDays.length * 5 : 0;
   entry.streak = hasRolledEveryDay ? allDays.length : 0;
 
   // Roll sequence. bonusRemaining = how many extra rolls the FIRST roll earned:
@@ -829,7 +842,7 @@ async function rollDice() {
       if (streakBonus > 0) html += '<div style="font-size:11px;color:var(--green);font-weight:600;margin-top:2px">+'+streakBonus+' perfect week bonus included!</div>';
       html += '</div>';
     }
-    if (hasRolledEveryDay && !isLastDay && streakBonus === 0) {
+    if (gameIsFullWeek() && hasRolledEveryDay && !isLastDay && streakBonus === 0) {
       html += '<div style="text-align:center;font-size:11px;color:var(--green);font-weight:600;padding:6px 0">🔥 Perfect streak — bonus unlocks on final day!</div>';
     }
     resultBox.innerHTML = html;
