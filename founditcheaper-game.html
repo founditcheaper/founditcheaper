@@ -372,7 +372,11 @@
           <div id="refBonusNote" style="display:none;font-size:11px;color:#7dd3fc;font-weight:700;margin-top:2px"></div>
         </div>
       </div>
-      <div id="playerIdNote" style="font-size:11px;color:var(--muted);text-align:center;margin:2px 0 12px;line-height:1.5;background:rgba(245,200,66,0.06);border:1px solid rgba(245,200,66,0.2);border-radius:8px;padding:8px 10px"></div>
+      <div id="playerIdNote" style="font-size:11px;color:var(--muted);text-align:center;margin:2px 0 10px;line-height:1.5;background:rgba(245,200,66,0.06);border:1px solid rgba(245,200,66,0.2);border-radius:8px;padding:8px 10px"></div>
+      <div style="display:flex;justify-content:center;gap:8px;margin-bottom:14px">
+        <button onclick="promptRename()" style="font-size:11px;font-weight:600;color:var(--text-soft);background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif">✏️ Rename</button>
+        <button onclick="logoutPlayer()" style="font-size:11px;font-weight:600;color:var(--muted);background:transparent;border:1px solid rgba(255,255,255,0.15);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif">Log out</button>
+      </div>
 
       <div class="result-box" id="resultBox"></div>
 
@@ -709,6 +713,42 @@ async function startPlaying() {
     });
   } catch(e) {}
   showGame();
+}
+
+// Change display name. The player ID is tied to the email (unchanged), so this just
+// updates the shown name locally and in the DB so the leaderboard reflects it.
+function promptRename() {
+  if (!player) return;
+  var name = prompt('Enter a new display name:', player.username || '');
+  if (name == null) return;                 // cancelled
+  name = name.trim().slice(0, 20);
+  if (!name) { alert('Please enter a display name.'); return; }
+  player.username = name;
+  savePlayer();
+  var entry = scores[player.tag];
+  if (entry) { entry.name = name; scores[player.tag] = entry; saveScores(); }   // push new name to the DB
+  document.getElementById('playerNameDisplay').innerHTML = player.username + ' <span style="color:var(--muted);font-weight:600">#' + player.tag + '</span>';
+}
+
+// Log out: clear the local session and return to the sign-in gate. The score stays in
+// the DB keyed to the email, so signing back in with the same email restores everything.
+function logoutPlayer() {
+  if (!confirm('Log out? Your score is saved to your email — sign back in with the same email to pick up where you left off.')) return;
+  player = null; scores = {};
+  try { localStorage.removeItem(PLAYER_KEY); localStorage.removeItem(SCORES_KEY); } catch (e) {}
+  if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
+  document.getElementById('gameArea').style.display = 'none';
+  document.getElementById('resultBox').innerHTML = '';
+  document.getElementById('playedMsg').style.display = 'none';
+  var rb = document.getElementById('rollBtn'); if (rb) { rb.disabled = false; rb.textContent = 'Roll!'; }
+  var u = document.getElementById('usernameInput'); if (u) u.value = '';
+  var em = document.getElementById('emailInput'); if (em) em.value = '';
+  if (gameIsLive()) {
+    document.getElementById('emailGate').style.display = '';
+    var notice = document.getElementById('noGameNotice'); if (notice) notice.style.display = 'none';
+  } else {
+    applyGameLiveState();   // no live game → show the "no game running" notice instead
+  }
 }
 
 function showGame() {
