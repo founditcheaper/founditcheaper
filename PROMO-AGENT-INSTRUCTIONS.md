@@ -21,7 +21,8 @@ and POST it yourself, and you get the exact same server-side safety checks the e
 
 ## Your login / identity
 - **Username:** `promo-agent`
-- **Password:** the one Erik set in Netlify as `AGENT_PASSWORD` (he'll give it to you).
+- **Password:** read it from `C:\Users\emsil\playwright-mcp\agent-secrets.txt` (the `AGENT_PASSWORD=`
+  line) — saved locally so you don't have to ask Erik each time. Don't paste it into chat.
 - You post with that password. Every deal you add is auto-tagged **"by Promo Agent"** so Erik
   can see which deals came from you. Use ONLY your own password — don't use Erik's or Kuldeep's.
 - Your role is restricted (same as the VA): you can manage **Top Deal Picks** and **Imported

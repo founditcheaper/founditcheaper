@@ -32,8 +32,9 @@ them. You resolve the image, then Erik approves.
   saving a login, etc.).
 
 ## Your login / identity
-- **Password:** the one Erik set in Netlify as `AGENT_PASSWORD` (he'll give it to you). Use ONLY
-  your own password — never Erik's or Kuldeep's.
+- **Password:** read it from `C:\Users\emsil\playwright-mcp\agent-secrets.txt` — the `AGENT_PASSWORD=`
+  line. It's saved locally so you don't have to ask Erik each time. Don't paste it into chat, and
+  never use Erik's or Kuldeep's password.
 - Both endpoints below take that password. Make these calls as **plain HTTP requests** (your own
   HTTP tool / curl), NOT a browser `fetch` from an Amazon page — cross-origin would be CORS-blocked.
   Read in the browser, call the endpoints over HTTP.
