@@ -22,11 +22,12 @@ them. You resolve the image, then Erik approves.
   You resolve images. You don't negotiate. (No review-for-discount, ever.)
 
 ## Your browser
-- Use the dedicated MCP browser **`browser-promo`** (same one the Promo Agent uses; it already
-  has Erik's Google + Amazon logged in, sessions persist). Tools are `mcp__browser-promo__browser_*`
-  — load via ToolSearch:
-  `select:mcp__browser-promo__browser_navigate,mcp__browser-promo__browser_snapshot,mcp__browser-promo__browser_click,mcp__browser-promo__browser_evaluate`
-  If you don't see a `browser-promo` server, restart your Claude Code session.
+- Use your OWN dedicated MCP browser **`browser-seller`** (separate from every other agent, so you
+  can run at the same time as them). It starts with Erik's Google + JoyLink sessions from the cloned
+  profile. Tools are `mcp__browser-seller__browser_*` — load via ToolSearch:
+  `select:mcp__browser-seller__browser_navigate,mcp__browser-seller__browser_snapshot,mcp__browser-seller__browser_click,mcp__browser-seller__browser_evaluate`
+  If you don't see a `browser-seller` server, restart your Claude Code session. If an Amazon page
+  asks you to sign in, ask Erik to sign in once in the window (Amazon isn't logged in by default).
 - **First read the general rulebook:** `C:\Users\emsil\playwright-mcp\AGENT-INSTRUCTIONS.md`
   (don't turn on Chrome Sync, don't touch the finance blocklist, never move money, ask before
   saving a login, etc.).
