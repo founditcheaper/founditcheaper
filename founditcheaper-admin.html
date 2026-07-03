@@ -549,12 +549,18 @@ function renderPromoCodeDeals() {
   var list = document.getElementById('pcList'); if (!list) return;
   var q = (document.getElementById('pcSearch').value || '').toLowerCase();
   function _statusOf(d) { var s = d.review_status; return (s === 'pending' || s === 'flagged') ? s : 'live'; }
-  var counts = { all: _pcDeals.length, live: 0, pending: 0, flagged: 0 };
-  _pcDeals.forEach(function(d) { counts[_statusOf(d)]++; });
-  var items = _pcDeals.filter(function(d) {
+  // Status counts respect the active source + search scope, so the chip numbers always
+  // match the list below (e.g. on "Seller submitted" the Flagged count reflects only
+  // seller-submitted deals, not every source).
+  function _pcMatch(d) {
     var okSearch = !q || (d.name||'').toLowerCase().indexOf(q) >= 0 || (d.code||'').toLowerCase().indexOf(q) >= 0;
     var okSource = !_pcSource || (d.uploaded_by === _pcSource);
-    return okSearch && okSource && (_pcStatus === 'all' || _statusOf(d) === _pcStatus);
+    return okSearch && okSource;
+  }
+  var counts = { all: 0, live: 0, pending: 0, flagged: 0 };
+  _pcDeals.forEach(function(d) { if (_pcMatch(d)) { counts.all++; counts[_statusOf(d)]++; } });
+  var items = _pcDeals.filter(function(d) {
+    return _pcMatch(d) && (_pcStatus === 'all' || _statusOf(d) === _pcStatus);
   });
   var stat = document.getElementById('pcTodayStat');
   if (stat) {
