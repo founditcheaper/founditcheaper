@@ -87,6 +87,27 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
 .deal-edit.open { display: block; }
 .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
 @media (max-width: 600px) { .edit-grid { grid-template-columns: 1fr; } }
+
+/* ---- Mobile layout (phones) ---- */
+@media (max-width: 680px) {
+  header { padding: 8px 12px; height: auto; min-height: 54px; column-gap: 8px; }
+  .admin-logo { font-size: 18px; }
+  .header-actions { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .header-actions .btn { padding: 8px 11px; font-size: 11.5px; }
+  #whoBadge, #changesBadge { font-size: 11px; padding: 5px 9px; }
+  .admin-body { padding: 16px 12px 48px; }
+
+  /* Tab bar: wrap into a 2-per-row grid instead of overflowing off-screen */
+  .tabs { flex-wrap: wrap; gap: 6px; background: none; padding: 0; margin-bottom: 18px; }
+  .tab { flex: 1 1 calc(50% - 6px); padding: 12px 8px; font-size: 12.5px; line-height: 1.25;
+         background: rgba(255,255,255,0.05); border: 1px solid var(--border); }
+  .tab.active { background: var(--accent); border-color: var(--accent); }
+
+  /* Section headers: stack the title above its action buttons so they don't collide */
+  .section-header { flex-direction: column; align-items: stretch; gap: 12px; }
+  .section-header > div:last-child { width: 100%; }
+  .section-title { font-size: 22px; }
+}
 .field-group { display: flex; flex-direction: column; gap: 5px; }
 .field-group.full { grid-column: 1 / -1; }
 .field-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
