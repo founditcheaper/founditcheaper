@@ -49,6 +49,11 @@ async function run() {
     copyDir(path.join(ROOT, 'assets'), path.join(DIST, 'assets'));
   }
 
+  // Copy root-level static files (served verbatim at the site root, e.g. /robots.txt)
+  for (const f of ['robots.txt', 'sitemap.xml']) {
+    if (fs.existsSync(path.join(ROOT, f))) fs.copyFileSync(path.join(ROOT, f), path.join(DIST, f));
+  }
+
   // Minify every top-level .html file into dist/
   const htmlFiles = fs.readdirSync(ROOT).filter(f => f.endsWith('.html'));
   let minified = 0, copied = 0;

@@ -1,0 +1,31 @@
+# founditcheaper.net — robots.txt
+
+User-agent: *
+Allow: /
+# Keep the admin panel, affiliate redirects, and backend out of search results
+Disallow: /founditcheaper-admin.html
+Disallow: /deal/
+Disallow: /go/
+Disallow: /.netlify/
+
+# --- AI assistants: ALLOWED (brand discovery). Change "Allow: /" to "Disallow: /"
+# under any one of these to block it. ---
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://founditcheaper.net/sitemap.xml

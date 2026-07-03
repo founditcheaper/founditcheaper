@@ -77,6 +77,13 @@
 # The homepage is index.html, which Netlify serves at "/" automatically —
 # no root redirect needed.
 
+# Canonical host: send the old netlify.app URL to the custom domain (one host for SEO).
+[[redirects]]
+  from = "https://founditcheaper.netlify.app/*"
+  to = "https://founditcheaper.net/:splat"
+  status = 301
+  force = true
+
 [[headers]]
   for = "/*.html"
   [headers.values]
