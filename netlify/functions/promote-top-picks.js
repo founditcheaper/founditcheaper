@@ -25,6 +25,28 @@ function score(d) {
        + Math.random() * 40;          // freshness — different lineup each day
 }
 
+// Recognized-brand test — the SAME regex the site's grid uses for its "Remove
+// Inflated Discounts" filter. Kept in sync so the promoter never features a deal the
+// grid itself would hide.
+const BRAND_RE = /\b(sony|lg|nike|apple|samsung|ninja|dyson|beats|dewalt|milwaukee|bosch|kitchenaid|instant\s+pot|nespresso|adidas|under\s+armour|new\s+balance|north\s+face|patagonia|columbia|carhartt|levi'?s|black\s*[&+]\s*decker|craftsman|ridgid|makita|ryobi|snap.on|cuisinart|breville|hamilton\s+beach|oster|keurig|vitamix|nutribullet|lodge|calphalon|philips|braun|oral.b|shark|irobot|roomba|bose|jbl|anker|jabra|sennheiser|logitech|razer|corsair|microsoft|lenovo|dell|asus|acer|hp|ipad|iphone|macbook|airpods|garmin|fitbit|yeti|stanley|oxo|rubbermaid|weber|traeger|coleman|igloo|contigo|hydro\s+flask)\b/i;
+
+// Guard against featuring an implausibly-discounted (i.e. mis-priced) deal in Top
+// Picks. Without this, a bad source price like a "92% off" item that's really ~$100
+// scores HIGH (score() adds `off`) and gets auto-promoted — and Top Picks are shown
+// regardless of the grid's inflated-discount filter. CODED deals are exempt: their big
+// discount is the legitimate after-code price and is the whole point of featuring them.
+// For no-code deals we apply the grid's cap: no-name items are held to 65% off (unless
+// the original price is under $25), recognized brands to 90%. Brand is judged by the
+// brand FIELD only, never the title (a no-name "…for iPhone" charger must not read as
+// branded), matching the grid.
+function isInflated(d) {
+  if (d.code) return false;
+  const off = Number(d.off) || 0;
+  const brandDeal = BRAND_RE.test(d.brand_name || '');
+  const cap = (brandDeal || Number(d.was || 0) < 25) ? 90 : 65;
+  return off > cap;
+}
+
 function baseNameKey(name) {
   return (name || '').toLowerCase()
     .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
@@ -82,13 +104,14 @@ exports.handler = async function (event) {
 
   // Candidates come from the GRID only (is_top_pick=false), so each day's set
   // rotates instead of re-picking the same deals. Variant-dedup, keep best score.
-  const cres = await fetch(`${sbUrl}/rest/v1/deals?select=id,name,off,rating,reviews,brand,code,store,is_top_pick,img,review_status&limit=5000`, { headers: H });
+  const cres = await fetch(`${sbUrl}/rest/v1/deals?select=id,name,off,rating,reviews,brand,brand_name,was,code,store,is_top_pick,img,review_status&limit=5000`, { headers: H });
   const rows = await cres.json();
   const best = {};
   for (const r of (rows || [])) {
     if ((Number(r.off) || 0) < MIN_OFF) continue;
     if (!(r.img || '').trim()) continue;                                          // no image → never a Top Pick
     if (r.review_status === 'flagged' || r.review_status === 'pending') continue; // only clean, published deals
+    if (isInflated(r)) continue;                                                  // skip implausibly-discounted (likely mis-priced) deals
     const k = baseNameKey(r.name);
     r._s = score(r);
     if (!best[k] || r._s > best[k]._s) best[k] = r;
