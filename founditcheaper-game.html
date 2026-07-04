@@ -475,7 +475,13 @@
 window.addEventListener('message', function (e) {
   if (e && e.data && e.data.ficEmbedHeight) {
     var f = document.getElementById('picksFrame');
-    if (f) f.style.height = (e.data.ficEmbedHeight + 8) + 'px';
+    if (f) {
+      var h = e.data.ficEmbedHeight + 8;
+      var cur = parseInt(f.style.height, 10) || 0;
+      // Only resize on a real change — ignore sub-pixel jitter so an iframe resize can't
+      // feed back into a never-ending grow loop.
+      if (Math.abs(h - cur) > 2) f.style.height = h + 'px';
+    }
   }
 });
 </script>

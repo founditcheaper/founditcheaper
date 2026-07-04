@@ -106,6 +106,7 @@
     .filters-top .fbar { display: grid !important; grid-template-columns: 1.2fr 1fr; gap: 8px; overflow: visible !important; }
     .filters-top .fbar .fbar-btn, .filters-top .fbar .filters-toggle { width: 100%; min-width: 0; justify-content: center; box-sizing: border-box; padding: 9px 8px; font-size: 12px; }
     .filters-top .fbar .fbar-clear { grid-column: 1 / -1; }  /* Clear all filters spans the full width */
+    .filters-top .fbar #fbtnInflated { grid-column: 1 / -1; }  /* "Remove Inflated Discounts" — longer label needs the full row */
     .filters-toggle { display: inline-flex !important; align-items: center; gap: 6px; padding: 8px 12px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-gold); border-radius: 20px; color: var(--text); font-size: 12px; font-weight: 800; cursor: pointer; font-family: 'Inter', sans-serif; }
     .filters-toggle .fbar-chev { width: 14px; height: 14px; transition: transform .2s; }
     #filterPanel.open .filters-toggle .fbar-chev { transform: rotate(180deg); }
@@ -881,7 +882,13 @@ const MAX_PAST_DAYS = 5;
 var EMBED = /[?&]embed=picks(?:&|$)/.test(location.search);
 function postEmbedHeight() {
   if (!EMBED) return;
-  try { parent.postMessage({ ficEmbedHeight: Math.ceil(document.documentElement.scrollHeight) }, '*'); } catch (e) {}
+  // Measure the picks CONTENT height (the only visible section), NOT the document /
+  // viewport height. documentElement.scrollHeight is at least the viewport (= the
+  // iframe's own height), so reporting it makes the height track the iframe and, with
+  // the parent's resize, feeds back into an ever-growing loop.
+  var picks = document.querySelector('.picks-outer');
+  var h = picks ? Math.ceil(picks.offsetTop + picks.offsetHeight) : Math.ceil(document.documentElement.scrollHeight);
+  try { parent.postMessage({ ficEmbedHeight: h }, '*'); } catch (e) {}
 }
 function initEmbed() {
   if (!EMBED) return;
