@@ -1411,12 +1411,12 @@ function renderGameStatus() {
   if (c.ended) {
     el.innerHTML = box('rgba(255,255,255,0.05)', 'rgba(255,255,255,0.15)', 'var(--muted)', '⏹ Game force-ended (' + range + '). No game running — set new dates below to start one.');
   } else if (today < c.start) {
-    el.innerHTML = box('rgba(96,165,250,0.12)', 'rgba(96,165,250,0.4)', '#93c5fd', '⏳ Game scheduled — starts ' + _fmtDay(c.start) + ' (' + range + ').');
+    el.innerHTML = box('rgba(96,165,250,0.12)', 'rgba(96,165,250,0.4)', '#93c5fd', '⏳ Game scheduled — ' + range + '. Not started yet.');
   } else if (today <= c.end) {
     var nx = new Date(c.end + 'T12:00:00'); nx.setDate(nx.getDate() + 1);
     el.innerHTML = box('rgba(74,222,128,0.12)', 'rgba(74,222,128,0.45)', '#4ade80', '🟢 Game LIVE — ' + range + '. Ends ' + nx.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at 12:00 AM CT.');
   } else {
-    el.innerHTML = box('rgba(245,200,66,0.1)', 'rgba(245,200,66,0.4)', '#f5c842', '⚫ Game ended ' + _fmtDay(c.end) + ' (' + range + '). Winner is below — no game currently running.');
+    el.innerHTML = box('rgba(245,200,66,0.1)', 'rgba(245,200,66,0.4)', '#f5c842', '⚫ Game ended — ' + range + '. Winner is below; no game currently running.');
   }
 }
 function _esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
