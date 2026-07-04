@@ -420,7 +420,7 @@
           <span class="guide-combo guide-special">💀 Snake Eyes (1-1)</span>
           <span class="guide-pts guide-special" style="text-align:right">Roll again × 2<br><span style="font-weight:500;font-size:11px">All rolls added</span></span>
         </div>
-        <div class="guide-row"><span class="guide-combo" style="font-size:10px;color:var(--muted)">Doubles on a bonus roll do not earn another bonus roll</span><span class="guide-pts"></span></div>
+        <div class="guide-row"><span class="guide-combo" style="font-size:10px;color:var(--muted)">Doubles or snake eyes on a bonus roll do not earn another roll</span><span class="guide-pts"></span></div>
         <div id="perfectWeekRows">
           <div class="guide-row"><span class="guide-combo">📅 Perfect week bonus</span><span class="guide-pts">+5 pts × days played</span></div>
           <div class="guide-row"><span class="guide-combo" style="font-size:10px;color:var(--muted)">Roll every day of the week · Bonus only paid on final day</span><span class="guide-pts"></span></div>
@@ -937,9 +937,10 @@ async function rollDice() {
         else if (isDoubles(d1, d2))   { special = true; bonusRemaining = 1; label = '🔥 Doubles! Bonus roll!'; }
         else                          { label = pts >= 10 ? 'Nice roll!' : 'Keep rolling!'; }
       } else {
-        // Bonus rolls just add points (doubles here are still a fun highlight).
-        if (isSnakeEyes(d1, d2))      { special = true; label = '💀 Snake Eyes bonus!'; }
-        else if (isDoubles(d1, d2))   { special = true; label = '🔥 Doubles bonus!'; }
+        // On a bonus roll, doubles/snake eyes do NOT earn another roll. Say so plainly.
+        // The old "bonus!" wording made players expect an extra roll they never got.
+        if (isSnakeEyes(d1, d2))      { special = true; label = '💀 Snake Eyes (no extra roll)'; }
+        else if (isDoubles(d1, d2))   { special = true; label = '🔥 Doubles (no extra roll)'; }
         else                          { label = 'Bonus roll'; }
       }
 
