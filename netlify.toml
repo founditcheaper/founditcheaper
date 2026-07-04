@@ -70,6 +70,13 @@
   schedule = "5 * * * *"
   timeout = 26
 
+# Deal Alerts: match active `deal_requests` against the live deals feed and email the
+# requester when their wanted item is on sale. Runs every 15 min; self-limits (one alert
+# per request per 12h, dedupes by product). No-ops until PRIVATE_EMAIL_PASS is set.
+[functions."match-deal-requests"]
+  schedule = "*/15 * * * *"
+  timeout = 26
+
 # Self-hosted deep linker: /deal/<ASIN> (and the older /go/<ASIN>) run the go
 # function, which adds the affiliate tag, logs the click, and redirects to Amazon.
 [[redirects]]
@@ -79,6 +86,12 @@
 [[redirects]]
   from = "/go/*"
   to = "/.netlify/functions/go/:splat"
+  status = 200
+
+# Deal-alert per-item opt-out: pretty URL -> the stop function (token passed as ?t=).
+[[redirects]]
+  from = "/stop-alert/*"
+  to = "/.netlify/functions/stop-deal-alert?t=:splat"
   status = 200
 
 # The homepage is index.html, which Netlify serves at "/" automatically —
