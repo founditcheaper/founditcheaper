@@ -32,15 +32,20 @@ async function emailSeller(deal) {
     if (!to || !to.includes('@')) return { sent: false, reason: 'no email on file' };
 
     const name = deal.name || 'your deal';
-    const link = SITE + '/?deal=' + deal.id;
+    const link = SITE + '/?deal=' + deal.id;                     // COMPLIANT on-site card, never a raw Amazon link
     const priceLine = (deal.price != null) ? ('$' + deal.price + (deal.code ? ' with code ' + esc(deal.code) : '')) : '';
+    const img = String(deal.img || '').trim();
 
     const html =
       '<div style="font-family:Arial,Helvetica,sans-serif;color:#111;max-width:520px">' +
-        '<p style="font-size:15px;margin:0 0 12px">Your deal passed review and is live on founditcheaper.</p>' +
-        '<p style="font-size:15px;margin:0 0 4px;font-weight:700">' + esc(name) + '</p>' +
-        (priceLine ? '<p style="font-size:14px;color:#333;margin:0 0 12px">' + priceLine + '</p>' : '') +
-        '<p style="margin:0 0 16px"><a href="' + link + '" style="background:#f5c842;color:#0a1a2f;text-decoration:none;font-weight:700;padding:10px 16px;border-radius:6px;display:inline-block">See it on the site</a></p>' +
+        '<p style="font-size:15px;margin:0 0 12px">Your deal passed review and is live on founditcheaper. Here it is on the site:</p>' +
+        '<a href="' + link + '" style="text-decoration:none;color:inherit;display:block;border:1px solid #e5e5e5;border-radius:10px;padding:16px;max-width:340px">' +
+          (img ? '<img src="' + esc(img) + '" alt="" style="width:100%;max-width:280px;border-radius:8px;display:block;margin:0 auto 12px">' : '') +
+          '<div style="font-size:15px;font-weight:700;margin:0 0 4px">' + esc(name) + '</div>' +
+          (priceLine ? '<div style="font-size:14px;color:#0a7d2c;font-weight:700;margin:0 0 2px">' + priceLine + '</div>' : '') +
+          '<div style="font-size:12px;color:#888">founditcheaper.net</div>' +
+        '</a>' +
+        '<p style="margin:16px 0"><a href="' + link + '" style="background:#f5c842;color:#0a1a2f;text-decoration:none;font-weight:700;padding:11px 18px;border-radius:6px;display:inline-block">See it live on the site</a></p>' +
         '<p style="font-size:13px;color:#555;margin:0 0 4px">Send us more when you have them. Same place you submitted this one.</p>' +
         '<p style="font-size:12px;color:#999;margin:14px 0 0">You are getting this because you submitted this deal at founditcheaper.net.</p>' +
       '</div>';
