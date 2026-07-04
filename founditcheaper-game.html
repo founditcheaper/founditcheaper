@@ -392,6 +392,9 @@
       <div id="playedMsg" style="display:none" class="played-msg">
         ✓ You already rolled this hour<br>
         <span class="countdown"><span id="countdown">—</span></span>
+        <div id="remindWrap" style="margin-top:12px;display:none">
+          <button id="remindBtn" onclick="toggleRollReminder()" style="font-size:12px;font-weight:700;color:var(--accent);background:rgba(245,200,66,0.1);border:1px solid var(--border-gold);border-radius:8px;padding:9px 14px;cursor:pointer;font-family:'Inter',sans-serif">🔔 Remind me when I can roll</button>
+        </div>
       </div>
 
       <!-- DEMO CONTROLS (only visible in ?demo=1 test mode) -->
@@ -810,7 +813,44 @@ function checkAlreadyPlayed() {
     document.getElementById('rollBtn').disabled = true;
     document.getElementById('playedMsg').style.display = 'block';
     startCountdown();
+    if (_remindOn === null) loadRemindState(); else renderRemindBtn();
   }
+}
+
+// ── ROLL REMINDERS ────────────────────────────────────────────────────
+// Optional email nudge when the hourly cooldown is up. One tap (we already have their
+// email from signup). Only shown in the cooldown state, and only for real (non-demo) play.
+var _remindOn = null;   // null = not loaded yet
+function renderRemindBtn() {
+  var wrap = document.getElementById('remindWrap'), btn = document.getElementById('remindBtn');
+  if (!wrap || !btn) return;
+  if (DEMO || !player || !player.email) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  btn.innerHTML = _remindOn ? '🔔 Reminders on · tap to turn off' : '🔔 Remind me when I can roll';
+  btn.style.opacity = '1';
+}
+async function loadRemindState() {
+  if (DEMO || !player || !player.email) return;
+  try {
+    var r = await fetch('/.netlify/functions/set-roll-reminder?email=' + encodeURIComponent(player.email));
+    var d = await r.json(); _remindOn = !!(d && d.active);
+  } catch (e) { _remindOn = false; }
+  renderRemindBtn();
+}
+async function toggleRollReminder() {
+  if (!player || !player.email) return;
+  var btn = document.getElementById('remindBtn');
+  var next = !_remindOn;
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+  try {
+    var r = await fetch('/.netlify/functions/set-roll-reminder', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: player.email, on: next }),
+    });
+    var d = await r.json(); _remindOn = !!(d && d.active);
+  } catch (e) { /* leave state as-is */ }
+  if (btn) btn.disabled = false;
+  renderRemindBtn();
 }
 
 var _countdownTimer = null;

@@ -77,6 +77,14 @@
   schedule = "*/15 * * * *"
   timeout = 26
 
+# Dice-game roll reminders: email opted-in players (roll_reminders.active) when their
+# 1-hour roll cooldown is up. One reminder per eligibility (deduped on last_roll), so it
+# self-limits to at most one per hour per player and stops when they stop rolling. Only
+# runs while a game is live. No-ops until PRIVATE_EMAIL_PASS is set.
+[functions."roll-reminder-notify"]
+  schedule = "*/15 * * * *"
+  timeout = 26
+
 # Self-hosted deep linker: /deal/<ASIN> (and the older /go/<ASIN>) run the go
 # function, which adds the affiliate tag, logs the click, and redirects to Amazon.
 [[redirects]]
