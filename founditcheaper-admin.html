@@ -89,6 +89,10 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
 @media (max-width: 600px) { .edit-grid { grid-template-columns: 1fr; } }
 
 /* ---- Mobile layout (phones) ---- */
+/* Deal-moderation card: an info block on the left and action buttons on the right. */
+.pc-card { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; margin-bottom: 8px; }
+.pc-main { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.pc-actions { display: flex; gap: 6px; flex-shrink: 0; }
 @media (max-width: 680px) {
   header { padding: 8px 12px; height: auto; min-height: 54px; column-gap: 8px; }
   .admin-logo { font-size: 18px; }
@@ -107,6 +111,12 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
   .section-header { flex-direction: column; align-items: stretch; gap: 12px; }
   .section-header > div:last-child { width: 100%; }
   .section-title { font-size: 22px; }
+
+  /* Deal-moderation cards: stack the action buttons in a full-width wrapping row BELOW
+     the info, instead of shoving them off the right edge and squeezing the text into a
+     one-word-per-line column. */
+  .pc-card { flex-direction: column; align-items: stretch; }
+  .pc-actions { width: 100%; flex-wrap: wrap; margin-top: 4px; }
 }
 .field-group { display: flex; flex-direction: column; gap: 5px; }
 .field-group.full { grid-column: 1 / -1; }
@@ -656,15 +666,17 @@ function renderPromoCodeDeals() {
     var nameHtml = au
       ? '<a href="' + au + '" target="_blank" rel="noopener" title="Open on Amazon" style="color:#fff;text-decoration:none">' + d.name + ' <span style="color:#f5c842">&#8599;</span></a>'
       : d.name;
-    return '<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid ' + border + ';border-radius:8px;margin-bottom:8px">'
-      + checkbox
-      + img
-      + '<div style="flex:1;min-width:0">'
-        + '<div style="font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + nameHtml + stBadge + '</div>'
-        + '<div style="font-size:12px;color:var(--muted)"><span style="color:#4ade80;font-weight:800">$' + d.price + '</span> · code <span style="color:#f5c842;font-weight:700">' + (d.code || '') + '</span> · ' + d.store + (inPicks ? ' &nbsp;' + status : '') + '</div>'
-        + '<div style="font-size:11px;color:var(--muted);margin-top:3px">🕒 Added ' + _fmtAdded(d.created_at) + (d.uploaded_by ? ' · <span style="color:' + (d.uploaded_by === 'Kuldeep' ? '#7dd3fc' : '#f5c842') + ';font-weight:700">by ' + d.uploaded_by + '</span>' : '') + '</div>'
+    return '<div class="pc-card" style="border:1px solid ' + border + '">'
+      + '<div class="pc-main">'
+        + checkbox
+        + img
+        + '<div style="flex:1;min-width:0">'
+          + '<div style="font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + nameHtml + stBadge + '</div>'
+          + '<div style="font-size:12px;color:var(--muted)"><span style="color:#4ade80;font-weight:800">$' + d.price + '</span> · code <span style="color:#f5c842;font-weight:700">' + (d.code || '') + '</span> · ' + d.store + (inPicks ? ' &nbsp;' + status : '') + '</div>'
+          + '<div style="font-size:11px;color:var(--muted);margin-top:3px">🕒 Added ' + _fmtAdded(d.created_at) + (d.uploaded_by ? ' · <span style="color:' + (d.uploaded_by === 'Kuldeep' ? '#7dd3fc' : '#f5c842') + ';font-weight:700">by ' + d.uploaded_by + '</span>' : '') + '</div>'
+        + '</div>'
       + '</div>'
-      + copyBtn + editBtn + actions
+      + '<div class="pc-actions">' + copyBtn + editBtn + actions + '</div>'
     + '</div>';
   }).join('');
   pcRefreshBulkBar();

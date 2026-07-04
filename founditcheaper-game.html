@@ -1149,7 +1149,14 @@ function _demoResetRollUI() {
 function demoForceRoll(kind) {
   if (_animating) return;                       // wait for the current roll to finish
   _demoForce = (kind === 'snake') ? [1,1] : [4,4];
-  _demoResetRollUI();                           // clear last result + re-enable the button
+  var btn = document.getElementById('rollBtn');
+  // If a bonus roll is pending, apply the forced pair to THAT bonus roll (continue the
+  // sequence) instead of starting fresh — lets you test doubles/snake-eyes ON a bonus roll.
+  if (btn && btn.classList.contains('bonus') && !btn.disabled) {
+    btn.click();                                // fires the pending bonus-roll handler; doRoll() uses _demoForce
+    return;
+  }
+  _demoResetRollUI();                           // otherwise start a fresh roll with the forced outcome
   rollDice();                                   // roll immediately with the forced outcome
 }
 function demoNextDay() {
