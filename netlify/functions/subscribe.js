@@ -30,6 +30,15 @@ exports.handler = async function (event) {
     return { statusCode: 500, body: JSON.stringify({ ok: false, error: 'Newsletter not configured (missing BEEHIIV_API_KEY)' }) };
   }
 
+  // Map the on-site signup source into a clean, Beehiiv-filterable campaign tag, so
+  // you can segment/target subscribers by where they came in (dice game vs the
+  // newsletter menu vs a deal card, etc.). utm_campaign is a first-class filter in
+  // Beehiiv, so these show up as ready-made segments. Unknown sources pass through
+  // as-is; no source at all -> 'site'.
+  const SOURCE_CAMPAIGN = { game: 'dice-game', menu: 'newsletter-menu', grid: 'deal-grid' };
+  const srcKey = String(source || '').toLowerCase().trim();
+  const campaign = SOURCE_CAMPAIGN[srcKey] || (srcKey || 'site');
+
   try {
     const res = await fetch(`https://api.beehiiv.com/v2/publications/${pubId}/subscriptions`, {
       method: 'POST',
@@ -40,6 +49,7 @@ exports.handler = async function (event) {
         send_welcome_email: true,
         utm_source: 'founditcheaper',
         utm_medium: 'website',
+        utm_campaign: campaign,        // <- where they signed up (dice-game, newsletter-menu, deal-grid, …)
         referring_site: source ? ('founditcheaper.net/' + source) : 'founditcheaper.net',
       }),
     });
