@@ -207,6 +207,7 @@ exports.handler = async function (event) {
       code: d.code || null, use_code_url: false, creator: false, brand: false,
       brand_name: (prod && prod.brandName) || null, active_date: today, is_top_pick: false,
       uploaded_by: SELLER_TAG, review_status: 'pending',
+      submitter_email: email || null,                            // so we can tell them when it goes live
       ends_at: d.expires ? (d.expires + 'T23:59:59Z') : null,
     };
     // Dedup a re-submit by ASIN, or by the promo-code id for link-only deals.
@@ -217,10 +218,10 @@ exports.handler = async function (event) {
       if (dedupKey) await fetch(`${sbUrl}/rest/v1/deals?url=like.*${dedupKey}*&uploaded_by=eq.Seller%20Submission&review_status=eq.pending`, { method: 'DELETE', headers: { ...sb, Prefer: 'return=minimal' } }).catch(() => {});
       let ins = await fetch(`${sbUrl}/rest/v1/deals`, { method: 'POST', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(row) });
       if (!ins.ok) {
-        // ends_at column may be missing — retry WITHOUT it but KEEP review_status='pending',
-        // so a seller deal never slips onto the site unreviewed. If that still fails, skip it
-        // (leave it in the raw submission) rather than publish it live.
-        const noEnds = { ...row }; delete noEnds.ends_at;
+        // ends_at / submitter_email columns may be missing — retry WITHOUT them but KEEP
+        // review_status='pending', so a seller deal never slips onto the site unreviewed.
+        // If that still fails, skip it (leave it in the raw submission) rather than publish it.
+        const noEnds = { ...row }; delete noEnds.ends_at; delete noEnds.submitter_email;
         ins = await fetch(`${sbUrl}/rest/v1/deals`, { method: 'POST', headers: { ...sb, Prefer: 'return=minimal' }, body: JSON.stringify(noEnds) });
       }
       if (ins.ok) imported++;

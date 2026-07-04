@@ -626,21 +626,20 @@ function renderPromoCodeDeals() {
       + _srcChip('', 'All sources', '#f5c842')
       + _srcChip('Seller Submission', '🧑‍💼 Seller submitted (' + sellerN + ')', '#7dd3fc')
       + '</div>' + chips;
-  if (!items.length) { list.innerHTML = chips + '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No ' + (_pcStatus !== 'all' ? _pcStatus + ' ' : '') + 'promo code deals' + (q ? ' match your search' : '') + '.</div>'; _pcShownAsins = []; pcRefreshBulkBar(); return; }
-  // ASINs currently shown (for select-all). Deals without an ASIN can't be bulk-removed.
-  _pcShownAsins = items.map(function(d) { return _asinFromUrl(d.url); }).filter(Boolean);
-  var allSelected = _pcShownAsins.length && _pcShownAsins.every(function(a) { return _pcSelected[a]; });
+  if (!items.length) { list.innerHTML = chips + '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No ' + (_pcStatus !== 'all' ? _pcStatus + ' ' : '') + 'promo code deals' + (q ? ' match your search' : '') + '.</div>'; _pcShownIds = []; pcRefreshBulkBar(); return; }
+  // Row ids currently shown (for select-all). Selection is keyed by id — not ASIN — so
+  // deals with no ASIN (seller promo-code links) are still selectable and approvable.
+  _pcShownIds = items.map(function(d) { return d.id; }).filter(Boolean);
+  var allSelected = _pcShownIds.length && _pcShownIds.every(function(id) { return _pcSelected[id]; });
   var toolbar = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">'
-    + '<button class="btn btn-ghost" style="padding:7px 12px" onclick="pcSelectAllShown()">' + (allSelected ? '☐ Clear selection' : '☑ Select all shown (' + _pcShownAsins.length + ')') + '</button>'
+    + '<button class="btn btn-ghost" style="padding:7px 12px" onclick="pcSelectAllShown()">' + (allSelected ? '☐ Clear selection' : '☑ Select all shown (' + _pcShownIds.length + ')') + '</button>'
     + '<button id="pcApproveSelBtn" class="btn" style="padding:7px 12px;background:rgba(74,222,128,0.95);color:#0a2a14;border:none;font-weight:700" onclick="pcApproveSelected()">✓ Approve selected (0)</button>'
     + '<button id="pcRemoveSelBtn" class="btn" style="padding:7px 12px;background:rgba(220,38,38,0.9);color:#fff;border:none" onclick="pcRemoveSelected()">🗑 Remove selected (0)</button>'
     + '</div>';
   list.innerHTML = chips + toolbar + items.map(function(d) {
     var asin = _asinFromUrl(d.url);
     var st = _statusOf(d);
-    var checkbox = asin
-      ? '<input type="checkbox" class="pc-check" style="width:18px;height:18px;flex-shrink:0;accent-color:#f5c842;cursor:pointer" ' + (_pcSelected[asin] ? 'checked' : '') + ' onchange="pcToggleSel(\'' + asin + '\', this.checked)">'
-      : '<span style="width:18px;flex-shrink:0"></span>';
+    var checkbox = '<input type="checkbox" class="pc-check" style="width:18px;height:18px;flex-shrink:0;accent-color:#f5c842;cursor:pointer" ' + (_pcSelected[d.id] ? 'checked' : '') + ' onchange="pcToggleSel(\'' + d.id + '\', this.checked)">';
     var inPicks = !!d.is_top_pick;
     var border = st === 'flagged' ? 'rgba(248,113,113,0.5)' : st === 'pending' ? 'rgba(245,200,66,0.4)' : inPicks ? 'rgba(245,200,66,0.45)' : 'rgba(255,255,255,0.08)';
     var status = inPicks
@@ -653,13 +652,16 @@ function renderPromoCodeDeals() {
       : '';
     var editBtn = '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="openEditDeal(\'' + d.id + '\')">Edit</button>';
     var copyBtn = '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="copyDealLink(\'' + d.id + '\', this)">🔗 Copy Link</button>';
-    var approveBtn = (st !== 'live' && asin) ? '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0;border-color:rgba(74,222,128,0.5);color:#4ade80" onclick="approvePromoDeal(\'' + asin + '\')" title="Publish this deal to the site now">✓ Approve</button>' : '';
+    // Approve by row id — works for every deal, including seller promo-code links with no ASIN.
+    var approveBtn = (st !== 'live') ? '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0;border-color:rgba(74,222,128,0.5);color:#4ade80" onclick="approveDealById(\'' + d.id + '\')" title="Publish this deal to the site now">✓ Approve</button>' : '';
+    // Top Picks needs a real Amazon product, so only offer "Move to Top Picks" when there's an ASIN.
+    var moveBtn = asin ? '<button class="abtn abtn-gold" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="promoteToPicks(\'' + asin + '\')">Move to Today\'s Top Deal Picks</button>' : '';
+    var removeArg = asin ? '\'' + asin + '\'' : 'null';
+    var removeBtn = '<button class="abtn abtn-red" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="removeDeal(\'' + d.id + '\', ' + removeArg + ', this)">Remove</button>';
     var actions = inPicks
       ? '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="demoteFromPicks(\'' + asin + '\')">Move back to All Deals</button>'
-        + '<button class="abtn abtn-red" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="removePromoDeal(\'' + asin + '\', this)">Remove</button>'
-      : approveBtn
-        + '<button class="abtn abtn-gold" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="promoteToPicks(\'' + asin + '\')">Move to Today\'s Top Deal Picks</button>'
-        + '<button class="abtn abtn-red" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="removePromoDeal(\'' + asin + '\', this)">Remove</button>';
+        + removeBtn
+      : approveBtn + moveBtn + removeBtn;
     var au = d.url || '';
     var img = d.img ? '<img src="' + d.img + '" style="width:48px;height:48px;object-fit:contain;background:#fff;border-radius:6px;flex-shrink:0' + (au ? ';cursor:pointer' : '') + '" onerror="this.style.display=\'none\'">' : '';
     if (au && img) img = '<a href="' + au + '" target="_blank" rel="noopener" title="Open on Amazon">' + img + '</a>';
@@ -685,22 +687,23 @@ var _pcStatus = 'all';
 function pcSetStatus(v) { _pcStatus = v; renderPromoCodeDeals(); }
 var _pcSource = '';   // '' = all sources; 'Seller Submission' = seller-submitted only
 function pcSetSource(v) { _pcSource = v; renderPromoCodeDeals(); }
-async function approvePromoDeal(asin) {
+async function approveDealById(id) {
   showToast('Publishing…');
   try {
-    var res = await fetch('/.netlify/functions/manage-code', {
+    var res = await fetch('/.netlify/functions/moderate-deal', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: sessionPass, action: 'approve', asin: asin }),
+      body: JSON.stringify({ password: sessionPass, action: 'approve', id: id }),
     });
-    if (res.ok) { showToast('Published to the site'); loadPromoCodeDeals(); }
+    var data = await res.json().catch(function () { return {}; });
+    if (res.ok && data.ok) { showToast(data.emailed ? 'Published — seller emailed' : 'Published to the site'); loadPromoCodeDeals(); }
     else showToast('Approve failed');
   } catch (e) { showToast('Network error'); }
 }
 
 // ── Bulk select / remove ──────────────────────────────────────────────
-var _pcSelected = {};   // asin -> true (transient; cleared on reload)
-var _pcShownAsins = [];
-function pcToggleSel(asin, on) { if (on) _pcSelected[asin] = true; else delete _pcSelected[asin]; pcRefreshBulkBar(); }
+var _pcSelected = {};   // deal id -> true (transient; cleared on reload)
+var _pcShownIds = [];
+function pcToggleSel(id, on) { if (on) _pcSelected[id] = true; else delete _pcSelected[id]; pcRefreshBulkBar(); }
 function pcRefreshBulkBar() {
   var n = Object.keys(_pcSelected).length;
   var setState = function (btn, label) {
@@ -714,22 +717,22 @@ function pcRefreshBulkBar() {
   setState(document.getElementById('pcRemoveSelBtn'), '🗑 Remove selected');
 }
 function pcSelectAllShown() {
-  var allSel = _pcShownAsins.length && _pcShownAsins.every(function (a) { return _pcSelected[a]; });
-  _pcShownAsins.forEach(function (a) { if (allSel) delete _pcSelected[a]; else _pcSelected[a] = true; });
+  var allSel = _pcShownIds.length && _pcShownIds.every(function (id) { return _pcSelected[id]; });
+  _pcShownIds.forEach(function (id) { if (allSel) delete _pcSelected[id]; else _pcSelected[id] = true; });
   renderPromoCodeDeals();
 }
 async function pcApproveSelected() {
-  var asins = Object.keys(_pcSelected);
-  if (!asins.length) return;
-  if (!confirm('Approve ' + asins.length + ' selected deal' + (asins.length === 1 ? '' : 's') + '?\n\nThey publish to the site now.')) return;
+  var ids = Object.keys(_pcSelected);
+  if (!ids.length) return;
+  if (!confirm('Approve ' + ids.length + ' selected deal' + (ids.length === 1 ? '' : 's') + '?\n\nThey publish to the site now.')) return;
   var btn = document.getElementById('pcApproveSelBtn'); if (btn) btn.disabled = true;
   var ok = 0, fail = 0;
-  for (var i = 0; i < asins.length; i++) {
-    if (btn) btn.textContent = 'Approving ' + (i + 1) + '/' + asins.length + '…';
+  for (var i = 0; i < ids.length; i++) {
+    if (btn) btn.textContent = 'Approving ' + (i + 1) + '/' + ids.length + '…';
     try {
-      var res = await fetch('/.netlify/functions/manage-code', {
+      var res = await fetch('/.netlify/functions/moderate-deal', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: sessionPass, action: 'approve', asin: asins[i] }),
+        body: JSON.stringify({ password: sessionPass, action: 'approve', id: ids[i] }),
       });
       if (res.ok) ok++; else fail++;
     } catch (e) { fail++; }
@@ -739,18 +742,27 @@ async function pcApproveSelected() {
   loadPromoCodeDeals();
 }
 async function pcRemoveSelected() {
-  var asins = Object.keys(_pcSelected);
-  if (!asins.length) return;
-  if (!confirm('Remove ' + asins.length + ' selected deal' + (asins.length === 1 ? '' : 's') + '?\n\nThis permanently deletes them from the site AND your Google Sheet, and cannot be undone.')) return;
+  var ids = Object.keys(_pcSelected);
+  if (!ids.length) return;
+  if (!confirm('Remove ' + ids.length + ' selected deal' + (ids.length === 1 ? '' : 's') + '?\n\nThis permanently deletes them from the site (and the Google Sheet for sheet deals), and cannot be undone.')) return;
   var btn = document.getElementById('pcRemoveSelBtn'); if (btn) btn.disabled = true;
   var ok = 0, fail = 0;
-  for (var i = 0; i < asins.length; i++) {
-    if (btn) btn.textContent = 'Removing ' + (i + 1) + '/' + asins.length + '…';
+  for (var i = 0; i < ids.length; i++) {
+    if (btn) btn.textContent = 'Removing ' + (i + 1) + '/' + ids.length + '…';
+    var d = _pcDeals.find(function (x) { return x.id === ids[i]; }) || {};
+    var asin = _asinFromUrl(d.url);
     try {
-      var res = await fetch('/.netlify/functions/manage-code', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: sessionPass, action: 'remove', asin: asins[i] }),
-      });
+      // Sheet-backed deals (they have an ASIN) go through manage-code so the Google Sheet
+      // is cleaned up too; ASIN-less deals (seller promo links) are deleted by id directly.
+      var res = asin
+        ? await fetch('/.netlify/functions/manage-code', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: sessionPass, action: 'remove', asin: asin }),
+          })
+        : await fetch('/.netlify/functions/moderate-deal', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: sessionPass, action: 'delete', id: ids[i] }),
+          });
       if (res.ok) ok++; else fail++;
     } catch (e) { fail++; }
   }
@@ -812,18 +824,23 @@ async function demoteFromPicks(asin) {
     else { showToast('Failed: ' + (data.error || ('HTTP ' + res.status))); }
   } catch (e) { showToast('Network error'); }
 }
-async function removePromoDeal(asin, btn) {
-  if (!asin) { showToast('No Amazon ID found for this deal'); return; }
-  if (!confirm('Remove this deal? It will be deleted from the sheet and the site.')) return;
+async function removeDeal(id, asin, btn) {
+  if (!confirm('Remove this deal? It will be deleted from the site' + (asin ? ' and the Google Sheet' : '') + '.')) return;
   btn.textContent = 'Removing…'; btn.disabled = true;
   try {
-    var res = await fetch('/.netlify/functions/manage-code', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: sessionPass, action: 'remove', asin: asin })
-    });
+    // ASIN deals go through manage-code (also cleans the sheet); ASIN-less deals delete by id.
+    var res = asin
+      ? await fetch('/.netlify/functions/manage-code', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: sessionPass, action: 'remove', asin: asin })
+        })
+      : await fetch('/.netlify/functions/moderate-deal', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: sessionPass, action: 'delete', id: id })
+        });
     var data = await res.json();
     if (res.ok && data.ok) {
-      showToast('Removed from sheet and site');
+      showToast(asin ? 'Removed from sheet and site' : 'Removed from site');
       await loadPicks();
       await loadPromoCodeDeals();
     } else {
