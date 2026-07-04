@@ -28,6 +28,36 @@ function toKeywords(text) {
     .filter(function (w) { return w.length >= 3 && !STOP.has(w); }).slice(0, 8);
 }
 
+// Read the product out of a screenshot with a quick vision model, returning a short
+// search phrase (brand + item). Needs ANTHROPIC_API_KEY; returns null if it's unset or
+// the model can't tell, so the caller can fall back to asking for typed keywords.
+async function identifyFromImage(dataUrl) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return null;
+  const m = String(dataUrl || '').match(/^data:(image\/[a-z]+);base64,(.+)$/i);
+  if (!m) return null;
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 40,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } },
+          { type: 'text', text: 'This is a screenshot of a product someone wants a deal on. Reply with ONLY the product as a short search phrase (brand and item, 3 to 8 words), lowercase, no punctuation, no extra words. If you cannot tell, reply exactly: unknown' },
+        ] }],
+      }),
+    });
+    const d = await r.json().catch(function () { return null; });
+    const t = d && d.content && d.content[0] && d.content[0].text;
+    if (!t) return null;
+    const phrase = String(t).trim().toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!phrase || phrase === 'unknown' || phrase.length < 3) return null;
+    return phrase.slice(0, 120);
+  } catch (e) { return null; }
+}
+
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
   let body;
@@ -36,20 +66,33 @@ exports.handler = async function (event) {
 
   const email = String(body.email || '').trim().toLowerCase();
   const query = String(body.query || '').trim();
+  const hasImage = typeof body.image === 'string' && /^data:image\//i.test(body.image);
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Enter a valid email' }) };
   }
-  if (query.length < 2 || query.length > 300) {
-    return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Tell us the item you want' }) };
+  if (query.length < 2 && !hasImage) {
+    return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Tell us the item you want, or add a screenshot' }) };
+  }
+  if (query.length > 300) {
+    return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'That is a bit long — shorten the item' }) };
   }
 
   let targetPrice = null;
   const tp = parseFloat(body.targetPrice);
   if (!isNaN(tp) && tp > 0 && tp < 100000) targetPrice = Math.round(tp * 100) / 100;
 
-  // Detect a pasted link vs typed keywords.
-  let type = 'keyword', asin = null, store = 'any', keywords = [];
-  if (isUrl(query)) {
+  let type = 'keyword', asin = null, store = 'any', keywords = [], queryText = query;
+
+  // Screenshot path: read the product from the image (vision). Only used when they
+  // didn't also type an item — typed text is the more reliable signal when present.
+  if (hasImage && query.length < 2) {
+    const phrase = await identifyFromImage(body.image);
+    if (phrase) {
+      type = 'screenshot'; queryText = phrase; keywords = toKeywords(phrase); store = 'Amazon';
+    } else {
+      return { statusCode: 422, body: JSON.stringify({ ok: false, error: "Could not read that screenshot — type a couple words describing the item too, then resend" }) };
+    }
+  } else if (isUrl(query)) {
     if (isWalmart(query)) { type = 'link'; store = 'Walmart'; }
     else { asin = extractAsin(query); type = asin ? 'asin' : 'link'; store = 'Amazon'; }
   } else {
@@ -66,7 +109,7 @@ exports.handler = async function (event) {
   const row = {
     email: email,
     type: type,
-    query_text: query.slice(0, 300),
+    query_text: String(queryText).slice(0, 300),
     asin: asin,
     keywords: keywords,
     store: store,
