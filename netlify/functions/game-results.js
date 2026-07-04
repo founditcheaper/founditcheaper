@@ -17,7 +17,7 @@ exports.handler = async function (event) {
   if (!sbUrl || !sbKey) return { statusCode: 500, body: JSON.stringify({ error: 'Config error' }) };
 
   try {
-    const r = await fetch(`${sbUrl}/rest/v1/game_scores?select=email,username,player_tag,week_score,week_start,streak&order=week_start.desc,week_score.desc`, {
+    const r = await fetch(`${sbUrl}/rest/v1/game_scores?select=email,username,player_tag,week_score,week_start,period_end,streak&order=week_start.desc,week_score.desc`, {
       headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
     });
     const rows = await r.json();

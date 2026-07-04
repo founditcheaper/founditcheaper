@@ -304,6 +304,8 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         </div>
       </div>
 
+      <div id="gameStatusBanner" style="margin-bottom:16px"></div>
+
       <div class="settings-card" style="margin-bottom:16px">
         <div class="settings-title">🎁 Prize & Competition Dates</div>
         <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Shown on the Daily Dice Roll page. Update it anytime — changes go live immediately.</div>
@@ -1317,6 +1319,8 @@ async function loadSettings() {
     if (m.game_prize_sub != null && document.getElementById('gamePrizeSubInput')) document.getElementById('gamePrizeSubInput').value = m.game_prize_sub;
     if (m.game_period_start != null && document.getElementById('gameStartInput')) document.getElementById('gameStartInput').value = m.game_period_start;
     if (m.game_period_end != null && document.getElementById('gameEndInput')) document.getElementById('gameEndInput').value = m.game_period_end;
+    _gameCfg = { start: m.game_period_start || '', end: m.game_period_end || '', ended: String(m.game_ended || '0') === '1' };
+    renderGameStatus();
   } catch (e) { /* settings table may not exist yet */ }
 }
 async function clearAllScores() {
@@ -1386,9 +1390,34 @@ function _weekStartStr(dateObj) {
   return s.toISOString().split('T')[0];
 }
 function _currentWeekStart() { return _weekStartStr(new Date()); }
-function _weekRangeLabel(weekStart) {
-  var start = new Date(weekStart + 'T12:00:00'); var end = new Date(start); end.setDate(start.getDate() + 6);
-  return start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' – ' + end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+// Label a game's REAL date range (single day if start === end), from its stored end.
+function _weekRangeLabel(start, end) {
+  var s = new Date(start + 'T12:00:00');
+  var sTxt = s.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (!end || end === start) return sTxt + ', ' + s.getFullYear();
+  var e = new Date(end + 'T12:00:00');
+  return sTxt + ' – ' + e.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+// Current competition (from settings) + Central-time "today" for the live/ended check.
+var _gameCfg = { start: '', end: '', ended: false };
+function _todayCT() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); }
+function _fmtDay(d) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''; }
+function renderGameStatus() {
+  var el = document.getElementById('gameStatusBanner'); if (!el) return;
+  var c = _gameCfg || {}, today = _todayCT();
+  function box(bg, bd, col, html) { return '<div style="background:' + bg + ';border:1px solid ' + bd + ';border-radius:10px;padding:12px 14px;font-size:14px;font-weight:700;color:' + col + '">' + html + '</div>'; }
+  if (!c.start || !c.end) { el.innerHTML = box('rgba(255,255,255,0.05)', 'rgba(255,255,255,0.15)', 'var(--muted)', 'No game configured — set competition dates below to start one.'); return; }
+  var range = (c.start === c.end) ? _fmtDay(c.start) : (_fmtDay(c.start) + ' – ' + _fmtDay(c.end));
+  if (c.ended) {
+    el.innerHTML = box('rgba(255,255,255,0.05)', 'rgba(255,255,255,0.15)', 'var(--muted)', '⏹ Game force-ended (' + range + '). No game running — set new dates below to start one.');
+  } else if (today < c.start) {
+    el.innerHTML = box('rgba(96,165,250,0.12)', 'rgba(96,165,250,0.4)', '#93c5fd', '⏳ Game scheduled — starts ' + _fmtDay(c.start) + ' (' + range + ').');
+  } else if (today <= c.end) {
+    var nx = new Date(c.end + 'T12:00:00'); nx.setDate(nx.getDate() + 1);
+    el.innerHTML = box('rgba(74,222,128,0.12)', 'rgba(74,222,128,0.45)', '#4ade80', '🟢 Game LIVE — ' + range + '. Ends ' + nx.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at 12:00 AM CT.');
+  } else {
+    el.innerHTML = box('rgba(245,200,66,0.1)', 'rgba(245,200,66,0.4)', '#f5c842', '⚫ Game ended ' + _fmtDay(c.end) + ' (' + range + '). Winner is below — no game currently running.');
+  }
 }
 function _esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
 
@@ -1404,18 +1433,27 @@ async function loadGameResults() {
     var byWeek = {};
     rows.forEach(function (r) { (byWeek[r.week_start] = byWeek[r.week_start] || []).push(r); });
     var weeks = Object.keys(byWeek).filter(function (w) { return w >= '2020-01-01'; }).sort().reverse();
-    var cur = _currentWeekStart();
+    var today = _todayCT();
     var html = '';
     weeks.forEach(function (wk) {
-      var players = byWeek[wk].slice().sort(function (a, b) { return b.week_score - a.week_score; });
+      var group = byWeek[wk];
+      var players = group.slice().sort(function (a, b) { return b.week_score - a.week_score; });
       var winner = players[0];
-      var isCur = (wk === cur);
-      var badge = isCur
+      // Each row in a group shares the game's real end date. Fall back to the current
+      // competition's end if this is the active game, else treat it as a single day.
+      var pEnd = null;
+      for (var gi = 0; gi < group.length; gi++) { if (group[gi].period_end) { pEnd = group[gi].period_end; break; } }
+      if (!pEnd && _gameCfg && wk === _gameCfg.start) pEnd = _gameCfg.end;
+      if (!pEnd) pEnd = wk;
+      // In progress only while today is within the real dates AND it wasn't force-ended.
+      var forceEnded = !!(_gameCfg && wk === _gameCfg.start && _gameCfg.ended);
+      var inProgress = !forceEnded && today >= wk && today <= pEnd;
+      var badge = inProgress
         ? '<span style="font-size:11px;font-weight:800;color:#4ade80;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.4);padding:2px 8px;border-radius:4px;white-space:nowrap">● IN PROGRESS</span>'
         : '<span style="font-size:11px;font-weight:800;color:#f5c842;background:rgba(245,200,66,0.12);border:1px solid rgba(245,200,66,0.35);padding:2px 8px;border-radius:4px;white-space:nowrap">✓ FINAL</span>';
       html += '<div style="border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:14px;margin-bottom:14px">';
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap"><div style="font-size:15px;font-weight:800;color:#fff">' + _weekRangeLabel(wk) + '</div>' + badge + '</div>';
-      html += '<div style="background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.3);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:#fff">🏆 <strong>' + (isCur ? 'Leading: ' : 'Winner: ') + _esc(winner.username) + ' <span style="color:var(--muted);font-weight:600">#' + _esc(winner.player_tag || '?') + '</span></strong> — <span style="color:#f5c842;font-weight:800">' + winner.week_score + ' pts</span><br><span style="color:var(--muted);font-size:12px">' + _esc(winner.email) + '</span></div>';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap"><div style="font-size:15px;font-weight:800;color:#fff">' + _weekRangeLabel(wk, pEnd) + '</div>' + badge + '</div>';
+      html += '<div style="background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.3);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:#fff">🏆 <strong>' + (inProgress ? 'Leading: ' : 'Winner: ') + _esc(winner.username) + ' <span style="color:var(--muted);font-weight:600">#' + _esc(winner.player_tag || '?') + '</span></strong> — <span style="color:#f5c842;font-weight:800">' + winner.week_score + ' pts</span><br><span style="color:var(--muted);font-size:12px">' + _esc(winner.email) + '</span></div>';
       html += '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">All players (' + players.length + ')</div>';
       players.forEach(function (p, i) {
         html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px">'

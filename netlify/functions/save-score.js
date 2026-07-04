@@ -65,6 +65,9 @@ exports.handler = async function (event) {
     roll_days: rollDays,
     streak: streak === null ? 0 : streak,
     week_start: weekStart,
+    // The competition's last scoring day (YYYY-MM-DD) — lets the admin label each game
+    // with its REAL length instead of assuming a 7-day week. Null if the page didn't send it.
+    period_end: /^\d{4}-\d{2}-\d{2}$/.test(String(body.period_end || '')) ? String(body.period_end) : null,
     updated_at: new Date().toISOString(),
   };
 

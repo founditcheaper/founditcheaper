@@ -639,6 +639,7 @@ async function saveScores() {
   if (!USE_SUPABASE || !player) return;
   try {
     var weekStart = getPeriodBounds().start.toISOString().split('T')[0];
+    var periodEnd = _gameEnd || getPeriodBounds().end.toISOString().split('T')[0];
     var entry = scores[player.tag];
     if (!entry || !player.email) return;
     // game_scores is locked from the public key (it holds emails), so the write
@@ -654,6 +655,7 @@ async function saveScores() {
         roll_days:  entry.rollDays || [],
         streak:     entry.streak || 0,
         week_start: weekStart,
+        period_end: periodEnd,
       }),
     });
   } catch(e) {}
