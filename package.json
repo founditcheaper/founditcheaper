@@ -6,6 +6,7 @@
     "build": "node build.js"
   },
   "dependencies": {
-    "html-minifier-terser": "^7.2.0"
+    "html-minifier-terser": "^7.2.0",
+    "nodemailer": "^9.0.3"
   }
 }

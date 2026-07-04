@@ -63,6 +63,13 @@
   schedule = "40 7 * * *"
   timeout = 26
 
+# Dice game: email the winner to Erik when a competition ends. Runs hourly and
+# self-gates — it emails only once per game, only after the end date has passed (or a
+# force-end). No-ops until PRIVATE_EMAIL_PASS (the deals@ mailbox password) is set.
+[functions."game-end-notify"]
+  schedule = "5 * * * *"
+  timeout = 26
+
 # Self-hosted deep linker: /deal/<ASIN> (and the older /go/<ASIN>) run the go
 # function, which adds the affiliate tag, logs the click, and redirects to Amazon.
 [[redirects]]
