@@ -386,7 +386,7 @@
   .chip:hover { border-color: var(--accent); color: var(--accent); }
   .chip.active { background: var(--accent); border-color: var(--accent); color: #0a1f33; font-weight: 800; }
   /* ── Filter bar (tap a name to expand its options) ─────────────── */
-  .fbar { display: flex; gap: 8px; padding: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .fbar { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; }
   .fbar::-webkit-scrollbar { display: none; }
   .fbar-btn { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid var(--border-gold); background: rgba(255,255,255,0.04); color: var(--text); cursor: pointer; white-space: nowrap; font-family: Inter, sans-serif; transition: all .15s; }
   .fbar-btn:hover { border-color: var(--accent); }
@@ -394,7 +394,7 @@
   .fbar-btn.active { background: var(--accent); border-color: var(--accent); color: #0a1f33; }
   .fbar-chev { width: 13px; height: 13px; transition: transform .2s; }
   .fbar-btn.showing .fbar-chev { transform: rotate(180deg); }
-  .fbar-clear { margin-left: auto; color: var(--muted); border-style: dashed; }
+  .fbar-clear { color: var(--muted); border-style: dashed; }
   .fdrop { display: none; padding: 12px 0 2px; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); }
   .fdrop.open { display: block; }
   /* On the phone grid, an open dropdown is injected right under the tapped tab's row
