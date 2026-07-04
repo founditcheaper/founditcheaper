@@ -8,7 +8,52 @@
 //   query = either a pasted Amazon/Walmart product link OR a typed item name/keywords.
 //   We auto-detect a link and pull the ASIN; otherwise we store lowercased keywords.
 
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+
 const AFFILIATE_TAG = 'founditchea09-20';
+const SMTP_HOST = 'mail.privateemail.com';
+const SMTP_PORT = 465;                                     // SSL
+const FROM = process.env.PRIVATE_EMAIL_USER || 'deals@founditcheaper.net';
+const SITE = 'https://founditcheaper.net';
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+
+// Immediately confirm the alert is on and hand them the one-tap off switch. Best-effort:
+// any failure is swallowed so it never blocks saving the request. The off link is the
+// SAME per-item token the match emails use, so "turn it off from that email" works from
+// the very first message. No affiliate/Amazon link here (email compliance).
+async function sendConfirmation(to, label, stopUrl, targetPrice) {
+  try {
+    if (!process.env.PRIVATE_EMAIL_PASS) return false;
+    if (!to || !to.includes('@')) return false;
+    const priceLine = targetPrice
+      ? '<p style="font-size:14px;color:#333;margin:0 0 12px">We will email you when it is at or under $' + Math.round(targetPrice) + '.</p>'
+      : '<p style="font-size:14px;color:#333;margin:0 0 12px">We will email you when it drops to a good price.</p>';
+    const html =
+      '<div style="font-family:Arial,Helvetica,sans-serif;color:#111;max-width:520px">' +
+        '<p style="font-size:15px;margin:0 0 6px">Your alert is on.</p>' +
+        '<p style="font-size:15px;margin:0 0 4px">We are watching for <strong>' + esc(label) + '</strong> as deals come in.</p>' +
+        priceLine +
+        '<p style="font-size:13px;color:#555;margin:0 0 16px">You can turn this alert off at any time:</p>' +
+        '<p style="margin:0 0 18px"><a href="' + stopUrl + '" style="background:#f5c842;color:#0a1a2f;text-decoration:none;font-weight:700;padding:10px 16px;border-radius:6px;display:inline-block">Turn off this alert</a></p>' +
+        '<p style="font-size:12px;color:#999;margin:0">This only turns off this one item. It does not unsubscribe you from anything else. You are getting this because you set an alert at founditcheaper.net.</p>' +
+      '</div>';
+    const transporter = nodemailer.createTransport({
+      host: SMTP_HOST, port: SMTP_PORT, secure: true,
+      auth: { user: FROM, pass: process.env.PRIVATE_EMAIL_PASS },
+    });
+    await transporter.sendMail({
+      from: `founditcheaper <${FROM}>`, to,
+      subject: 'Your alert is on: ' + label,
+      html,
+    });
+    return true;
+  } catch (e) {
+    console.error('[save-deal-request] confirmation email failed:', e.message);
+    return false;
+  }
+}
 
 function extractAsin(url) {
   const s = String(url || '');
@@ -106,6 +151,10 @@ exports.handler = async function (event) {
   if (!sbUrl || !sbKey) return { statusCode: 500, body: JSON.stringify({ ok: false, error: 'Config error' }) };
   const H = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
 
+  // Per-item off token (matches stop-deal-alert's [a-f0-9]{16,40}). Generated here so the
+  // very first confirmation email carries a working "turn off this alert" link.
+  const alertToken = crypto.randomBytes(16).toString('hex');
+
   const row = {
     email: email,
     type: type,
@@ -114,13 +163,22 @@ exports.handler = async function (event) {
     keywords: keywords,
     store: store,
     target_price: targetPrice,
+    alert_token: alertToken,
     active: true,
   };
 
   try {
-    const r = await fetch(`${sbUrl}/rest/v1/deal_requests`, {
+    let r = await fetch(`${sbUrl}/rest/v1/deal_requests`, {
       method: 'POST', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify(row),
     });
+    if (!r.ok) {
+      // alert_token column may be missing on an older DB — retry without it (the stop link
+      // just won't work until the column exists) rather than lose the request.
+      const noTok = { ...row }; delete noTok.alert_token;
+      r = await fetch(`${sbUrl}/rest/v1/deal_requests`, {
+        method: 'POST', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify(noTok),
+      });
+    }
     if (!r.ok) {
       const d = await r.text();
       return { statusCode: 502, body: JSON.stringify({ ok: false, error: 'Could not save your alert', detail: d.slice(0, 160) }) };
@@ -129,5 +187,10 @@ exports.handler = async function (event) {
     return { statusCode: 500, body: JSON.stringify({ ok: false, error: String(e).slice(0, 160) }) };
   }
 
-  return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+  // Confirm the alert + give them the off switch (best-effort; never blocks the save).
+  const label = (type === 'asin' || type === 'link') ? 'the item you linked' : (queryText || 'your item');
+  const stopUrl = SITE + '/stop-alert/' + alertToken;
+  const confirmed = await sendConfirmation(email, label, stopUrl, targetPrice);
+
+  return { statusCode: 200, body: JSON.stringify({ ok: true, confirmed: confirmed }) };
 };
