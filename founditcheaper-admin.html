@@ -749,7 +749,7 @@ async function pcRemoveSelected() {
   var ok = 0, fail = 0;
   for (var i = 0; i < ids.length; i++) {
     if (btn) btn.textContent = 'Removing ' + (i + 1) + '/' + ids.length + '…';
-    var d = _pcDeals.find(function (x) { return x.id === ids[i]; }) || {};
+    var d = _pcDeals.find(function (x) { return String(x.id) === ids[i]; }) || {};
     var asin = _asinFromUrl(d.url);
     try {
       // Sheet-backed deals (they have an ASIN) go through manage-code so the Google Sheet
@@ -875,7 +875,7 @@ async function recategorizeAll() {
 
 // ── EDIT A DEAL (fix a wrong price/title/code after it's in) ───────────
 function openEditDeal(id) {
-  var d = _pcDeals.find(function (x) { return x.id === id; });
+  var d = _pcDeals.find(function (x) { return String(x.id) === String(id); });
   if (!d) { showToast('Deal not found — try Refresh'); return; }
   var existing = document.getElementById('editOverlay'); if (existing) existing.remove();
   var inS = 'width:100%;padding:9px 10px;margin-top:4px;border-radius:7px;border:1px solid rgba(255,255,255,.18);background:#0e2842;color:#fff;font-size:13px;box-sizing:border-box';

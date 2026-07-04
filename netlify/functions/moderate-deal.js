@@ -82,8 +82,8 @@ exports.handler = async function (event) {
              : null;
   if (!role) return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
 
-  // id is a Supabase uuid.
-  if (!/^[0-9a-f-]{16,40}$/i.test(String(id || ''))) return { statusCode: 400, body: JSON.stringify({ error: 'Invalid id' }) };
+  // deals.id is a bigint (numeric primary key), not a uuid.
+  if (!/^\d{1,19}$/.test(String(id || ''))) return { statusCode: 400, body: JSON.stringify({ error: 'Invalid id' }) };
 
   const sbUrl = process.env.SUPABASE_URL, sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!sbUrl || !sbKey) return { statusCode: 500, body: JSON.stringify({ error: 'Config error' }) };
