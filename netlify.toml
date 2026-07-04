@@ -102,6 +102,12 @@
   to = "/.netlify/functions/stop-deal-alert?t=:splat"
   status = 200
 
+# Dice-game prize claim: pretty URL -> the claim function (winner's token as ?t=).
+[[redirects]]
+  from = "/claim-prize/*"
+  to = "/.netlify/functions/claim-prize?t=:splat"
+  status = 200
+
 # The homepage is index.html, which Netlify serves at "/" automatically —
 # no root redirect needed.
 
