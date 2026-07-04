@@ -378,6 +378,10 @@
   .filter-label { font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; display: block; }
   .chip-grid { display: flex; flex-wrap: wrap; gap: 5px; }
   .chip { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; border: 1px solid rgba(255,255,255,0.14); background: transparent; color: var(--muted); cursor: pointer; transition: all .15s; }
+  /* Date Added chips fill the row in equal columns so the last row never leaves an
+     empty gap. "Any time" + 7 days = 8 chips -> two full rows of 4. */
+  #dateChips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+  #dateChips .chip { padding: 5px 6px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .chip:hover { border-color: var(--accent); color: var(--accent); }
   .chip.active { background: var(--accent); border-color: var(--accent); color: #0a1f33; font-weight: 800; }
   /* ── Filter bar (tap a name to expand its options) ─────────────── */
@@ -392,6 +396,10 @@
   .fbar-clear { margin-left: auto; color: var(--muted); border-style: dashed; }
   .fdrop { display: none; padding: 12px 0 2px; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); }
   .fdrop.open { display: block; }
+  /* On the phone grid, an open dropdown is injected right under the tapped tab's row
+     and spans both columns so it reads as "options for that tab", pushing the tabs
+     below it down. */
+  .fdrop.fdrop-inline { grid-column: 1 / -1; margin-top: 2px; }
   .active-filters { display: none; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 0 0; }
   .active-filters.shown { display: flex; }
   .af-count { font-size: 11px; font-weight: 800; color: var(--accent); }
@@ -645,16 +653,18 @@
     <div class="fbar">
       <button type="button" class="fbar-btn" id="chipPromo" onclick="togglePromo(this)">🏷️ Promo Codes Only</button>
       <button class="filters-toggle" id="filtersToggle" onclick="toggleFilterBar()"><span>All Filters</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <button type="button" class="fbar-btn" id="fbtnDate" onclick="toggleDrop('dDate', this, event)">Date Added<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnDiscount" onclick="toggleDrop('dDiscount', this, event)">Discount<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnStore" onclick="toggleDrop('dStore', this, event)">Store<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnCategory" onclick="toggleDrop('dCategory', this, event)">Category<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnPrice" onclick="toggleDrop('dPrice', this, event)">Price Range<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnBrand" onclick="toggleBrand()">Name Brands Only</button>
       <!-- Verified Lowest button hidden until price history accrues (~Aug 2026). Backend tracker still runs. Re-add: <button type="button" class="fbar-btn" id="fbtnVerified" onclick="toggleVerified(this)" title="Only deals at their lowest price in the last 30 days.">✅ Verified Lowest</button> -->
-      <button type="button" class="fbar-btn active" id="fbtnInflated" onclick="toggleInflated(this)" title="On by default. Hides no-name brands discounted over 65% (unless the original price was under $25) — the fake-markdown zone. Real brands still show, up to 90%.">🚫 Remove Inflated</button>
+      <button type="button" class="fbar-btn active" id="fbtnInflated" onclick="toggleInflated(this)" title="On by default. Hides no-name brands discounted over 65% (unless the original price was under $25) — the fake-markdown zone. Real brands still show, up to 90%.">🚫 Remove Inflated Discounts</button>
       <button type="button" class="fbar-btn fbar-clear" onclick="clearFilters()">Clear all filters</button>
     </div>
     <div class="active-filters" id="activeFilters"></div>
+    <div id="fdropHome"></div>
 
     <div class="fdrop" id="dDiscount">
       <div id="quickChipsInline" style="display:flex;gap:6px;flex-wrap:wrap">
@@ -704,6 +714,12 @@
         <button class="chip" data-cat="Arts, Crafts & Sewing" onclick="setCategory(this,'Arts, Crafts &amp; Sewing')">Arts, Crafts &amp; Sewing</button>
         <button class="chip" data-cat="Amazon Devices & Accessories" onclick="setCategory(this,'Amazon Devices &amp; Accessories')">Amazon Devices</button>
         <button class="chip" data-cat="Everything Else" onclick="setCategory(this,'Everything Else')">Everything Else</button>
+      </div>
+    </div>
+
+    <div class="fdrop" id="dDate">
+      <div class="chip-grid" id="dateChips">
+        <button class="chip active" data-day="all" onclick="setDate(this,'all','')">Any time</button>
       </div>
     </div>
 
@@ -952,7 +968,7 @@ var _deadcode = [
 function money(n) { var v = parseFloat(n); return isNaN(v) ? (n == null ? '' : n) : v.toFixed(2); }
 
 // ── STATE ─────────────────────────────────────────────────────────────
-var state = { store: 'all', category: 'all', minDiscount: 10, maxPrice: 0, minStars: 0, brandOnly: false, sort: 'value', search: '', promoOnly: false, hideInflated: true, verifiedOnly: false };
+var state = { store: 'all', category: 'all', minDiscount: 10, maxPrice: 0, minStars: 0, brandOnly: false, sort: 'value', search: '', promoOnly: false, hideInflated: true, verifiedOnly: false, dateAdded: 'all', dateLabel: '' };
 var filtered = [], page = 0, loading = false;
 
 // ── HELPERS ───────────────────────────────────────────────────────────
@@ -967,6 +983,16 @@ function formatFound(createdAt, activeDate) {
   if (activeDate) {
     return new Date(activeDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
+  return null;
+}
+// The calendar day (America/Chicago) a deal was FIRST added to the site. Prefers the
+// persistent first_seen timestamp; falls back to active_date / created_at so it still
+// works before the first_seen column has been populated.
+function _dayKeyOf(ts) { try { return new Date(ts).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); } catch (e) { return null; } }
+function _addedDayOf(d) {
+  if (d.first_seen) return _dayKeyOf(d.first_seen);
+  if (d.active_date) return String(d.active_date).slice(0, 10);
+  if (d.created_at) return _dayKeyOf(d.created_at);
   return null;
 }
 function amazonAsin(url) {
@@ -1243,6 +1269,7 @@ function getFiltered() {
     if (state.promoOnly && !p.code) return false;
     if (state.store !== 'all' && p.store !== state.store) return false;
     if (state.category !== 'all' && p.category !== state.category) return false;
+    if (state.dateAdded !== 'all' && p.addedDay !== state.dateAdded) return false;
     if (state.search) {
       var q = state.search.toLowerCase();
       var hay = (p.name + ' ' + p.brandName + ' ' + p.category + ' ' + p.store).toLowerCase();
@@ -1548,6 +1575,33 @@ function setCategory(el, cat) {
   document.querySelectorAll('#catChips .chip').forEach(function(c) { c.classList.remove('active'); });
   if (el) el.classList.add('active'); state.category = cat; resetAndRender();
 }
+// Build the "Date Added" chips for the last 7 days (today + previous 6), labelled in
+// Central time so they line up with how deals are dated. Rebuilt on load so the days
+// are always current.
+function buildDateChips() {
+  var host = document.getElementById('dateChips');
+  if (!host) return;
+  var out = ['<button class="chip active" data-day="all" onclick="setDate(this,\'all\',\'\')">Any time</button>'];
+  for (var i = 0; i < 7; i++) {
+    var dt  = new Date(Date.now() - i * 86400000);
+    var key = dt.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });   // YYYY-MM-DD
+    var lbl = i === 0 ? 'Today'
+            : i === 1 ? 'Yesterday'
+            : dt.toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'short', month: 'short', day: 'numeric' });
+    out.push('<button class="chip" data-day="' + key + '" onclick="setDate(this,\'' + key + '\',\'' + lbl + '\')">' + lbl + '</button>');
+  }
+  host.innerHTML = out.join('');
+}
+function setDate(el, day, label) {
+  // Click the already-selected day again → toggle back to Any time.
+  if (day !== 'all' && state.dateAdded === day) { day = 'all'; el = document.querySelector('#dateChips .chip[data-day="all"]'); label = ''; }
+  document.querySelectorAll('#dateChips .chip').forEach(function(c) { c.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  state.dateAdded = day; state.dateLabel = (day === 'all' ? '' : label);
+  resetAndRender();
+}
+if (document.getElementById('dateChips')) buildDateChips();
+else document.addEventListener('DOMContentLoaded', buildDateChips);
 function setQuickDiscount(val, el, evt) {
   if (evt) { evt.preventDefault(); evt.stopPropagation(); }
   // Click the already-selected discount again → toggle back to the default (10%+).
@@ -1592,7 +1646,7 @@ function toggleVerified(el) {
 }
 function sortDeals(v) { state.sort = v; resetAndRender(); }
 function clearFilters() {
-  state = { store: 'all', category: 'all', minDiscount: 10, maxPrice: 0, minStars: 0, brandOnly: false, sort: state.sort, search: '', promoOnly: false, hideInflated: true, verifiedOnly: false };
+  state = { store: 'all', category: 'all', minDiscount: 10, maxPrice: 0, minStars: 0, brandOnly: false, sort: state.sort, search: '', promoOnly: false, hideInflated: true, verifiedOnly: false, dateAdded: 'all', dateLabel: '' };
   state_minPrice = 0;
   document.getElementById('chipPromo').classList.remove('active');
   document.querySelectorAll('#quickChipsInline .quick-chip').forEach(function(c) { c.classList.remove('active'); });
@@ -1612,6 +1666,8 @@ function clearFilters() {
   document.getElementById('priceMaxBubble').textContent = '$500+';
   document.querySelectorAll('#catChips .chip').forEach(function(c) { c.classList.remove('active'); });
   document.querySelector('#catChips .chip[data-cat="all"]').classList.add('active');
+  document.querySelectorAll('#dateChips .chip').forEach(function(c) { c.classList.remove('active'); });
+  var _dAll = document.querySelector('#dateChips .chip[data-day="all"]'); if (_dAll) _dAll.classList.add('active');
   var starEl = document.querySelector('input[name="stars"][value="0"]'); if (starEl) starEl.checked = true;
   var brandBtn = document.getElementById('fbtnBrand'); if (brandBtn) brandBtn.classList.remove('active');
   var vBtn = document.getElementById('fbtnVerified'); if (vBtn) vBtn.classList.remove('active');
@@ -1640,12 +1696,35 @@ function toggleDrop(id, btn, evt) {
   var target = document.getElementById(id);
   if (!target) return;
   var willOpen = !target.classList.contains('open');
-  document.querySelectorAll('.filter-panel .fdrop').forEach(function(d) { d.classList.remove('open'); });
+  var home = document.getElementById('fdropHome');
+  // Close everything and park every dropdown back in its home slot (below the bar).
+  document.querySelectorAll('.filter-panel .fdrop').forEach(function(d) {
+    d.classList.remove('open'); d.classList.remove('fdrop-inline');
+    if (home && d.parentNode !== home) home.appendChild(d);
+  });
   document.querySelectorAll('.fbar-btn').forEach(function(b) { b.classList.remove('showing'); });
-  if (willOpen) { target.classList.add('open'); if (btn) btn.classList.add('showing'); }
+  if (!willOpen) return;   // tapping the already-open tab just closes it
+  // On the phone grid, inject the options right under the tapped tab's ROW (after the
+  // last button sharing its row) so it spans both columns and pushes the tabs below it
+  // down. On desktop the bar is one row, so the options stay in the home slot below it.
+  var fbar = document.querySelector('.filter-panel .fbar');
+  if (btn && fbar && getComputedStyle(fbar).display === 'grid') {
+    var top = btn.getBoundingClientRect().top;
+    var kids = Array.prototype.slice.call(fbar.children).filter(function(c) { return c.offsetParent !== null; });
+    var rowKids = kids.filter(function(c) { return Math.abs(c.getBoundingClientRect().top - top) < 4; });
+    var last = rowKids.length ? rowKids[rowKids.length - 1] : btn;
+    last.insertAdjacentElement('afterend', target);
+    target.classList.add('fdrop-inline');
+  }
+  target.classList.add('open');
+  if (btn) btn.classList.add('showing');
 }
 function collapseFilters() {
-  document.querySelectorAll('.filter-panel .fdrop').forEach(function(d) { d.classList.remove('open'); });
+  var home = document.getElementById('fdropHome');
+  document.querySelectorAll('.filter-panel .fdrop').forEach(function(d) {
+    d.classList.remove('open'); d.classList.remove('fdrop-inline');
+    if (home && d.parentNode !== home) home.appendChild(d);
+  });
   document.querySelectorAll('.fbar-btn').forEach(function(b) { b.classList.remove('showing'); });
 }
 // Highlight bar buttons whose filter has a non-default selection.
@@ -1654,6 +1733,7 @@ function updateFilterBars() {
   set('fbtnDiscount', state.minDiscount > 10);
   set('fbtnStore', state.store !== 'all');
   set('fbtnCategory', state.category !== 'all');
+  set('fbtnDate', state.dateAdded !== 'all');
   set('fbtnPrice', (typeof state_minPrice !== 'undefined' && state_minPrice > 0) || (state.maxPrice && state.maxPrice > 0));
 }
 function _prettyStore(s) { return ({ HomeDepot: 'Home Depot', BestBuy: 'Best Buy', Lowes: "Lowe's" })[s] || s; }
@@ -1665,6 +1745,7 @@ function updateActiveSummary(count) {
   if (state.promoOnly) parts.push('Promo codes');
   if (state.store !== 'all') parts.push(_prettyStore(state.store));
   if (state.category !== 'all') parts.push(state.category);
+  if (state.dateAdded !== 'all') parts.push('Added ' + (state.dateLabel || state.dateAdded));
   if (state.minDiscount > 10) parts.push(state.minDiscount + '%+ off');
   var minP = (typeof state_minPrice !== 'undefined') ? (state_minPrice || 0) : 0;
   var maxP = state.maxPrice || 0;
@@ -1870,7 +1951,7 @@ function _afterLoad() {
           brand: d.brand, brandName: d.brand_name || '', price: d.price, was: d.was,
           off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
           rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
-          found: formatFound(d.created_at, d.active_date), code: d.code || null,
+          found: formatFound(d.first_seen || d.created_at, d.active_date), addedDay: _addedDayOf(d), code: d.code || null,
           verifiedLow: !!d.verified_low,   // at/near its 30-day low (set by the price-tracking job)
           endsAt: d.ends_at || null,       // seller-set expiry — deal is hidden once this passes
           _jit: Math.random(),   // stable per-load jitter so the Top Value sort interleaves stores
@@ -2021,7 +2102,7 @@ async function openDrawer(productId) {
           brand: d.brand, brandName: d.brand_name || '', price: d.price, was: d.was,
           off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
           rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
-          found: formatFound(d.created_at, d.active_date), code: d.code || null,
+          found: formatFound(d.first_seen || d.created_at, d.active_date), addedDay: _addedDayOf(d), code: d.code || null,
           verifiedLow: !!d.verified_low,
           endsAt: d.ends_at || null,       // seller-set expiry — deal is hidden once this passes
           images: (function() { try { return JSON.parse(d.images || '[]'); } catch(e) { return []; } })(),

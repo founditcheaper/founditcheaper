@@ -195,17 +195,35 @@ exports.handler = async function () {
   console.log(`[sync-deals-bg] ${deals.length} qualifying Amazon deals`);
   if (deals.length === 0) return { statusCode: 200, body: JSON.stringify({ ok: true, added: 0, stats: disc.stats }) };
 
+  // Preserve each deal's original "first seen" timestamp across the wipe-and-reinsert
+  // below, so the site's "date added" filter reflects when a deal FIRST appeared —
+  // not the last sync. Keyed by ASIN. Deals we've never seen before get now().
+  const firstSeenByAsin = {};
+  try {
+    const ex = await fetch(`${sbUrl}/rest/v1/deals?store=eq.Amazon&is_top_pick=eq.false&code=is.null&select=url,first_seen`, { headers: sbHeaders });
+    const exJson = await ex.json();
+    if (Array.isArray(exJson)) exJson.forEach(r => {
+      const a = (String(r.url || '').match(/\/dp\/([A-Z0-9]{10})/i) || [])[1];
+      if (a && r.first_seen) firstSeenByAsin[a.toUpperCase()] = r.first_seen;
+    });
+  } catch (e) { console.error('[sync-deals-bg] first_seen read failed:', e.message); }
+
   try {
     await fetch(`${sbUrl}/rest/v1/deals?store=eq.Amazon&is_top_pick=eq.false&code=is.null`, { method: 'DELETE', headers: { ...sbHeaders, Prefer: 'return=minimal' } });
   } catch (e) { console.error('[sync-deals-bg] clear failed:', e.message); }
 
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
-  const rows = deals.map((d, i) => ({
-    rank: i + 1, name: d.name, store: 'Amazon', category: d.category,
-    price: d.price, was: d.was, off: d.off, rating: d.rating || 0, reviews: d.reviews || 0,
-    img: d.img, images: null, url: d.url, code: null, use_code_url: false,
-    creator: d.brand, brand: d.brand, brand_name: d.brandName || null, active_date: today, is_top_pick: false,
-  }));
+  const nowIso = new Date().toISOString();
+  const rows = deals.map((d, i) => {
+    const asin = (String(d.url || '').match(/\/dp\/([A-Z0-9]{10})/i) || [])[1];
+    return {
+      rank: i + 1, name: d.name, store: 'Amazon', category: d.category,
+      price: d.price, was: d.was, off: d.off, rating: d.rating || 0, reviews: d.reviews || 0,
+      img: d.img, images: null, url: d.url, code: null, use_code_url: false,
+      creator: d.brand, brand: d.brand, brand_name: d.brandName || null, active_date: today, is_top_pick: false,
+      first_seen: (asin && firstSeenByAsin[asin.toUpperCase()]) || nowIso,
+    };
+  });
 
   const CHUNK = 100; let inserted = 0;
   for (let i = 0; i < rows.length; i += CHUNK) {

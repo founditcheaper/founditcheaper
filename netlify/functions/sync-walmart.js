@@ -196,6 +196,16 @@ exports.handler = async function () {
   // 2. Swap: remove the previous auto-pulled Walmart deals (keep any marked as top
   //    picks), then insert the fresh set. Only runs when we actually have new deals,
   //    so an API hiccup never leaves the grid empty.
+  // Preserve each deal's original "first seen" timestamp across the wipe below, so the
+  // site's "date added" filter reflects when a deal FIRST appeared, not the last sync.
+  // Keyed by product URL. Never-seen deals get now().
+  const firstSeenByUrl = {};
+  try {
+    const ex = await fetch(`${sbUrl}/rest/v1/deals?store=eq.Walmart&is_top_pick=eq.false&select=url,first_seen`, { headers: sbHeaders });
+    const exJson = await ex.json();
+    if (Array.isArray(exJson)) exJson.forEach(r => { if (r.url && r.first_seen) firstSeenByUrl[r.url] = r.first_seen; });
+  } catch (e) { console.error('[sync-walmart] first_seen read failed:', e.message); }
+
   try {
     const del = await fetch(`${sbUrl}/rest/v1/deals?store=eq.Walmart&is_top_pick=eq.false`, {
       method: 'DELETE', headers: { ...sbHeaders, Prefer: 'return=minimal' },
@@ -205,6 +215,7 @@ exports.handler = async function () {
 
   // 3. Insert into Supabase
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const nowIso = new Date().toISOString();
   const rows  = deals.map((d, i) => ({
     rank:         i + 1,
     name:         d.name,
@@ -225,6 +236,7 @@ exports.handler = async function () {
     brand_name:   d.brandName || null,
     active_date:  today,
     is_top_pick:  false,
+    first_seen:   firstSeenByUrl[d.url] || nowIso,
   }));
 
   const CHUNK  = 100;
