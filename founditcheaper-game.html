@@ -979,8 +979,8 @@ async function rollDice() {
       } else {
         // On a bonus roll, doubles/snake eyes do NOT earn another roll. Say so plainly.
         // The old "bonus!" wording made players expect an extra roll they never got.
-        if (isSnakeEyes(d1, d2))      { special = true; label = '💀 Snake Eyes (no extra roll)'; }
-        else if (isDoubles(d1, d2))   { special = true; label = '🔥 Doubles (no extra roll)'; }
+        if (isSnakeEyes(d1, d2))      { special = true; label = '💀 Snake Eyes (no extra roll on bonus roll)'; }
+        else if (isDoubles(d1, d2))   { special = true; label = '🔥 Doubles (no extra roll on bonus roll)'; }
         else                          { label = 'Bonus roll'; }
       }
 
