@@ -165,6 +165,21 @@
       btn.disabled = false; btn.textContent = 'Set My Alert';
     }
   }
+
+  // Prefill "What are you after" from a ?q= param (e.g. arriving from the in-grid Deal
+  // Alerts card, where they already typed the item). Then focus email so they only have
+  // to add that and submit.
+  (function () {
+    try {
+      var q = new URLSearchParams(location.search).get('q');
+      if (q) {
+        var el = document.getElementById('query');
+        if (el) el.value = q.slice(0, 300);
+        var em = document.getElementById('email');
+        if (em) em.focus();
+      }
+    } catch (e) {}
+  })();
 </script>
 </body>
 </html>

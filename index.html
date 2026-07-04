@@ -1428,18 +1428,54 @@ function resetAndRender() {
 }
 
 
+// Live game state for the in-grid dice card (the prize + whether a game is running now).
+// `settings` is publicly readable, so we use the same query the game page does.
+var _game = { live: false, prize: '', start: '', end: '' };
+async function loadGameCardInfo() {
+  try {
+    var res = await _sb.from('settings').select('key,value').in('key', ['game_prize', 'game_period_start', 'game_period_end', 'game_ended']);
+    if (res && res.data) {
+      var m = {}; res.data.forEach(function (r) { m[r.key] = r.value; });
+      _game.prize = m.game_prize || '';
+      _game.start = m.game_period_start || '';
+      _game.end = m.game_period_end || '';
+      var t = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+      _game.live = !!(_game.start && _game.end && String(m.game_ended || '0') !== '1' && t >= _game.start && t <= _game.end);
+    }
+  } catch (e) { /* card falls back to the generic version */ }
+}
+function _pcEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+// Deal Alerts card: typing an item + "Set an Alert" jumps to the intake page prefilled.
+function gridStartAlert() {
+  var el = document.getElementById('gridAlertInput');
+  var v = el ? (el.value || '').trim() : '';
+  window.location.href = 'deal-alert.html' + (v ? ('?q=' + encodeURIComponent(v)) : '');
+}
 function promoCardsHtml() {
-  var alertCard = '<div onclick="window.location.href=\'deal-alert.html\'" style="background:linear-gradient(135deg,rgba(245,200,66,0.15),rgba(245,200,66,0.05));border:1px solid rgba(245,200,66,0.35);border-radius:10px;padding:18px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;cursor:pointer">';
-  alertCard += '<div style="font-size:26px">\u{1F514}</div>';
+  // Deal Alerts: let them start right in the card (fills the space + cuts friction). Not
+  // whole-card-clickable since it holds an input; the button/link handle navigation.
+  var alertCard = '<div style="background:linear-gradient(135deg,rgba(245,200,66,0.15),rgba(245,200,66,0.05));border:1px solid rgba(245,200,66,0.35);border-radius:10px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px">';
+  alertCard += '<div style="font-size:24px">\u{1F514}</div>';
   alertCard += '<div style="font-family:Barlow Condensed,sans-serif;font-size:20px;font-weight:900;color:var(--text);text-transform:uppercase;line-height:1.1">Deal Alerts</div>';
-  alertCard += '<div style="font-size:11px;color:var(--muted);line-height:1.6">Tell us what you want. We email you when it is cheap. No hunting.</div>';
-  alertCard += '<div style="width:100%;background:var(--accent);color:#0a1f33;border-radius:6px;padding:9px;font-size:13px;font-weight:800;font-family:Inter,sans-serif">Set an Alert</div>';
+  alertCard += '<div style="font-size:11px;color:var(--muted);line-height:1.5">Tell us what you want. We email you when it is cheap.</div>';
+  alertCard += '<input id="gridAlertInput" type="text" placeholder="cordless drill, or a link" maxlength="300" onkeydown="if(event.key===\'Enter\')gridStartAlert()" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:9px 10px;color:var(--text);font-size:12px;font-family:Inter,sans-serif;outline:none;box-sizing:border-box">';
+  alertCard += '<button onclick="gridStartAlert()" style="width:100%;background:var(--accent);color:#0a1f33;border:none;border-radius:6px;padding:9px;font-size:13px;font-weight:800;cursor:pointer;font-family:Inter,sans-serif">Set an Alert</button>';
+  alertCard += '<div onclick="window.location.href=\'deal-alert.html\'" style="font-size:10px;color:var(--muted);text-decoration:underline;cursor:pointer">or send a screenshot</div>';
   alertCard += '</div>';
 
-  var gameCard = '<div onclick="window.location.href=\'founditcheaper-game.html\'" style="background:linear-gradient(135deg,rgba(74,158,212,0.15),rgba(10,31,51,0.5));border:1px solid rgba(74,158,212,0.35);border-radius:10px;padding:18px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;cursor:pointer">';
+  // Dice game: show a LIVE badge + the prize when a game is actually running.
+  var live = _game.live, prize = _game.prize;
+  var gameCard = '<div onclick="window.location.href=\'founditcheaper-game.html\'" style="background:linear-gradient(135deg,rgba(74,158,212,0.15),rgba(10,31,51,0.5));border:1px solid rgba(74,158,212,0.35);border-radius:10px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px;cursor:pointer">';
   gameCard += '<div style="font-size:28px">\u{1F3B2}</div>';
   gameCard += '<div style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:900;color:var(--text);text-transform:uppercase;line-height:1.2">Daily Dice<br>Roll Game</div>';
-  gameCard += '<div style="font-size:11px;color:var(--muted);line-height:1.5">Roll every day.<br>Top score wins a prize!</div>';
+  if (live) {
+    gameCard += '<div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#4ade80;background:rgba(74,222,128,0.14);border:1px solid rgba(74,222,128,0.4);border-radius:20px;padding:3px 11px">● GAME LIVE NOW</div>';
+    gameCard += prize
+      ? '<div style="font-size:11px;color:var(--text-soft);line-height:1.5">Playing for <b style="color:var(--accent)">' + _pcEsc(prize) + '</b></div>'
+      : '<div style="font-size:11px;color:var(--muted);line-height:1.5">Roll every day. Top score wins.</div>';
+  } else {
+    gameCard += '<div style="font-size:11px;color:var(--muted);line-height:1.5">Roll every day.<br>Top score wins a prize.</div>';
+  }
   gameCard += '<div style="width:100%;background:rgba(74,158,212,0.2);border:1px solid rgba(74,158,212,0.4);border-radius:6px;padding:9px;font-size:13px;font-weight:800;color:#60b8f5;font-family:Inter,sans-serif">Play Now</div>';
   gameCard += '</div>';
 
@@ -1984,7 +2020,9 @@ function _afterLoad() {
     }
   } catch (e) {}
 
-  // Grid render + deep-link handling
+  // Grid render + deep-link handling. Load the game card's live/prize state first so the
+  // in-grid dice card shows the current game on the very first render.
+  await loadGameCardInfo();
   resetAndRender();
   updateDealsBanner();
   // Initialize dual price slider visual state
