@@ -6,7 +6,7 @@
 <!-- Seller "Submit Your Deals" page. Posts to /.netlify/functions/submit-deal, which
      captures each submission in deal_submissions for review. noindex — sellers reach it
      via the hamburger menu, it doesn't need to rank. -->
-<title>Submit a Deal — founditcheaper</title>
+<title>Submit a Deal · founditcheaper</title>
 <meta name="robots" content="noindex">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
@@ -81,8 +81,8 @@ Original price: $59.99
 Promo code: SAVE20
 Amazon link: https://www.amazon.com/dp/B0XXXXXXXX
 
-(paste as many as you want — one block per deal)"></textarea>
-          <div class="hint">We pull the product name, image, and price straight from Amazon — so the <b style="color:var(--text-soft)">link, promo code, and sale price</b> are really all we need.</div>
+(paste as many as you want, one block per deal)"></textarea>
+          <div class="hint">We pull the product name, image, and price straight from Amazon, so the <b style="color:var(--text-soft)">link, promo code, and sale price</b> are really all we need.</div>
         </div>
 
         <div class="group">
@@ -99,13 +99,13 @@ Amazon link: https://www.amazon.com/dp/B0XXXXXXXX
 
         <div class="after">
           <div class="after-title">What happens next</div>
-          <p>Every deal is checked before it goes live — we verify the Amazon link and hold it briefly for review. Clean deals get posted to the site and can be featured to our audience.</p>
+          <p>Every deal is checked before it goes live. We verify the Amazon link and hold it briefly for review. Clean deals get posted to the site and can be featured to our audience.</p>
         </div>
       </div>
     </div>
 
     <div class="ok" id="okView">
-      <div class="big">✓ Got it — thanks</div>
+      <div class="big">✓ Got it, thanks</div>
       <p>Your deals are in the review queue. We'll verify them against Amazon and post the clean ones. Keep an eye on your inbox.</p>
     </div>
   </div>
@@ -138,11 +138,11 @@ Amazon link: https://www.amazon.com/dp/B0XXXXXXXX
         document.getElementById('okView').style.display = 'block';
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        err.textContent = (d && d.error) || 'Something went wrong — try again.'; err.style.display = 'block';
+        err.textContent = (d && d.error) || 'Something went wrong. Try again.'; err.style.display = 'block';
         btn.disabled = false; btn.textContent = 'Submit Deals';
       }
     } catch (e) {
-      err.textContent = 'Network error — try again.'; err.style.display = 'block';
+      err.textContent = 'Network error. Try again.'; err.style.display = 'block';
       btn.disabled = false; btn.textContent = 'Submit Deals';
     }
   }

@@ -104,7 +104,7 @@ exports.handler = async function () {
     const price = Math.round(Number(d.price) || 0);
     const was = d.was ? Math.round(Number(d.was)) : 0;
     const off = Number(d.off) || 0;
-    const subject = (d.store || 'A store') + ' has the ' + shortName(d.name) + ' — $' + price;
+    const subject = (d.store || 'A store') + ' has the ' + shortName(d.name) + ' for $' + price;
     const codeLine = d.code ? ('<p style="margin:6px 0 0;font-size:14px">Use code <strong style="color:#0a1f33;background:#f5c842;padding:2px 8px;border-radius:4px">' + esc(d.code) + '</strong> at checkout</p>') : '';
     const html = ''
       + '<div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;color:#111">'
@@ -117,7 +117,7 @@ exports.handler = async function () {
       + codeLine
       + '<p style="margin:16px 0"><a href="' + shareUrl + '" style="display:inline-block;background:#f5c842;color:#0a1f33;font-weight:800;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px">See the deal &rarr;</a></p>'
       + '<hr style="border:none;border-top:1px solid #eee;margin:20px 0 12px">'
-      + '<p style="font-size:12px;color:#888;line-height:1.6;margin:0">Done watching this one? <a href="' + stopUrl + '" style="color:#888">Stop alerting me about this item</a>. That won\'t unsubscribe you — to leave the whole list, use the unsubscribe link in our newsletter.</p>'
+      + '<p style="font-size:12px;color:#888;line-height:1.6;margin:0">Done watching this one? <a href="' + stopUrl + '" style="color:#888">Stop alerting me about this item</a>. That won\'t unsubscribe you. To leave the whole list, use the unsubscribe link in our newsletter.</p>'
       + '<p style="font-size:11px;color:#aaa;margin:10px 0 0">founditcheaper earns from qualifying purchases. Prices and codes can change.</p>'
       + '</div>';
     try {

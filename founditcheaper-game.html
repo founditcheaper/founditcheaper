@@ -13,7 +13,7 @@
   gtag('js', new Date());
   gtag('config', 'G-KKGR32HM95');
 </script>
-<title>Found It Cheaper — Daily Dice Roll</title>
+<title>Found It Cheaper · Daily Dice Roll</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -348,7 +348,7 @@
     <div id="noGameNotice" style="display:none;text-align:center;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.4);border-radius:12px;padding:26px 16px;margin:0 0 4px">
       <div style="font-size:40px;margin-bottom:8px">🎲</div>
       <div style="font-size:18px;font-weight:800;color:var(--accent);margin-bottom:6px">No game running right now</div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.6">The next round hasn't started yet. Check back soon — in the meantime, browse the deals below.</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6">The next round hasn't started yet. Check back soon. In the meantime, browse the deals below.</div>
     </div>
 
     <!-- EMAIL GATE (shown when not signed in) -->
@@ -396,7 +396,7 @@
 
       <!-- DEMO CONTROLS (only visible in ?demo=1 test mode) -->
       <div id="demoBar" style="display:none">
-        <div class="demo-flag">🧪 DEMO MODE — nothing is saved, the live leaderboard is untouched</div>
+        <div class="demo-flag">🧪 DEMO MODE. Nothing is saved, the live leaderboard is untouched</div>
         <div class="demo-day" id="demoDayLabel"></div>
         <div class="demo-controls" style="margin-bottom:8px">
           <button class="demo-btn demo-force" onclick="demoForceRoll('doubles')">🎯 Force Doubles</button>
@@ -746,7 +746,7 @@ function promptRename() {
 // Log out: clear the local session and return to the sign-in gate. The score stays in
 // the DB keyed to the email, so signing back in with the same email restores everything.
 function logoutPlayer() {
-  if (!confirm('Log out? Your score is saved to your email — sign back in with the same email to pick up where you left off.')) return;
+  if (!confirm('Log out? Your score is saved to your email. Sign back in with the same email to pick up where you left off.')) return;
   player = null; scores = {};
   try { localStorage.removeItem(PLAYER_KEY); localStorage.removeItem(SCORES_KEY); } catch (e) {}
   if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
@@ -915,7 +915,7 @@ async function rollDice() {
       html += '</div>';
     }
     if (gameIsFullWeek() && hasRolledEveryDay && !isLastDay && streakBonus === 0) {
-      html += '<div style="text-align:center;font-size:11px;color:var(--green);font-weight:600;padding:6px 0">🔥 Perfect streak — bonus unlocks on final day!</div>';
+      html += '<div style="text-align:center;font-size:11px;color:var(--green);font-weight:600;padding:6px 0">🔥 Perfect streak. Bonus unlocks on final day.</div>';
     }
     resultBox.innerHTML = html;
   }
@@ -1094,7 +1094,7 @@ function demoSeedScores() {
 function updateDemoDayLabel() {
   var el = document.getElementById('demoDayLabel');
   if (!el) return;
-  el.textContent = 'Simulated day: ' + DEMO_DAY_NAMES[demoDayOffset] + ' — Day ' + (demoDayOffset + 1) + ' of 7'
+  el.textContent = 'Simulated day: ' + DEMO_DAY_NAMES[demoDayOffset] + ', Day ' + (demoDayOffset + 1) + ' of 7'
     + (demoDayOffset === 6 ? ' · final day, perfect-week bonus pays out on today’s roll' : '');
 }
 function _demoResetRollUI() {
@@ -1164,13 +1164,13 @@ function maybeSendReferral() {
 function shareReferral() {
   if (!player) return;
   var link = location.origin + location.pathname + '?ref=' + player.tag;
-  var msg = 'I\'m playing the founditcheaper Daily Dice Roll — roll every day for a shot at the prize. Join with my link and I get a bonus:';
+  var msg = 'I\'m playing the founditcheaper Daily Dice Roll. Roll every day for a shot at the prize. Join with my link and I get a bonus:';
   var btn = document.getElementById('shareRefBtn');
   if (navigator.share) {
     navigator.share({ title: 'founditcheaper Daily Dice Roll', text: msg, url: link }).catch(function () {});
   } else if (navigator.clipboard) {
     navigator.clipboard.writeText(link).then(function () {
-      if (btn) { var o = btn.textContent; btn.textContent = '✓ Link copied — go share it'; setTimeout(function () { btn.textContent = o; }, 2200); }
+      if (btn) { var o = btn.textContent; btn.textContent = '✓ Link copied, go share it'; setTimeout(function () { btn.textContent = o; }, 2200); }
     }).catch(function () { prompt('Copy your invite link:', link); });
   } else { prompt('Copy your invite link:', link); }
 }

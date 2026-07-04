@@ -74,7 +74,7 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Tell us the item you want, or add a screenshot' }) };
   }
   if (query.length > 300) {
-    return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'That is a bit long — shorten the item' }) };
+    return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'That is a bit long, shorten the item' }) };
   }
 
   let targetPrice = null;
@@ -90,7 +90,7 @@ exports.handler = async function (event) {
     if (phrase) {
       type = 'screenshot'; queryText = phrase; keywords = toKeywords(phrase); store = 'Amazon';
     } else {
-      return { statusCode: 422, body: JSON.stringify({ ok: false, error: "Could not read that screenshot — type a couple words describing the item too, then resend" }) };
+      return { statusCode: 422, body: JSON.stringify({ ok: false, error: "Could not read that screenshot. Type a couple words describing the item too, then resend" }) };
     }
   } else if (isUrl(query)) {
     if (isWalmart(query)) { type = 'link'; store = 'Walmart'; }

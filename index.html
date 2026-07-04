@@ -15,7 +15,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>founditcheaper — Daily Amazon &amp; Walmart Deals</title>
+<title>founditcheaper: Daily Amazon &amp; Walmart Deals</title>
 <meta name="description" content="Hundreds of Amazon and Walmart deals, updated daily. Filter by category, discount, and promo codes. No hype, just prices.">
 <link rel="icon" type="image/png" href="/assets/logo.png">
 <link rel="apple-touch-icon" href="/assets/logo.png">
@@ -26,15 +26,15 @@
 <!-- Social share preview (Open Graph + Twitter) -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="founditcheaper">
-<meta property="og:title" content="founditcheaper — Daily Amazon &amp; Walmart Deals">
+<meta property="og:title" content="founditcheaper: Daily Amazon &amp; Walmart Deals">
 <meta property="og:description" content="Hundreds of Amazon and Walmart deals, updated daily. Filter by category, discount, and promo codes. No hype, just prices.">
 <meta property="og:url" content="https://founditcheaper.net/">
 <meta property="og:image" content="https://founditcheaper.net/assets/og-banner.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="founditcheaper — Daily Amazon and Walmart Deals">
+<meta property="og:image:alt" content="founditcheaper: Daily Amazon and Walmart Deals">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="founditcheaper — Daily Amazon &amp; Walmart Deals">
+<meta name="twitter:title" content="founditcheaper: Daily Amazon &amp; Walmart Deals">
 <meta name="twitter:description" content="Hundreds of Amazon and Walmart deals, updated daily. No hype, just prices.">
 <meta name="twitter:image" content="https://founditcheaper.net/assets/og-banner.png">
 
@@ -661,7 +661,7 @@
       <button type="button" class="fbar-btn" id="fbtnPrice" onclick="toggleDrop('dPrice', this, event)">Price Range<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnBrand" onclick="toggleBrand()">Name Brands Only</button>
       <!-- Verified Lowest button hidden until price history accrues (~Aug 2026). Backend tracker still runs. Re-add: <button type="button" class="fbar-btn" id="fbtnVerified" onclick="toggleVerified(this)" title="Only deals at their lowest price in the last 30 days.">✅ Verified Lowest</button> -->
-      <button type="button" class="fbar-btn active" id="fbtnInflated" onclick="toggleInflated(this)" title="On by default. Hides no-name brands discounted over 65% (unless the original price was under $25) — the fake-markdown zone. Real brands still show, up to 90%.">🚫 Remove Inflated Discounts</button>
+      <button type="button" class="fbar-btn active" id="fbtnInflated" onclick="toggleInflated(this)" title="On by default. Hides no-name brands discounted over 65% (unless the original price was under $25), the fake-markdown zone. Real brands still show, up to 90%.">🚫 Remove Inflated Discounts</button>
       <button type="button" class="fbar-btn fbar-clear" onclick="clearFilters()">Clear all filters</button>
     </div>
     <div class="active-filters" id="activeFilters"></div>
@@ -771,7 +771,7 @@
     <!-- EMAIL SIGNUP -->
     <div style="background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.25);border-radius:10px;padding:16px;margin-bottom:8px">
       <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:6px">📧 Get Daily Deals</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Join the list — get the best deals before everyone else.</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Join the list and get the best deals before everyone else.</div>
       <input type="email" id="menuEmailInput" placeholder="your@email.com" style="width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:7px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;outline:none;margin-bottom:8px;box-sizing:border-box">
       <button onclick="menuEmailSignup()" style="width:100%;background:var(--accent);color:#0a1f33;border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif">Join the List 🔥</button>
       <div id="menuEmailMsg" style="font-size:11px;text-align:center;margin-top:8px;display:none"></div>
@@ -785,12 +785,12 @@
 
     <a href="deal-alert.html" class="menu-item">
       <span class="menu-item-icon">🔔</span>
-      <div><div class="menu-item-label">Deal Alerts</div><div class="menu-item-sub">Tell us what you want — we email you when it's cheap</div></div>
+      <div><div class="menu-item-label">Deal Alerts</div><div class="menu-item-sub">Tell us what you want. We email you when it's cheap</div></div>
     </a>
 
     <a href="submit-deal.html" class="menu-item">
       <span class="menu-item-icon">🏷️</span>
-      <div><div class="menu-item-label">Submit a Deal</div><div class="menu-item-sub">Sellers — get your promo codes seen</div></div>
+      <div><div class="menu-item-label">Submit a Deal</div><div class="menu-item-sub">Amazon sellers can share promo codes here</div></div>
     </a>
 
     <a href="https://www.instagram.com/founditcheaper1" target="_blank" rel="noopener" class="menu-item">
@@ -1073,7 +1073,7 @@ function pickGridHtml(items, groupId) {
   html += '</div>';
   // See All Deals banner — only for today's carousel; filled in by updateDealsBanner() after Phase 2
   if (groupId === 'today') {
-    html += '<div id="dealsBanner" style="width:100%;margin-top:14px;padding:8px 20px 2px;color:#ffffff;font-size:15px;font-weight:700;text-align:center;font-family:Inter,sans-serif;box-sizing:border-box;line-height:1.6">Deals loading — check back soon!</div>';
+    html += '<div id="dealsBanner" style="width:100%;margin-top:14px;padding:8px 20px 2px;color:#ffffff;font-size:15px;font-weight:700;text-align:center;font-family:Inter,sans-serif;box-sizing:border-box;line-height:1.6">Loading deals. Check back soon.</div>';
   }
   return html;
 }
@@ -1217,7 +1217,7 @@ function renderPicks() {
   var html = '<div class="picks-group today open" id="picks-today">';
   html += '<button class="picks-toggle" onclick="toggleToday()">';
   html += '<div class="picks-toggle-left"><div>';
-  html += '<div style="font-family:Barlow Condensed,sans-serif;font-size:22px;font-weight:900;color:var(--text);letter-spacing:0.5px;text-transform:uppercase;line-height:1.2">Today\'s Top Deal Picks — ' + today.date + '</div>';
+  html += '<div style="font-family:Barlow Condensed,sans-serif;font-size:22px;font-weight:900;color:var(--text);letter-spacing:0.5px;text-transform:uppercase;line-height:1.2">Today\'s Top Deal Picks · ' + today.date + '</div>';
   html += '</div></div>' + chevron('chevron') + '</button>';
   html += '<div class="picks-body">' + pickGridHtml(today.items, 'today') + '</div>';
   html += '</div>';
@@ -1236,7 +1236,7 @@ function renderPicks() {
       var labelTag = day.label ? ' <span style="color:var(--accent);font-size:10px;font-weight:700">· ' + day.label + '</span>' : '';
       html += '<div class="past-day" id="past-' + j + '">';
       html += '<button class="past-day-toggle" onclick="togglePastDay(' + j + ')">';
-      html += '<div><div class="past-day-label">Top Deal Picks — ' + day.date + labelTag + '</div>';
+      html += '<div><div class="past-day-label">Top Deal Picks · ' + day.date + labelTag + '</div>';
       html += '</div>';
       html += chevron('sm-chevron') + '</button>';
       html += '<div class="past-day-body">' + pickGridHtml(day.items, 'past-' + j) + '</div>';
@@ -1416,7 +1416,7 @@ function resetAndRender() {
   var count = document.getElementById('resultsCount');
   if (filtered.length === 0) {
     noRes.innerHTML = allProducts.length === 0
-      ? '<p>No deals yet — check back soon! 🔍</p>'
+      ? '<p>No deals yet. Check back soon. 🔍</p>'
       : '<p>No deals match your filters.</p>';
     noRes.classList.add('visible'); count.textContent = 'No results';
     window.scrollTo(0, savedScroll); return;
@@ -1819,9 +1819,9 @@ async function menuEmailSignup() {
       msg.textContent = '✓ You\'re in! Deals coming to your inbox.';
       document.getElementById('menuEmailInput').value = '';
     } else {
-      msg.style.color = '#f87171'; msg.textContent = 'Something went wrong — try again.';
+      msg.style.color = '#f87171'; msg.textContent = 'Something went wrong. Try again.';
     }
-  } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error — try again.'; }
+  } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error. Try again.'; }
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────
@@ -2189,16 +2189,16 @@ async function openDrawer(productId) {
     html += '<div style="font-size:12px;font-weight:600;color:var(--text-soft);margin-bottom:10px">Inside the USA &amp; still not applying? After applying the code, you\'ll receive one of 4 messages:</div>';
     html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num green">1</span><div><div class="why-title">It worked!</div><div class="why-desc"><em>"This promotional code has been successfully applied to your account."</em></div></div></div></div>';
     html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num yellow">2</span><div><div class="why-title">Amazon glitch &#8212; try again</div><div class="why-desc"><em>&quot;We&#39;re having trouble applying this code.&quot;</em><br>Enter the code again and it should work.</div></div></div></div>';
-    html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num blue">3</span><div><div class="why-title">Already applied via our link</div><div class="why-desc"><em>"This promotional code cannot be applied to your account."</em><br>Check your cart — the discount may already be reflected in the price.</div></div></div></div>';
+    html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num blue">3</span><div><div class="why-title">Already applied via our link</div><div class="why-desc"><em>"This promotional code cannot be applied to your account."</em><br>Check your cart. The discount may already be reflected in the price.</div></div></div></div>';
     html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num red">4</span><div><div class="why-title">Expired</div><div class="why-desc"><em>"This promotional code is not valid."</em><br>Unfortunately this promo code has expired.</div></div></div></div>';
-    html += '<div class="why-item" style="border-bottom:none"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num" style="background:rgba(255,255,255,0.08);color:var(--muted)">?</span><div><div class="why-title">Why do codes expire so fast?</div><div class="why-desc">The seller sets a promotional budget — let\'s say $5,000. Every time someone uses the code, it chips away at that budget. Once it hits $0, the code stops working for everyone. The more popular the deal, the faster it goes!</div></div></div></div>';
+    html += '<div class="why-item" style="border-bottom:none"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num" style="background:rgba(255,255,255,0.08);color:var(--muted)">?</span><div><div class="why-title">Why do codes expire so fast?</div><div class="why-desc">The seller sets a promotional budget, say $5,000. Every time someone uses the code, it chips away at that budget. Once it hits $0, the code stops working for everyone. The more popular the deal, the faster it goes.</div></div></div></div>';
     html += '</div></div>';
   }
 
   // Buttons
   html += '<a class="drawer-view-btn" href="' + affiliateUrl(p.url, p.store) + '" target="_blank" rel="noopener">View Deal on ' + sName + ' →</a>';
   html += '<button class="drawer-share-btn" onclick="drawerShareDeal(this)">🔗 Share Deal</button>';
-  html += '<div style="font-size:10px;color:var(--muted);text-align:center;line-height:1.5;margin-top:12px">founditcheaper earns from qualifying purchases, including as an Amazon Associate — at no extra cost to you. Prices &amp; codes can change. <a href="founditcheaper-legal.html" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:underline">Full disclosure</a></div>';
+  html += '<div style="font-size:10px;color:var(--muted);text-align:center;line-height:1.5;margin-top:12px">founditcheaper earns from qualifying purchases, including as an Amazon Associate, at no extra cost to you. Prices &amp; codes can change. <a href="founditcheaper-legal.html" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:underline">Full disclosure</a></div>';
 
   document.getElementById('drawerContent').innerHTML = html;
   document.getElementById('drawerOverlay').style.display = 'block';

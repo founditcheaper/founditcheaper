@@ -6,7 +6,7 @@
 <!-- "Deal Alert" intake. Posts to /.netlify/functions/save-deal-request, which stores
      the request in deal_requests. A scheduled job (match-deal-requests) emails the person
      when a matching deal appears. noindex — reached via the hamburger menu. -->
-<title>Deal Alerts — founditcheaper</title>
+<title>Deal Alerts · founditcheaper</title>
 <meta name="robots" content="noindex">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
@@ -74,7 +74,7 @@
 
         <div class="group">
           <label class="label" for="query">What are you after</label>
-          <input class="field" type="text" id="query" placeholder="cordless drill — or paste an Amazon link" maxlength="300">
+          <input class="field" type="text" id="query" placeholder="cordless drill, or paste an Amazon link" maxlength="300">
           <div class="hint">Type a general item (like "pressure washer") or paste a specific <b style="color:var(--text-soft)">Amazon / Walmart link</b>.</div>
         </div>
 
@@ -85,7 +85,7 @@
             <span id="shotName">No screenshot chosen</span>
             <input type="file" id="shot" accept="image/*" style="display:none">
           </div>
-          <div class="hint">Screenshot the Amazon product you want — we'll figure out what it is. You can skip the box above if you do this.</div>
+          <div class="hint">Screenshot the Amazon product you want and we'll figure out what it is. You can skip the box above if you do this.</div>
         </div>
 
         <div class="group">
@@ -102,14 +102,14 @@
 
         <div class="after">
           <div class="after-title">How it works</div>
-          <p>We watch the deals as they come in. The moment one matches, you get an email with the deal and a link to it. Every alert has a one-tap "stop alerting me about this item" — separate from unsubscribing. We won't bombard you.</p>
+          <p>We watch the deals as they come in. The moment one matches, you get an email with the deal and a link to it. Every alert has a one-tap "stop alerting me about this item," separate from unsubscribing. We won't bombard you.</p>
         </div>
       </div>
     </div>
 
     <div class="ok" id="okView">
       <div class="big">✓ You're set</div>
-      <p>We'll watch for it. As soon as a deal shows up, it lands in your inbox — with an easy way to stop that alert anytime.</p>
+      <p>We'll watch for it. As soon as a deal shows up, it lands in your inbox, with an easy way to stop that alert anytime.</p>
     </div>
   </div>
 
@@ -157,11 +157,11 @@
         document.getElementById('okView').style.display = 'block';
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        err.textContent = (d && d.error) || 'Something went wrong — try again.'; err.style.display = 'block';
+        err.textContent = (d && d.error) || 'Something went wrong. Try again.'; err.style.display = 'block';
         btn.disabled = false; btn.textContent = 'Set My Alert';
       }
     } catch (e) {
-      err.textContent = 'Network error — try again.'; err.style.display = 'block';
+      err.textContent = 'Network error. Try again.'; err.style.display = 'block';
       btn.disabled = false; btn.textContent = 'Set My Alert';
     }
   }
