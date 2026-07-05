@@ -1561,6 +1561,7 @@ function loadMore(fromFilter) {
     grid.insertAdjacentHTML('beforeend', html);
     page++; loading = false;
     if (page * PAGE_SIZE >= filtered.length) document.getElementById('endMsg').classList.add('visible');
+    else if (!EMBED_GRID) requestAnimationFrame(maybeFillViewport);   // keep filling while the sentinel is still near the fold
   }
 
   if (fromFilter) {
@@ -1575,12 +1576,29 @@ function loadMore(fromFilter) {
   }
 }
 
-// In the game-page grid embed the parent page drives "load more" (see initEmbed), because
-// the auto-growing iframe has no scroll of its own for this observer to watch.
+// Infinite scroll for the main grid. The IntersectionObserver only fires on enter/exit
+// transitions, so on a short page (or when a freshly loaded row doesn't push the sentinel
+// past the fold) it can go quiet with deals still left. A scroll/resize check plus a
+// post-render top-up (see _renderSlice) keep it reliable. The game-page grid embed is
+// parent-driven (see initEmbed), so it opts out of all of this.
+function maybeFillViewport() {
+  if (EMBED_GRID || loading) return;
+  if (page * PAGE_SIZE >= filtered.length) return;                 // nothing left to load
+  var s = document.getElementById('sentinel'); if (!s) return;
+  if (s.getBoundingClientRect().top < (window.innerHeight || 0) + 400) loadMore();
+}
 if (!EMBED_GRID) {
   new IntersectionObserver(function(entries) {
     if (entries[0].isIntersecting && !loading) loadMore();
-  }, { rootMargin: '200px' }).observe(document.getElementById('sentinel'));
+  }, { rootMargin: '400px' }).observe(document.getElementById('sentinel'));
+  var _scrollScheduled = false;
+  function _onScrollCheck() {
+    if (_scrollScheduled) return;
+    _scrollScheduled = true;
+    requestAnimationFrame(function () { _scrollScheduled = false; maybeFillViewport(); });
+  }
+  window.addEventListener('scroll', _onScrollCheck, { passive: true });
+  window.addEventListener('resize', _onScrollCheck);
 }
 
 // ── FILTER FUNCTIONS ──────────────────────────────────────────────────
