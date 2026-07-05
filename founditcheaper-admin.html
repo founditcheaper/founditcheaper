@@ -223,7 +223,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
     <!-- TABS -->
     <div class="tabs">
       <button class="tab active" id="tabbtn-picks" onclick="switchTab('picks')">📋 Today's Top Deal Picks</button>
-      <button class="tab" id="tabbtn-promocodes" onclick="_pcSource='';switchTab('promocodes')">🏷️ Promo &amp; Seller Deals</button>
+      <button class="tab" id="tabbtn-promocodes" onclick="_pcSource='';switchTab('promocodes')">📤 Uploaded Deals</button>
       <button class="tab" id="tabbtn-autopicker" onclick="switchTab('autopicker')">🤖 Auto-Fill / Randomizer Settings</button>
       <button class="tab" id="tabbtn-schedule" onclick="switchTab('schedule')">📅 Schedule</button>
       <button class="tab" id="tabbtn-games" onclick="switchTab('games')">🎮 Games</button>
@@ -455,7 +455,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
     <div class="tab-content" id="tab-promocodes">
       <div class="section-header">
         <div>
-          <div class="section-title">All Imported Promo Code Deals</div>
+          <div class="section-title">Uploaded Deals</div>
           <div class="section-sub">Synced both ways with your Google Sheet. Deals go live on the site the moment you add them — no “Publish to Site” needed (that button is only for Top Deal Picks).</div>
         </div>
       </div>
@@ -525,7 +525,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
           <button id="syncCodesBtn" class="btn btn-ghost" onclick="syncCodes()" title="Pull the latest sheet deals onto the site now">🔄 Sync Spreadsheet Now</button>
         </div>
       </div>
-      <input class="field-input" id="pcSearch" placeholder="Search promo deals by name or code..." style="margin-bottom:12px" oninput="renderPromoCodeDeals()">
+      <input class="field-input" id="pcSearch" placeholder="Search uploaded deals by name or code..." style="margin-bottom:12px" oninput="renderPromoCodeDeals()">
       <div id="pcList"></div>
     </div>
 
@@ -790,7 +790,7 @@ function renderPromoCodeDeals() {
       + _srcChip('', 'All sources', '#f5c842')
       + _srcChip('Seller Submission', '🧑‍💼 Seller submitted (' + sellerN + ')', '#7dd3fc')
       + '</div>' + storeRow + chips;
-  if (!items.length) { list.innerHTML = chips + '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No ' + (_pcStatus !== 'all' ? _pcStatus + ' ' : '') + 'promo code deals' + (q ? ' match your search' : '') + '.</div>'; _pcShownIds = []; pcRefreshBulkBar(); return; }
+  if (!items.length) { list.innerHTML = chips + '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No ' + (_pcStatus !== 'all' ? _pcStatus + ' ' : '') + 'uploaded deals' + (q ? ' match your search' : '') + '.</div>'; _pcShownIds = []; pcRefreshBulkBar(); return; }
   // Row ids currently shown (for select-all). Selection is keyed by id — not ASIN — so
   // deals with no ASIN (seller promo-code links) are still selectable and approvable.
   _pcShownIds = items.map(function(d) { return d.id; }).filter(Boolean);
