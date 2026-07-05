@@ -777,8 +777,8 @@ function renderPromoCodeDeals() {
   _days.slice(0, 10).forEach(function (k) { dayRow += _dayChip(k, _pcDayLabel(k) + ' (' + _dayCounts[k] + ')'); });
   dayRow += '</div>';
   // SOURCE facet — count per source (search + store + day, skip source).
-  var sellerN = 0, apiN = 0, srcTotal = 0;
-  _pcDeals.forEach(function (d) { if (fSearch(d) && fStore(d) && fDay(d)) { srcTotal++; if (d.uploaded_by === 'Seller Submission') sellerN++; if (!d.uploaded_by) apiN++; } });
+  var sellerN = 0, apiN = 0, agentN = 0, srcTotal = 0;
+  _pcDeals.forEach(function (d) { if (fSearch(d) && fStore(d) && fDay(d)) { srcTotal++; if (d.uploaded_by === 'Seller Submission') sellerN++; else if (d.uploaded_by === 'Manual Agent') agentN++; if (!d.uploaded_by) apiN++; } });
   function _srcChip(v, label, color) {
     var on = _pcSource === v;
     return '<button class="btn" style="padding:6px 11px;font-size:12px;border:1px solid ' + (on ? color : 'var(--border)') + ';background:' + (on ? 'rgba(255,255,255,0.07)' : 'transparent') + ';color:' + (on ? color : '#cfd8e3') + '" onclick="pcSetSource(\'' + v + '\')">' + label + '</button>';
@@ -786,6 +786,7 @@ function renderPromoCodeDeals() {
   var srcRow = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' + _rowLabel('Source')
     + _srcChip('', 'All sources (' + srcTotal + ')', '#f5c842')
     + _srcChip('Seller Submission', '🧑‍💼 Seller submitted (' + sellerN + ')', '#7dd3fc')
+    + _srcChip('Manual Agent', '✍️ Agent submitted (' + agentN + ')', '#fbbf7d')
     + _srcChip('__api__', '🤖 API uploads (' + apiN + ')', '#9ae6b4')
     + '</div>';
   // STORE facet — count per store (search + source + day, skip store).
