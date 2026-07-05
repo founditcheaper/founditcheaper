@@ -75,11 +75,16 @@ exports.handler = async function (event) {
 
   // Plain tagged web URL — the universal fallback (works everywhere).
   const webUrl = `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`;
-  // Amazon shopping app URL scheme — opens the app to this product, even from inside
-  // Instagram/Facebook in-app browsers. This is the EXACT scheme + flow Joylink uses; a
-  // live Joylink deep link opens the app on Erik's phone, so we match it byte-for-byte.
-  // (An earlier intent:// / 1.4s-timeout experiment broke this — do not reintroduce it.)
+  // iOS app scheme — opens the Amazon app to this product on iPhones, even from inside
+  // Instagram/Facebook in-app browsers. Same scheme Joylink uses; verified on iPhones.
   const appUrl = `com.amazon.mobile.shopping.web://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`;
+  // Android app launch — Chrome on Android blocks plain custom-scheme auto-redirects (which
+  // left Android stuck on the mobile web page), so use its sanctioned intent:// URL. It opens
+  // the Amazon app and carries its OWN web fallback (browser_fallback_url) if the app isn't
+  // installed. Package = the Amazon Shopping app on Google Play.
+  const intentUrl = `intent://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`
+    + `#Intent;scheme=https;package=com.amazon.mShop.android.shopping;`
+    + `S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
 
   // Log without blocking anything.
   await logClick(asin, event);
@@ -109,26 +114,24 @@ exports.handler = async function (event) {
   <div class="h">or <a id="web" class="web" href="${webUrl}">continue on the web</a></div>
   <script>
   (function(){
-    var web=${J(webUrl)}, app=${J(appUrl)};
+    var web=${J(webUrl)}, app=${J(appUrl)}, intent=${J(intentUrl)};
     var ua=navigator.userAgent||'';
-    // Custom scheme for BOTH iOS and Android — this is Joylink's exact flow, and a live
-    // Joylink deep link opens the Amazon app on Erik's phone. The tagged https page is the
-    // fallback if the app doesn't take over.
-    function redirectToApp(){ try{ window.location = app; }catch(e){} }
+    var isAndroid=/Android/i.test(ua);
+    // Android → intent:// (Chrome's real app-launch; the bare custom scheme leaves Android
+    // stuck on the mobile web page). iOS → custom scheme (works on iPhones).
+    function redirectToApp(){ try{ window.location = isAndroid ? intent : app; }catch(e){} }
     function redirectToFallBack(){ try{ window.location = web; }catch(e){} }
 
     // Manual button = a guaranteed one-tap path if the auto-open is blocked.
     var btn=document.getElementById('appBtn');
     if(btn){ btn.addEventListener('click', function(e){ e.preventDefault(); redirectToApp(); }); }
 
-    // EXACT Joylink logic (byte-for-byte). Do NOT branch by platform for the scheme, and do
-    // NOT lengthen the 100ms — an intent:// / 1.4s experiment broke app-opening for Erik.
     //  - Facebook Messenger on iPhone: skip the app scheme (it misbehaves there).
-    //  - Facebook in-app browser on Android: skip the web fallback (it cancels the hand-off).
     var isFacebookMessengerIphone = /FBCR/i.test(ua) && /iPhone/i.test(ua);
-    var isAndroidFacebookInApp = /Android/i.test(ua) && /FB_IAB|FBAN|FBAV/i.test(ua);
     if(!isFacebookMessengerIphone){ redirectToApp(); }
-    if(!isAndroidFacebookInApp){ setTimeout(redirectToFallBack, 100); }
+    // The Android intent:// carries its OWN web fallback, so only iOS needs this JS fallback
+    // (firing a web redirect on Android would fight the app hand-off). 100ms, like Joylink.
+    if(!isAndroid){ setTimeout(redirectToFallBack, 100); }
   })();
   </script>
 </body></html>`;
