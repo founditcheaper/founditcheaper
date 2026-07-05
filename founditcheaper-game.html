@@ -394,6 +394,7 @@
         <span class="countdown"><span id="countdown">—</span></span>
         <div id="remindWrap" style="margin-top:12px;display:none">
           <button id="remindBtn" onclick="toggleRollReminder()" style="font-size:12px;font-weight:700;color:var(--accent);background:rgba(245,200,66,0.1);border:1px solid var(--border-gold);border-radius:8px;padding:9px 14px;cursor:pointer;font-family:'Inter',sans-serif">🔔 Remind me when I can roll again</button>
+          <div id="remindNote" style="font-size:11px;color:var(--text-soft);margin-top:8px;line-height:1.45;max-width:300px;margin-left:auto;margin-right:auto"></div>
         </div>
       </div>
 
@@ -828,6 +829,10 @@ function renderRemindBtn() {
   wrap.style.display = 'block';
   btn.innerHTML = _remindOn ? '🔔 Reminders on · tap to turn off' : '🔔 Remind me when I can roll again';
   btn.style.opacity = '1';
+  var note = document.getElementById('remindNote');
+  if (note) note.textContent = _remindOn
+    ? "Done. We'll email you when it's time to roll again, every hour you're eligible. Tap above to stop."
+    : "We'll send you an email when it's time to roll again.";
 }
 async function loadRemindState() {
   if (DEMO || !player || !player.email) return;
