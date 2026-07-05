@@ -615,9 +615,27 @@
     .picks-grid { grid-template-columns: 1fr 1fr; }
     .product-grid { grid-template-columns: 1fr 1fr; }
   }
+  /* First-paint splash — covers the blank page while deals load in, so the site never
+     looks broken. Same navy gradient as the page, with the logo + a spinner. */
+  #introLoader { position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px; background: linear-gradient(160deg, #1c5080 0%, #0f2e47 55%, #0a1f33 100%); opacity: 1; transition: opacity .45s ease; }
+  #introLoader.gone { opacity: 0; pointer-events: none; }
+  .intro-loader { position: relative; width: 128px; height: 128px; display: flex; align-items: center; justify-content: center; }
+  .intro-ring { position: absolute; inset: 0; border-radius: 50%; border: 4px solid rgba(245,200,66,0.16); border-top-color: #f5c842; animation: dealspin 0.9s linear infinite; }
+  .intro-logo { position: relative; z-index: 1; width: 92px; height: 92px; border-radius: 50%; object-fit: cover; }
+  .intro-name { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 900; color: #fff; letter-spacing: .5px; text-transform: uppercase; line-height: 1; }
+  .intro-sub { font-size: 14px; font-weight: 700; color: #f5c842; letter-spacing: .5px; }
+  @keyframes dealspin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
+
+<!-- First-paint splash: static HTML (visible by default) so it shows on the very first
+     paint without waiting for JS/Supabase. fadeIntroOut() hides it once the grid renders. -->
+<div id="introLoader">
+  <div class="intro-loader"><div class="intro-ring"></div><img class="intro-logo" src="/assets/logo.png" alt="founditcheaper"></div>
+  <div class="intro-name">founditcheaper</div>
+  <div class="intro-sub">Loading deals</div>
+</div>
 
 <header>
 <div class="header-inner">
@@ -902,6 +920,7 @@ function postEmbedHeight() {
 }
 function initEmbed() {
   if (!EMBED) return;
+  var _il = document.getElementById('introLoader'); if (_il) _il.style.display = 'none';   // no full-screen splash inside the iframe
   document.documentElement.classList.add('fic-embed');   // widens the content edge-to-edge in the iframe
   document.body.style.background = 'transparent';
   document.documentElement.style.background = 'transparent';
@@ -1068,6 +1087,15 @@ function hideDealLoading() {
   var el = document.getElementById('dealLoading'); if (el) el.style.display = 'none';
   if (_dealLoadTimer) { clearTimeout(_dealLoadTimer); _dealLoadTimer = null; }
 }
+// First-paint splash: fade out once the grid has rendered (called from the load flow).
+// The safety timer hides it no matter what, so a slow or failed load can't trap anyone.
+function fadeIntroOut() {
+  var el = document.getElementById('introLoader'); if (!el || el._gone) return;
+  el._gone = true;
+  el.classList.add('gone');
+  setTimeout(function () { el.style.display = 'none'; }, 500);
+}
+setTimeout(fadeIntroOut, 9000);   // safety net
 function copyCode(code, btn) {
   navigator.clipboard.writeText(code).then(function() {
     btn.textContent = 'Copied!'; btn.classList.add('copied');
@@ -2128,6 +2156,7 @@ function _afterLoad() {
   if (EMBED_GRID) { state.sort = 'random'; }   // game-page feed: shuffled each visit so repeat players see fresh deals
   else { applyDefaultDate(); }                  // main site: open on the most recent day that has deals
   resetAndRender();
+  fadeIntroOut();   // grid is on screen now — drop the first-paint splash
   // A wide desktop's first screen can be short enough that nothing triggers the next page.
   // Nudge the fill a few times as layout/images settle (no-op once the fold is covered).
   if (!EMBED_GRID) { [200, 700, 1500].forEach(function (ms) { setTimeout(maybeFillViewport, ms); }); }
