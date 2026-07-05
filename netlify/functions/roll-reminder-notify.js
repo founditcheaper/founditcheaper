@@ -63,7 +63,8 @@ exports.handler = async function () {
     const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:0 auto">
       <p style="font-size:16px;color:#111">Your timer is up. You can roll again.</p>
       <p><a href="${play}" style="display:inline-block;background:#f5c842;color:#0a1f33;font-weight:bold;text-decoration:none;padding:12px 22px;border-radius:8px">Roll now</a></p>
-      <p style="color:#777;font-size:12px;line-height:1.6">Heads up: this reminder goes out every time you can roll again. Don't want it anymore? <a href="${optOut}" style="color:#777">Turn these off</a> with one click. You stay in the game and on every other email.</p>
+      <p style="color:#777;font-size:12px;line-height:1.6;margin:16px 0 8px">This reminder goes out every time you can roll again. You stay in the game and on every other email.</p>
+      <p style="margin:0"><a href="${optOut}" style="display:inline-block;background:#eef1f4;color:#333;font-weight:700;font-size:13px;text-decoration:none;padding:9px 16px;border-radius:6px;border:1px solid #d7dde3">Turn off these roll reminders</a></p>
     </div>`;
 
     try {

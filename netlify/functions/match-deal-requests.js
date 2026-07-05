@@ -117,8 +117,9 @@ exports.handler = async function () {
       + codeLine
       + '<p style="margin:16px 0"><a href="' + shareUrl + '" style="display:inline-block;background:#f5c842;color:#0a1f33;font-weight:800;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px">See the deal &rarr;</a></p>'
       + '<hr style="border:none;border-top:1px solid #eee;margin:20px 0 12px">'
-      + '<p style="font-size:12px;color:#888;line-height:1.6;margin:0">Done watching this one? <a href="' + stopUrl + '" style="color:#888">Stop alerting me about this item</a>. That won\'t unsubscribe you. To leave the whole list, use the unsubscribe link in our newsletter.</p>'
-      + '<p style="font-size:11px;color:#aaa;margin:10px 0 0">founditcheaper earns from qualifying purchases. Prices and codes can change.</p>'
+      + '<p style="font-size:12px;color:#888;line-height:1.6;margin:0 0 8px">Done watching this one? This only stops alerts for this item. It does not unsubscribe you from anything else.</p>'
+      + '<p style="margin:0 0 4px"><a href="' + stopUrl + '" style="display:inline-block;background:#eef1f4;color:#333;font-weight:700;font-size:13px;text-decoration:none;padding:9px 16px;border-radius:6px;border:1px solid #d7dde3">Stop alerts for this item</a></p>'
+      + '<p style="font-size:11px;color:#aaa;margin:12px 0 0">founditcheaper earns from qualifying purchases. Prices and codes can change.</p>'
       + '</div>';
     try {
       await transporter.sendMail({ from: 'founditcheaper <' + FROM + '>', to: q.email, subject: subject, html: html });
