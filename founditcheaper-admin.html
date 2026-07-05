@@ -859,16 +859,15 @@ function renderPromoCodeDeals() {
     // Approve by row id — works for every deal, including seller promo-code links with no ASIN.
     var approveBtn = (st !== 'live') ? '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0;border-color:rgba(74,222,128,0.5);color:#4ade80" onclick="approveDealById(\'' + d.id + '\')" title="Publish this deal to the site now">✓ Approve</button>' : '';
     // Top Picks needs a real Amazon product, so only offer "Move to Top Picks" when there's an ASIN.
-    var moveBtn = asin ? '<button class="abtn abtn-gold" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="promoteToPicks(\'' + asin + '\')">Move to Today\'s Top Deal Picks</button>' : '';
+    // Hidden entirely when the Top Picks carousel is turned off on the site (no point moving there).
+    var moveBtn = (asin && !_hideTopPicks) ? '<button class="abtn abtn-gold" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="promoteToPicks(\'' + asin + '\')">Move to Today\'s Top Deal Picks</button>' : '';
     var removeArg = asin ? '\'' + asin + '\'' : 'null';
     var removeBtn = '<button class="abtn abtn-red" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="removeDeal(\'' + d.id + '\', ' + removeArg + ', this)">Remove</button>';
     // Feature (paid placement): pin this deal to the top of the site's All Deals grid.
     var _isFeat = _pinned.indexOf(String(d.id)) !== -1;
     var featureBtn = '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0;border-color:' + (_isFeat ? '#f5c842' : 'rgba(245,200,66,0.5)') + ';color:#f5c842' + (_isFeat ? ';background:rgba(245,200,66,0.12)' : '') + '" onclick="' + (_isFeat ? 'unfeatureDeal(\'' + d.id + '\')' : 'featureDeal(\'' + d.id + '\')') + '" title="Pin this deal to the top of All Deals on the site">' + (_isFeat ? '📌 Featured' : '📌 Feature') + '</button>';
-    var actions = inPicks
-      ? '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="demoteFromPicks(\'' + asin + '\')">Move back to All Deals</button>'
-        + removeBtn
-      : approveBtn + moveBtn + removeBtn;
+    var backBtn = _hideTopPicks ? '' : '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="demoteFromPicks(\'' + asin + '\')">Move back to All Deals</button>';
+    var actions = inPicks ? backBtn + removeBtn : approveBtn + moveBtn + removeBtn;
     var au = d.url || '';
     var img = d.img ? '<img src="' + d.img + '" style="width:48px;height:48px;object-fit:contain;background:#fff;border-radius:6px;flex-shrink:0' + (au ? ';cursor:pointer' : '') + '" onerror="this.style.display=\'none\'">' : '';
     if (au && img) img = '<a href="' + au + '" target="_blank" rel="noopener" title="Open on Amazon">' + img + '</a>';
@@ -891,6 +890,7 @@ function renderPromoCodeDeals() {
   pcRefreshBulkBar();
 }
 var _pcStatus = 'all';
+var _hideTopPicks = false;   // mirrors the hide_top_picks setting — hides the Top-Picks move buttons
 function pcSetStatus(v) { _pcStatus = v; renderPromoCodeDeals(); }
 var _pcSource = '';   // '' = all sources; 'Seller Submission' = seller-submitted only
 function pcSetSource(v) { _pcSource = v; renderPromoCodeDeals(); }
@@ -1628,7 +1628,9 @@ async function loadSettings() {
       document.getElementById('promoTargetSlider').value = m.promo_target;
       document.getElementById('svPromo').textContent = m.promo_target;
     }
-    if (document.getElementById('hideTopPicks')) document.getElementById('hideTopPicks').checked = (m.hide_top_picks === '1');
+    _hideTopPicks = (m.hide_top_picks === '1');
+    if (document.getElementById('hideTopPicks')) document.getElementById('hideTopPicks').checked = _hideTopPicks;
+    if (_pcDeals && _pcDeals.length) renderPromoCodeDeals();   // reflect the flag on already-rendered cards
     if (document.getElementById('hideDealsBanner')) document.getElementById('hideDealsBanner').checked = (m.hide_deals_banner === '1');
     if (m.pinned_deals != null) { try { var _pa = JSON.parse(m.pinned_deals || '[]'); if (Array.isArray(_pa)) _pinned = _pa.map(String); } catch (e3) {} }
     renderPinPanel();
@@ -1945,6 +1947,8 @@ async function savePromoTarget(v) {
   } catch (e) { showToast('Network error'); }
 }
 async function saveHidePicks(on) {
+  _hideTopPicks = !!on;
+  if (_pcDeals && _pcDeals.length) renderPromoCodeDeals();   // show/hide the Top-Picks buttons right away
   try {
     var res = await fetch('/.netlify/functions/save-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, hideTopPicks: !!on }) });
     var d = await res.json();
