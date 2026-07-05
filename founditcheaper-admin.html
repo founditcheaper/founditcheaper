@@ -254,6 +254,16 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <button class="btn btn-ghost" onclick="resetDefaults()">↺ Reset Defaults</button>
       </div>
 
+      <!-- Site Display -->
+      <div class="settings-card">
+        <div class="settings-title">Site Display</div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text)">
+          <input type="checkbox" id="hideTopPicks" onchange="saveHidePicks(this.checked)" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
+          Hide the Top Deal Picks carousel on the site
+        </label>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6">When on, the site opens straight to the All Deals grid. The "We found X deals" line stays. Your picks aren't deleted, just hidden — turn it back off anytime.</div>
+      </div>
+
       <!-- Quality Filters -->
       <div class="settings-card">
         <div class="settings-title">Quality Filters</div>
@@ -1564,6 +1574,7 @@ async function loadSettings() {
       document.getElementById('promoTargetSlider').value = m.promo_target;
       document.getElementById('svPromo').textContent = m.promo_target;
     }
+    if (document.getElementById('hideTopPicks')) document.getElementById('hideTopPicks').checked = (m.hide_top_picks === '1');
     if (m.game_prize != null && document.getElementById('gamePrizeInput')) document.getElementById('gamePrizeInput').value = m.game_prize;
     if (m.game_prize_sub != null && document.getElementById('gamePrizeSubInput')) document.getElementById('gamePrizeSubInput').value = m.game_prize_sub;
     if (m.game_period_start != null && document.getElementById('gameStartInput')) document.getElementById('gameStartInput').value = m.game_period_start;
@@ -1874,6 +1885,13 @@ async function savePromoTarget(v) {
     var res = await fetch('/.netlify/functions/save-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, promoTarget: v }) });
     var d = await res.json();
     showToast(d.ok ? 'Saved — up to ' + v + ' promo deals/day' : 'Save failed' + (d.error ? ': ' + d.error : ''));
+  } catch (e) { showToast('Network error'); }
+}
+async function saveHidePicks(on) {
+  try {
+    var res = await fetch('/.netlify/functions/save-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, hideTopPicks: !!on }) });
+    var d = await res.json();
+    showToast(d.ok ? (on ? 'Top Picks hidden on the site' : 'Top Picks showing again') : 'Save failed' + (d.error ? ': ' + d.error : ''));
   } catch (e) { showToast('Network error'); }
 }
 async function generatePicksNow() {

@@ -22,6 +22,8 @@ exports.handler = async function (event) {
     let n = parseInt(body.promoTarget, 10);
     if (!isNaN(n)) updates.push(['promo_target', String(Math.max(0, Math.min(10, n)))]);
   }
+  // Site display: hide the Top Deal Picks carousel on the front page ('1' = hidden).
+  if (body.hideTopPicks != null) updates.push(['hide_top_picks', body.hideTopPicks ? '1' : '0']);
   if (body.gamePrize != null) updates.push(['game_prize', String(body.gamePrize).slice(0, 120)]);
   if (body.gamePrizeSub != null) updates.push(['game_prize_sub', String(body.gamePrizeSub).slice(0, 160)]);
   if (body.gamePeriodStart != null && /^\d{4}-\d{2}-\d{2}$/.test(String(body.gamePeriodStart))) updates.push(['game_period_start', String(body.gamePeriodStart)]);
