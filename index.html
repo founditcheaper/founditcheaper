@@ -1381,6 +1381,7 @@ function getFiltered() {
     return out;
   }
   f.sort(function(a, b) {
+    if (state.sort === 'random') return a._jit - b._jit;   // fresh shuffle each page load (_jit is per-load)
     if (state.sort === 'newest') return (b._ts || 0) - (a._ts || 0);
     if (state.sort === 'rating') return b.rating - a.rating;
     if (state.sort === 'discount') return b.off - a.off;
@@ -2100,7 +2101,7 @@ function _afterLoad() {
   // Grid render + deep-link handling. Load the game card's live/prize state first so the
   // in-grid dice card shows the current game on the very first render.
   await loadGameCardInfo();
-  if (EMBED_GRID) { state.sort = 'newest'; }   // game-page feed: newest first, across all days
+  if (EMBED_GRID) { state.sort = 'random'; }   // game-page feed: shuffled each visit so repeat players see fresh deals
   else { applyDefaultDate(); }                  // main site: open on the most recent day that has deals
   resetAndRender();
   updateDealsBanner();
