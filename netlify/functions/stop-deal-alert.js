@@ -19,7 +19,13 @@ function page(title, msg) {
 exports.handler = async function (event) {
   const HTML = { 'Content-Type': 'text/html; charset=utf-8' };
   const p = event.queryStringParameters || {};
-  const token = String(p.t || p.token || '').trim();
+  // Token normally arrives as ?t= (via the /stop-alert/* rewrite). Fall back to reading it
+  // straight from the path in case the rewrite's :splat doesn't populate the query.
+  let token = String(p.t || p.token || '').trim();
+  if (!token) {
+    const mm = String(event.path || event.rawUrl || '').match(/stop-alert\/([A-Za-z0-9]+)/i);
+    if (mm) token = mm[1].trim();
+  }
   if (!/^[a-f0-9]{16,40}$/i.test(token)) {
     return { statusCode: 400, headers: HTML, body: page('Invalid link', 'That alert link looks broken. If you meant to stop an alert, just reply to the email and we will sort it out.') };
   }
