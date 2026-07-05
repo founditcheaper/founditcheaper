@@ -1080,6 +1080,23 @@ function affiliateUrl(url, store) {
     return u.toString();
   } catch(e) { return url; }
 }
+// Real Android browser (Chrome/Samsung/Firefox…), NOT an in-app webview. On these, a TAP of
+// an intent:// link opens the Amazon app in one tap — no interstitial second tap. In-app
+// webviews (Instagram/FB/etc.) stay on the safe /deal/ interstitial path.
+function isDirectAndroid() {
+  var ua = navigator.userAgent || '';
+  if (!/Android/i.test(ua)) return false;
+  if (/; wv\)|FB_IAB|FBAN|FBAV|Instagram|Line\/|Twitter|Snapchat|Pinterest|TikTok|GSA\//i.test(ua)) return false;
+  return true;
+}
+// Client-side twin of go.js's Android intent:// URL (opens the Amazon app, carries its own
+// web fallback if the app isn't installed). Kept in sync with netlify/functions/go.js.
+function amazonIntentUrl(asin) {
+  var web = 'https://www.amazon.com/dp/' + asin + '?tag=' + ASSOCIATE_TAG;
+  return 'intent://www.amazon.com/dp/' + asin + '?tag=' + ASSOCIATE_TAG
+    + '#Intent;scheme=https;package=com.amazon.mShop.android.shopping;'
+    + 'S.browser_fallback_url=' + encodeURIComponent(web) + ';end';
+}
 var _dealLoadTimer = null;
 function showDealLoading() {
   var el = document.getElementById('dealLoading'); if (el) el.style.display = 'flex';
@@ -2391,8 +2408,16 @@ async function openDrawer(productId) {
     html += '</div></div>';
   }
 
-  // Buttons
-  html += '<a class="drawer-view-btn" href="' + affiliateUrl(p.url, p.store) + '" target="_blank" rel="noopener">View Deal on ' + sName + ' →</a>';
+  // Buttons. On a real Android browser, an Amazon deal launches the app straight from THIS
+  // tap (one gesture) via an intent:// link, skipping the interstitial's second tap. A
+  // sendBeacon still logs the click (survives the app hand-off). Everything else — iOS,
+  // desktop, Android in-app webviews, and non-Amazon — keeps the /deal/ (or stored) link.
+  var _dAsin = (p.store === 'Amazon') ? amazonAsin(p.url) : null;
+  if (_dAsin && isDirectAndroid()) {
+    html += '<a class="drawer-view-btn" href="' + amazonIntentUrl(_dAsin) + '" rel="noopener" onclick="try{navigator.sendBeacon(\'/deal/' + _dAsin + '\')}catch(e){}">View Deal on ' + sName + ' →</a>';
+  } else {
+    html += '<a class="drawer-view-btn" href="' + affiliateUrl(p.url, p.store) + '" target="_blank" rel="noopener">View Deal on ' + sName + ' →</a>';
+  }
   html += '<button class="drawer-share-btn" onclick="drawerShareDeal(this)">🔗 Share Deal</button>';
   html += '<div style="font-size:10px;color:var(--muted);text-align:center;line-height:1.5;margin-top:12px">founditcheaper earns from qualifying purchases, including as an Amazon Associate, at no extra cost to you. Prices &amp; codes can change. <a href="founditcheaper-legal.html" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:underline">Full disclosure</a></div>';
 
