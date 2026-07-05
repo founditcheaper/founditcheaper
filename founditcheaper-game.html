@@ -393,7 +393,7 @@
         ✓ You already rolled this hour<br>
         <span class="countdown"><span id="countdown">—</span></span>
         <div id="remindWrap" style="margin-top:12px;display:none">
-          <button id="remindBtn" onclick="toggleRollReminder()" style="font-size:12px;font-weight:700;color:var(--accent);background:rgba(245,200,66,0.1);border:1px solid var(--border-gold);border-radius:8px;padding:9px 14px;cursor:pointer;font-family:'Inter',sans-serif">🔔 Remind me when I can roll</button>
+          <button id="remindBtn" onclick="toggleRollReminder()" style="font-size:12px;font-weight:700;color:var(--accent);background:rgba(245,200,66,0.1);border:1px solid var(--border-gold);border-radius:8px;padding:9px 14px;cursor:pointer;font-family:'Inter',sans-serif">🔔 Remind me when I can roll again</button>
         </div>
       </div>
 
@@ -826,7 +826,7 @@ function renderRemindBtn() {
   if (!wrap || !btn) return;
   if (DEMO || !player || !player.email) { wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
-  btn.innerHTML = _remindOn ? '🔔 Reminders on · tap to turn off' : '🔔 Remind me when I can roll';
+  btn.innerHTML = _remindOn ? '🔔 Reminders on · tap to turn off' : '🔔 Remind me when I can roll again';
   btn.style.opacity = '1';
 }
 async function loadRemindState() {
