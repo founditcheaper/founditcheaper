@@ -710,7 +710,10 @@ async function loadPromoCodeDeals() {
   if (list) list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Loading…</div>';
   try {
     var _hdr = { apikey: _ADMIN_SB_KEY, Authorization: 'Bearer ' + _ADMIN_SB_KEY };
-    var _base = _ADMIN_SB_URL + '/rest/v1/deals?code=not.is.null&order=created_at.desc&select=';
+    // Managed deals only: everything with a promo code (Amazon promo + seller), PLUS every
+    // manually-added no-API store deal (Home Depot / Best Buy / Lowe's) even without a code.
+    // (Not the thousands of auto-synced Amazon/Walmart grid deals.)
+    var _base = _ADMIN_SB_URL + '/rest/v1/deals?or=(code.not.is.null,store.in.(HomeDepot,BestBuy,Lowes))&order=created_at.desc&select=';
     var _cols = 'id,name,price,was,off,code,img,url,store,is_top_pick,created_at';
     var res = await fetch(_base + _cols + ',uploaded_by,review_status,flag_reason', { headers: _hdr });
     _pcDeals = await res.json();
@@ -734,11 +737,12 @@ function renderPromoCodeDeals() {
   // Status counts respect the active source + search scope, so the chip numbers always
   // match the list below (e.g. on "Seller submitted" the Flagged count reflects only
   // seller-submitted deals, not every source).
-  function _pcMatch(d) {
+  function _pcMatchBase(d) {   // search + source (used for per-store counts)
     var okSearch = !q || (d.name||'').toLowerCase().indexOf(q) >= 0 || (d.code||'').toLowerCase().indexOf(q) >= 0;
     var okSource = !_pcSource || (d.uploaded_by === _pcSource);
     return okSearch && okSource;
   }
+  function _pcMatch(d) { return _pcMatchBase(d) && (!_pcStore || (d.store || '') === _pcStore); }
   var counts = { all: 0, live: 0, pending: 0, flagged: 0 };
   _pcDeals.forEach(function(d) { if (_pcMatch(d)) { counts.all++; counts[_statusOf(d)]++; } });
   var items = _pcDeals.filter(function(d) {
@@ -749,7 +753,7 @@ function renderPromoCodeDeals() {
     var todayN = _addedTodayCount();
     var sHtml =
       '<div style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.45);border-radius:8px;padding:10px 14px;font-size:13px;color:#fff"><span style="font-size:22px;font-weight:900;color:#4ade80">' + todayN + '</span> <span style="color:var(--muted)">added today (Central)</span></div>'
-      + '<div style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;color:#fff"><span style="font-size:22px;font-weight:900;color:#f5c842">' + _pcDeals.length + '</span> <span style="color:var(--muted)">total promo deals</span></div>';
+      + '<div style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;color:#fff"><span style="font-size:22px;font-weight:900;color:#f5c842">' + _pcDeals.length + '</span> <span style="color:var(--muted)">total on this list</span></div>';
     if (q) sHtml += '<div style="background:rgba(125,211,252,0.1);border:1px solid rgba(125,211,252,0.5);border-radius:8px;padding:10px 14px;font-size:13px;color:#fff"><span style="font-size:22px;font-weight:900;color:#7dd3fc">' + items.length + '</span> <span style="color:var(--muted)">search result' + (items.length === 1 ? '' : 's') + '</span></div>';
     stat.innerHTML = sHtml;
   }
@@ -771,10 +775,21 @@ function renderPromoCodeDeals() {
     var on = _pcSource === v;
     return '<button class="btn" style="padding:6px 11px;font-size:12px;border:1px solid ' + (on ? color : 'var(--border)') + ';background:' + (on ? 'rgba(255,255,255,0.07)' : 'transparent') + ';color:' + (on ? color : '#cfd8e3') + '" onclick="pcSetSource(\'' + v + '\')">' + label + '</button>';
   }
+  // Store filter — see per-store what's on the list (Amazon / Walmart / Home Depot …).
+  var _stNames = { Amazon: 'Amazon', Walmart: 'Walmart', HomeDepot: 'Home Depot', BestBuy: 'Best Buy', Lowes: "Lowe's" };
+  var _stCounts = {}, _stTotal = 0;
+  _pcDeals.forEach(function (d) { if (_pcMatchBase(d)) { var s = d.store || 'Other'; _stCounts[s] = (_stCounts[s] || 0) + 1; _stTotal++; } });
+  function _stChip(v, label) {
+    var on = _pcStore === v;
+    return '<button class="btn" style="padding:6px 11px;font-size:12px;border:1px solid ' + (on ? '#f5c842' : 'var(--border)') + ';background:' + (on ? 'rgba(245,200,66,0.12)' : 'transparent') + ';color:' + (on ? '#f5c842' : '#cfd8e3') + '" onclick="pcSetStore(\'' + v + '\')">' + label + '</button>';
+  }
+  var storeRow = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' + _stChip('', 'All stores (' + _stTotal + ')');
+  ['Amazon', 'Walmart', 'HomeDepot', 'BestBuy', 'Lowes'].forEach(function (s) { if (_stCounts[s]) storeRow += _stChip(s, _stNames[s] + ' (' + _stCounts[s] + ')'); });
+  storeRow += '</div>';
   chips = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
       + _srcChip('', 'All sources', '#f5c842')
       + _srcChip('Seller Submission', '🧑‍💼 Seller submitted (' + sellerN + ')', '#7dd3fc')
-      + '</div>' + chips;
+      + '</div>' + storeRow + chips;
   if (!items.length) { list.innerHTML = chips + '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No ' + (_pcStatus !== 'all' ? _pcStatus + ' ' : '') + 'promo code deals' + (q ? ' match your search' : '') + '.</div>'; _pcShownIds = []; pcRefreshBulkBar(); return; }
   // Row ids currently shown (for select-all). Selection is keyed by id — not ASIN — so
   // deals with no ASIN (seller promo-code links) are still selectable and approvable.
@@ -836,6 +851,8 @@ var _pcStatus = 'all';
 function pcSetStatus(v) { _pcStatus = v; renderPromoCodeDeals(); }
 var _pcSource = '';   // '' = all sources; 'Seller Submission' = seller-submitted only
 function pcSetSource(v) { _pcSource = v; renderPromoCodeDeals(); }
+var _pcStore = '';    // '' = all stores; 'HomeDepot' / 'Amazon' / 'Walmart' = that store only
+function pcSetStore(v) { _pcStore = v; renderPromoCodeDeals(); }
 async function approveDealById(id) {
   showToast('Publishing…');
   try {
