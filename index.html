@@ -884,32 +884,55 @@ const MAX_PAST_DAYS = 5;
 // Renders ONLY the Top Deal Picks carousel so it can be dropped into the dice
 // game page via an iframe — same live data, sliding, and product drawer, no
 // duplicated code. Everything else on the page is hidden.
-var EMBED = /[?&]embed=picks(?:&|$)/.test(location.search);
+// embed=picks → the Top Picks carousel; embed=grid → the All Deals feed (dice game page).
+var EMBED_PICKS = /[?&]embed=picks(?:&|$)/.test(location.search);
+var EMBED_GRID  = /[?&]embed=grid(?:&|$)/.test(location.search);
+var EMBED = EMBED_PICKS || EMBED_GRID;
 function postEmbedHeight() {
   if (!EMBED) return;
-  // Measure the picks CONTENT height (the only visible section), NOT the document /
-  // viewport height. documentElement.scrollHeight is at least the viewport (= the
-  // iframe's own height), so reporting it makes the height track the iframe and, with
-  // the parent's resize, feeds back into an ever-growing loop.
-  var picks = document.querySelector('.picks-outer');
-  var h = picks ? Math.ceil(picks.offsetTop + picks.offsetHeight) : Math.ceil(document.documentElement.scrollHeight);
+  // Measure the visible section's CONTENT height (picks carousel or deals grid), NOT the
+  // document / viewport height. documentElement.scrollHeight is at least the viewport
+  // (= the iframe's own height), so reporting it makes the height track the iframe and,
+  // with the parent's resize, feeds back into an ever-growing loop.
+  var sec = EMBED_GRID ? document.querySelector('.layout') : document.querySelector('.picks-outer');
+  var h = sec ? Math.ceil(sec.offsetTop + sec.offsetHeight) : Math.ceil(document.documentElement.scrollHeight);
   try { parent.postMessage({ ficEmbedHeight: h }, '*'); } catch (e) {}
 }
 function initEmbed() {
   if (!EMBED) return;
-  document.documentElement.classList.add('fic-embed');   // widens the carousel edge-to-edge in the iframe
+  document.documentElement.classList.add('fic-embed');   // widens the content edge-to-edge in the iframe
   document.body.style.background = 'transparent';
   document.documentElement.style.background = 'transparent';
   document.body.style.margin = '0';
   document.body.style.overflowX = 'hidden';
-  // Hide every top-level section except the picks carousel + the drawer plumbing.
+  // Keep only the embedded section (picks carousel, or the All Deals grid + its divider)
+  // plus the drawer plumbing; hide every other top-level section.
+  function _keep(el) {
+    if (EMBED_GRID) return (el.classList && el.classList.contains('layout')) || el.id === 'allDealsAnchor';
+    return el.classList && el.classList.contains('picks-outer');
+  }
   Array.prototype.forEach.call(document.body.children, function (el) {
     if (!el || !el.tagName) return;
-    if (el.classList && el.classList.contains('picks-outer')) return;
+    if (_keep(el)) return;
     if (el.id === 'drawerOverlay' || el.id === 'productDrawer' || el.id === 'dealLoading') return;
     if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'LINK') return;
     el.style.display = 'none';
   });
+  if (EMBED_GRID) {
+    // Tapping a deal in the game-page feed opens the FULL site on that product (roomy
+    // drawer + the rest of the catalog), instead of a cramped drawer inside the iframe.
+    window.openDrawer = function (id) {
+      var u = '/?deal=' + encodeURIComponent(id);
+      try { (window.top || window).location.href = u; } catch (e) { window.location.href = u; }
+      return Promise.resolve();
+    };
+    // The iframe auto-grows to fit its content, so the grid's own scroll observer would
+    // load every page at once. Instead load one more page only when the parent page
+    // (where the actual scrolling happens) asks for it.
+    window.addEventListener('message', function (e) {
+      if (e && e.data && e.data.ficLoadMore) { try { loadMore(); } catch (_) {} }
+    });
+  }
   if (window.ResizeObserver) { try { new ResizeObserver(postEmbedHeight).observe(document.body); } catch (e) {} }
   window.addEventListener('resize', postEmbedHeight);
   setTimeout(postEmbedHeight, 300); setTimeout(postEmbedHeight, 1200); setTimeout(postEmbedHeight, 2500);
@@ -1540,9 +1563,13 @@ function loadMore(fromFilter) {
   }
 }
 
-new IntersectionObserver(function(entries) {
-  if (entries[0].isIntersecting && !loading) loadMore();
-}, { rootMargin: '200px' }).observe(document.getElementById('sentinel'));
+// In the game-page grid embed the parent page drives "load more" (see initEmbed), because
+// the auto-growing iframe has no scroll of its own for this observer to watch.
+if (!EMBED_GRID) {
+  new IntersectionObserver(function(entries) {
+    if (entries[0].isIntersecting && !loading) loadMore();
+  }, { rootMargin: '200px' }).observe(document.getElementById('sentinel'));
+}
 
 // ── FILTER FUNCTIONS ──────────────────────────────────────────────────
 // ── DUAL-HANDLE PRICE RANGE SLIDER ────────────────────────────────────

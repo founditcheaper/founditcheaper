@@ -466,19 +466,20 @@
     </div>
   </div>
 
-  <!-- TODAY'S TOP DEAL PICKS — the live carousel from the main site, embedded -->
+  <!-- DEALS FEED — the live All Deals grid from the main site, embedded. Starts at 6
+       deals and loads more as THIS page scrolls (parent-driven infinite scroll below). -->
   <div class="picks-embed-wrap">
-    <iframe id="picksFrame" src="/?embed=picks" title="Today's Top Deal Picks" scrolling="no"
-            style="width:100%;height:720px;border:none;overflow:hidden;display:block"></iframe>
+    <iframe id="dealsFrame" src="/?embed=grid" title="More Deals" scrolling="no"
+            style="width:100%;height:600px;border:none;overflow:hidden;display:block"></iframe>
   </div>
 
 </div>
 
 <script>
-// Auto-size the embedded picks carousel to its content (it posts its height).
+// Auto-size the embedded deals feed to its content (it posts its height as it grows).
 window.addEventListener('message', function (e) {
   if (e && e.data && e.data.ficEmbedHeight) {
-    var f = document.getElementById('picksFrame');
+    var f = document.getElementById('dealsFrame');
     if (f) {
       var h = e.data.ficEmbedHeight + 8;
       var cur = parseInt(f.style.height, 10) || 0;
@@ -488,6 +489,25 @@ window.addEventListener('message', function (e) {
     }
   }
 });
+// Parent-driven infinite scroll: the feed opens with 6 deals; when the reader scrolls
+// near the bottom of it, ask the feed for another page. The iframe auto-grows so it has
+// no scroll of its own — this page is where the scrolling actually happens.
+(function () {
+  var cooldown = false;
+  function maybeMore() {
+    if (cooldown) return;
+    var f = document.getElementById('dealsFrame'); if (!f) return;
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    if (f.getBoundingClientRect().bottom - vh < 600) {
+      cooldown = true;
+      try { f.contentWindow.postMessage({ ficLoadMore: 1 }, '*'); } catch (e) {}
+      setTimeout(function () { cooldown = false; }, 700);
+    }
+  }
+  window.addEventListener('scroll', maybeMore, { passive: true });
+  window.addEventListener('resize', maybeMore);
+  setTimeout(maybeMore, 1500);
+})();
 </script>
 
 <script>

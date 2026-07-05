@@ -244,6 +244,11 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         </div>
       </div>
 
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text);background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+        <input type="checkbox" id="hideTopPicks" onchange="saveHidePicks(this.checked)" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
+        <span><strong>Hide the Top Deal Picks on the site</strong><br><span style="font-size:11px;color:var(--muted);line-height:1.6">Site opens straight to the All Deals grid. The "We found X deals" line stays. Picks aren't deleted, just hidden — turn it back off anytime.</span></span>
+      </label>
+
       <div class="deals-grid" id="dealsGrid"></div>
     </div>
 
@@ -252,16 +257,6 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <div class="section-title">Auto-Fill / Randomizer Settings</div>
         <button class="btn btn-ghost" onclick="resetDefaults()">↺ Reset Defaults</button>
-      </div>
-
-      <!-- Site Display -->
-      <div class="settings-card">
-        <div class="settings-title">Site Display</div>
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text)">
-          <input type="checkbox" id="hideTopPicks" onchange="saveHidePicks(this.checked)" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
-          Hide the Top Deal Picks carousel on the site
-        </label>
-        <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6">When on, the site opens straight to the All Deals grid. The "We found X deals" line stays. Your picks aren't deleted, just hidden — turn it back off anytime.</div>
       </div>
 
       <!-- Quality Filters -->
