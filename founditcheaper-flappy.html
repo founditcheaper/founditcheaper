@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- build: 2026-07-04 flappy-banana v1 -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<!-- Google Analytics (GA4) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-KKGR32HM95"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-KKGR32HM95');
+</script>
+<title>Found It Cheaper · Flappy Banana</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-deep: #0a1f33;
+    --surface: rgba(10,31,51,0.78);
+    --border: rgba(255,255,255,0.1);
+    --border-gold: rgba(245,200,66,0.3);
+    --accent: #f5c842;
+    --text: #ffffff;
+    --text-soft: rgba(255,255,255,0.82);
+    --muted: rgba(255,255,255,0.42);
+    --green: #4ade80;
+    --red: #f87171;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(160deg, #1c5080 0%, #0f2e47 55%, #0a1f33 100%);
+    background-attachment: fixed;
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: rgba(10,31,51,0.94);
+    backdrop-filter: blur(14px);
+    border-bottom: 2px solid var(--accent);
+    padding: 0 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 62px; position: sticky; top: 0; z-index: 200;
+  }
+  .logo-wrap { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .logo-circle { width: 38px; height: 38px; background: linear-gradient(135deg,#4a9fd4,#2a6fa8); border-radius: 50%; border: 2px solid var(--accent); display: flex; align-items: center; justify-content: center; font-size: 17px; }
+  .logo { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; color: var(--text); line-height: 1; }
+  .logo sub { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--muted); display: block; text-transform: uppercase; }
+  .back-btn { font-size: 11px; font-weight: 600; color: var(--muted); text-decoration: none; border: 1px solid rgba(255,255,255,0.15); padding: 5px 9px; border-radius: 6px; transition: all .15s; white-space: nowrap; flex-shrink: 0; margin-left: 12px; }
+  .back-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.3); }
+
+  /* PAGE */
+  .page { max-width: 600px; margin: 0 auto; padding: 24px 18px 60px; }
+
+  /* PRIZE BANNER */
+  .prize-banner {
+    background: linear-gradient(135deg, rgba(245,200,66,0.15), rgba(245,200,66,0.05));
+    border: 1px solid rgba(245,200,66,0.4);
+    border-radius: 12px; padding: 16px 20px;
+    text-align: center; margin-bottom: 20px;
+    position: relative; overflow: hidden;
+  }
+  .prize-banner::before {
+    content: ''; position: absolute; top: -30px; right: -30px;
+    width: 100px; height: 100px;
+    background: rgba(245,200,66,0.08); border-radius: 50%;
+  }
+  .prize-eyebrow { font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+  .prize-text { font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+  .prize-sub { font-size: 11px; color: var(--muted); font-weight: 500; }
+  .week-range { font-size: 11px; font-weight: 700; color: var(--accent); margin-top: 6px; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 4px; background: rgba(0,0,0,0.25); border-radius: 10px; padding: 4px; margin-bottom: 20px; }
+  .tab { flex: 1; padding: 9px; text-align: center; font-size: 12px; font-weight: 700; border: none; background: transparent; color: var(--muted); cursor: pointer; border-radius: 7px; transition: all .2s; font-family: 'Inter', sans-serif; }
+  .tab.active { background: rgba(245,200,66,0.15); color: var(--accent); border: 1px solid rgba(245,200,66,0.3); }
+
+  /* PANELS */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* EMAIL GATE */
+  .email-gate {
+    background: var(--surface); backdrop-filter: blur(10px);
+    border: 1px solid var(--border-gold); border-radius: 12px;
+    padding: 28px 24px; text-align: center; margin-bottom: 16px;
+  }
+  .gate-icon { font-size: 40px; margin-bottom: 12px; }
+  .gate-title { font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 900; margin-bottom: 6px; }
+  .gate-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+  .email-input-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .email-input, .username-input {
+    width: 100%; padding: 12px 16px;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px; color: var(--text); font-size: 14px;
+    font-family: 'Inter', sans-serif; outline: none; transition: border-color .2s;
+  }
+  .email-input:focus, .username-input:focus { border-color: rgba(245,200,66,0.5); }
+  .email-input::placeholder, .username-input::placeholder { color: var(--muted); }
+  .play-btn {
+    width: 100%; padding: 13px;
+    background: var(--accent); color: #0a1f33;
+    border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 800;
+    cursor: pointer; transition: opacity .15s;
+    font-family: 'Inter', sans-serif; letter-spacing: 0.3px;
+  }
+  .play-btn:hover { opacity: .88; }
+  .gate-fine { font-size: 10px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+
+  /* GAME AREA */
+  .game-area {
+    background: var(--surface); backdrop-filter: blur(10px);
+    border: 1px solid var(--border-gold); border-radius: 12px;
+    padding: 18px 16px; text-align: center; margin-bottom: 16px;
+  }
+  .player-info {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(245,200,66,0.07); border: 1px solid rgba(245,200,66,0.2);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;
+  }
+  .player-name { font-size: 13px; font-weight: 700; color: var(--text); }
+  .player-score { font-size: 13px; font-weight: 700; color: var(--accent); }
+  .player-score span { font-size: 10px; color: var(--muted); font-weight: 500; }
+
+  /* CANVAS STAGE */
+  .stage-wrap { position: relative; width: 100%; max-width: 400px; margin: 0 auto; touch-action: none; user-select: none; }
+  #stage {
+    display: block; width: 100%; border-radius: 12px;
+    background: linear-gradient(180deg, #1c5080 0%, #0f2e47 100%);
+    border: 1px solid rgba(245,200,66,0.25);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    cursor: pointer;
+  }
+  /* Overlay messages drawn over the canvas (start / game over) */
+  .stage-overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    padding: 20px; pointer-events: none;
+  }
+  .ov-card {
+    background: rgba(10,31,51,0.86); border: 1px solid var(--border-gold);
+    border-radius: 14px; padding: 22px 20px; max-width: 300px; pointer-events: auto;
+    backdrop-filter: blur(4px);
+  }
+  .ov-title { font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 900; color: var(--accent); letter-spacing: .5px; line-height: 1.05; margin-bottom: 8px; }
+  .ov-sub { font-size: 13px; color: var(--text-soft); line-height: 1.5; margin-bottom: 6px; }
+  .ov-score { font-size: 15px; font-weight: 800; color: #fff; margin: 8px 0; }
+  .ov-score b { color: var(--accent); font-size: 30px; display: block; font-family: 'Barlow Condensed', sans-serif; }
+  .ov-best { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .ov-btn {
+    background: var(--accent); color: #0a1f33; border: none; border-radius: 10px;
+    padding: 13px 30px; font-size: 16px; font-weight: 800; cursor: pointer;
+    font-family: 'Barlow Condensed', sans-serif; letter-spacing: 1px; text-transform: uppercase;
+    box-shadow: 0 4px 16px rgba(245,200,66,0.3);
+  }
+  .ov-btn:hover { transform: translateY(-1px); }
+  .ov-pb { color: var(--green); font-weight: 800; font-size: 13px; margin-bottom: 8px; }
+  .save-note { font-size: 11px; color: var(--muted); margin-top: 10px; min-height: 14px; }
+
+  /* HOW TO PLAY */
+  .howto {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px; padding: 14px 16px; margin-top: 14px; text-align: left;
+  }
+  .howto-title { font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .howto-row { font-size: 12px; color: var(--text-soft); line-height: 1.7; }
+
+  /* LEADERBOARD PANEL */
+  .leaderboard-wrap {
+    background: var(--surface); backdrop-filter: blur(10px);
+    border: 1px solid var(--border-gold); border-radius: 12px; overflow: hidden;
+  }
+  .lb-header {
+    background: rgba(245,200,66,0.08); border-bottom: 1px solid rgba(245,200,66,0.2);
+    padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .lb-title { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
+  .lb-week { font-size: 11px; color: var(--muted); font-weight: 500; }
+  .lb-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 18px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    transition: background .15s;
+  }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-row.you { background: rgba(245,200,66,0.06); }
+  .lb-rank {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; color: var(--muted); flex-shrink: 0;
+  }
+  .lb-rank.gold { background: rgba(245,200,66,0.2); border-color: rgba(245,200,66,0.5); color: var(--accent); }
+  .lb-rank.silver { background: rgba(180,180,180,0.15); border-color: rgba(180,180,180,0.3); color: #c0c0c0; }
+  .lb-rank.bronze { background: rgba(180,100,30,0.15); border-color: rgba(180,100,30,0.3); color: #cd7f32; }
+  .lb-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--text-soft); }
+  .lb-name .you-tag { font-size: 9px; font-weight: 800; color: var(--accent); background: rgba(245,200,66,0.15); padding: 1px 5px; border-radius: 3px; margin-left: 6px; letter-spacing: 1px; }
+  .lb-score { font-size: 15px; font-weight: 800; color: var(--accent); }
+  .lb-pts-label { font-size: 9px; color: var(--muted); font-weight: 500; }
+  .lb-empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+  .your-rank-box {
+    background: rgba(245,200,66,0.07); border-top: 1px solid rgba(245,200,66,0.2);
+    padding: 12px 18px; text-align: center;
+    font-size: 12px; color: var(--muted); font-weight: 500;
+  }
+  .your-rank-box strong { color: var(--accent); }
+
+  /* DEMO BAR */
+  #demoBar { margin: 14px 0 4px; padding: 12px; border: 1px dashed rgba(245,200,66,0.5); border-radius: 10px; background: rgba(245,200,66,0.05); text-align: center; }
+  .demo-flag { font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: .3px; }
+  .demo-controls { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 9px; }
+  .demo-btn { background: rgba(255,255,255,0.06); color: #fff; border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'Barlow Condensed', sans-serif; letter-spacing: .5px; }
+  .demo-btn:hover { background: rgba(255,255,255,0.12); }
+  .demo-exit { border-color: rgba(255,120,120,0.4); color: #ff9a9a; }
+
+  .picks-embed-wrap { margin: 26px auto 0; max-width: 1200px; }
+  @media (min-width: 640px) {
+    .picks-embed-wrap { width: 75vw; max-width: 75vw; position: relative; left: 50%; margin-left: -37.5vw; }
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+<header>
+  <a class="logo-wrap" href="/">
+    <div class="logo-circle">🍌</div>
+    <div class="logo">founditcheaper<sub>Deals Hub</sub></div>
+  </a>
+  <a class="back-btn" href="/">← Back to Deals</a>
+</header>
+
+<div class="page">
+
+  <!-- PRIZE BANNER -->
+  <div class="prize-banner">
+    <div class="prize-eyebrow">🎁 This Round's Prize</div>
+    <div class="prize-text" id="prizeText">$25 Amazon Gift Card</div>
+    <div class="prize-sub" id="prizeSub">Highest score by the end of the round wins. Play as many times as you want.</div>
+    <div class="week-range" id="weekRange"></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('game')">🍌 Play</button>
+    <button class="tab" onclick="switchTab('leaderboard')">🏆 Leaderboard</button>
+  </div>
+
+  <!-- GAME PANEL -->
+  <div class="panel active" id="panel-game">
+
+    <!-- Shown when no competition is live -->
+    <div id="noGameNotice" style="display:none;text-align:center;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.4);border-radius:12px;padding:26px 16px;margin:0 0 4px">
+      <div style="font-size:40px;margin-bottom:8px">🍌</div>
+      <div style="font-size:18px;font-weight:800;color:var(--accent);margin-bottom:6px">No game running right now</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6">The next round hasn't started yet. Check back soon. In the meantime, browse the deals below.</div>
+    </div>
+
+    <!-- EMAIL GATE -->
+    <div id="emailGate" class="email-gate">
+      <div class="gate-icon">🍌</div>
+      <div class="gate-title">Flappy Banana</div>
+      <div class="gate-sub">Enter your email and pick a display name to play.<br>Tap to keep the banana in the air. Highest score wins.</div>
+      <div class="email-input-wrap">
+        <input type="text" class="username-input" id="usernameInput" placeholder="Display name (e.g. DealHunter_RGV)" maxlength="20">
+        <input type="email" class="email-input" id="emailInput" placeholder="your@email.com">
+        <button class="play-btn" onclick="startPlaying()">Let's Go 🍌</button>
+      </div>
+      <div class="gate-fine">By entering your email you agree to receive deal updates from founditcheaper. Unsubscribe anytime.</div>
+    </div>
+
+    <!-- GAME (shown when signed in) -->
+    <div id="gameArea" class="game-area" style="display:none">
+      <div class="player-info">
+        <div class="player-name" id="playerNameDisplay"></div>
+        <div style="text-align:right">
+          <div class="player-score"><span>Your best this round · </span><span id="playerScoreDisplay">0</span></div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:center;gap:8px;margin-bottom:12px">
+        <button onclick="promptRename()" style="font-size:11px;font-weight:600;color:var(--text-soft);background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif">✏️ Rename</button>
+        <button onclick="logoutPlayer()" style="font-size:11px;font-weight:600;color:var(--muted);background:transparent;border:1px solid rgba(255,255,255,0.15);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif">Log out</button>
+      </div>
+
+      <div class="stage-wrap" id="stageWrap">
+        <canvas id="stage" width="360" height="560"></canvas>
+        <div class="stage-overlay" id="stageOverlay"></div>
+      </div>
+
+      <div class="save-note" id="saveNote"></div>
+
+      <div class="howto">
+        <div class="howto-title">How to play</div>
+        <div class="howto-row">🍌 Tap the screen (or press space) to flap the banana up.</div>
+        <div class="howto-row">🟦 Fly through the gaps. Each pillar you clear is +1.</div>
+        <div class="howto-row">🏆 We keep your single best run. Beat it as many times as you want. Top score at the end of the round wins.</div>
+      </div>
+
+      <!-- DEMO CONTROLS (only in ?demo=1) -->
+      <div id="demoBar" style="display:none">
+        <div class="demo-flag">🧪 DEMO MODE. Nothing is saved, the live leaderboard is untouched</div>
+        <div class="demo-controls">
+          <button class="demo-btn demo-exit" onclick="exitDemo()">✕ Exit Demo</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- LEADERBOARD PANEL -->
+  <div class="panel" id="panel-leaderboard">
+    <div class="leaderboard-wrap">
+      <div class="lb-header">
+        <div>
+          <div class="lb-title">🏆 This Round</div>
+          <div class="lb-week" id="lbWeekRange"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted)">Top 10</div>
+      </div>
+      <div id="lbRows"></div>
+      <div class="your-rank-box" id="yourRankBox" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- TODAY'S TOP DEAL PICKS -->
+  <div class="picks-embed-wrap">
+    <iframe id="picksFrame" src="/?embed=picks" title="Today's Top Deal Picks" scrolling="no"
+            style="width:100%;height:720px;border:none;overflow:hidden;display:block"></iframe>
+  </div>
+
+</div>
+
+<script>
+// Auto-size the embedded picks carousel to its content.
+window.addEventListener('message', function (e) {
+  if (e && e.data && e.data.ficEmbedHeight) {
+    var f = document.getElementById('picksFrame');
+    if (f) {
+      var h = e.data.ficEmbedHeight + 8;
+      var cur = parseInt(f.style.height, 10) || 0;
+      if (Math.abs(h - cur) > 2) f.style.height = h + 'px';
+    }
+  }
+});
+</script>
+
+<script>
+const SUPABASE_URL      = 'https://kvscvenwhdfwiswcfmxq.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2c2N2ZW53aGRmd2lzd2NmbXhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MTA5MDgsImV4cCI6MjA5ODA4NjkwOH0.9icQB55QM9U9KAMePgOs84Ye6-cZ07N_z0sEn7mFSgY';
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const PLAYER_KEY = 'fic_flappy_player_v1';
+const SCORES_KEY = 'fic_flappy_scores_v1';
+
+// ── DEMO MODE ─────────────────────────────────────────────────────────
+// ?demo=1 → no login, no Supabase, seeded competitors. Safe sandbox for testing.
+var DEMO = /[?&]demo=(1|true)(&|$)/.test(location.search);
+
+// ── COMPETITION PERIOD (admin-set via settings) ───────────────────────
+var FLAPPY_START = null, FLAPPY_END = null;   // raw YYYY-MM-DD from settings
+var _flappyEnded = false;                      // admin force-end override
+
+function todayCT() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); }
+
+// A game is "live" only when an admin set a period covering today (Central) and it
+// wasn't force-ended. Demo is always playable.
+function gameIsLive() {
+  if (DEMO) return true;
+  if (_flappyEnded) return false;
+  if (!FLAPPY_START || !FLAPPY_END) return false;
+  var t = todayCT();
+  return t >= FLAPPY_START && t <= FLAPPY_END;
+}
+function periodStartKey() { return DEMO ? '2099-01-01' : (FLAPPY_START || ''); }
+function fmtDay(s) { if (!s) return ''; var d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('en-US', { month:'short', day:'numeric' }); }
+function periodRangeString() {
+  if (DEMO) return 'Demo round';
+  if (!FLAPPY_START || !FLAPPY_END) return '';
+  return FLAPPY_START === FLAPPY_END ? fmtDay(FLAPPY_START) : (fmtDay(FLAPPY_START) + ' – ' + fmtDay(FLAPPY_END));
+}
+
+// ── PLAYER STATE ──────────────────────────────────────────────────────
+var player = null;
+function tagFromEmail(email) {
+  var h = 5381, e = (email || '').toLowerCase();
+  for (var i = 0; i < e.length; i++) h = ((h << 5) + h + e.charCodeAt(i)) >>> 0;
+  return 10000 + (h % 90000);   // stable 5-digit ID (same email → same ID)
+}
+function loadPlayer() {
+  try {
+    var raw = localStorage.getItem(PLAYER_KEY);
+    if (raw) player = JSON.parse(raw);
+    if (player && !player.tag && player.email) { player.tag = tagFromEmail(player.email); savePlayer(); }
+  } catch (e) {}
+}
+function savePlayer() { try { localStorage.setItem(PLAYER_KEY, JSON.stringify(player)); } catch (e) {} }
+
+// ── SCORES ────────────────────────────────────────────────────────────
+// scores[tag] = { name, tag, bestScore }
+var scores = {};
+var myBest = 0;              // this player's best this round
+var lastGameMs = 0;         // duration of the most recent run (plausibility signal for the server)
+
+async function loadScores() {
+  if (DEMO) return;   // demo keeps its own in-memory scores
+  try {
+    var res = await _sb.from('flappy_leaderboard').select('username,player_tag,best_score,period_start').eq('period_start', periodStartKey());
+    if (res.error) throw res.error;
+    scores = {};
+    (res.data || []).forEach(function (row) {
+      var key = row.player_tag || row.username;
+      scores[key] = { name: row.username, tag: row.player_tag, bestScore: row.best_score || 0 };
+    });
+    if (player && scores[player.tag]) myBest = scores[player.tag].bestScore || 0;
+    localStorage.setItem(SCORES_KEY, JSON.stringify(scores));
+  } catch (e) {
+    try { var raw = localStorage.getItem(SCORES_KEY); if (raw) scores = JSON.parse(raw); } catch (e2) {}
+  }
+}
+
+// Persist the player's best to the server (service-role function keeps the max).
+async function saveBest() {
+  if (DEMO || !player || !player.email || !FLAPPY_START) return;
+  scores[player.tag] = { name: player.username, tag: player.tag, bestScore: myBest };
+  try {
+    await fetch('/.netlify/functions/save-flappy-score', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: player.email,
+        username: player.username,
+        player_tag: player.tag,
+        best_score: myBest,
+        game_ms: lastGameMs,
+        period_start: FLAPPY_START,
+        period_end: FLAPPY_END,
+      }),
+    });
+  } catch (e) {}
+}
+
+// ── UI GLUE ───────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+  document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
+  event.target.classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'leaderboard') renderLeaderboard();
+}
+
+async function startPlaying() {
+  var username = document.getElementById('usernameInput').value.trim();
+  var email = document.getElementById('emailInput').value.trim();
+  if (!username) { alert('Please enter a display name.'); return; }
+  if (!email || !email.includes('@')) { alert('Please enter a valid email.'); return; }
+  player = { username: username, email: email, tag: tagFromEmail(email) };
+  savePlayer();
+  await loadScores();
+  myBest = (scores[player.tag] && scores[player.tag].bestScore) || 0;
+  // Subscribe to the email list silently (the whole point of the game).
+  try {
+    fetch('/.netlify/functions/subscribe', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, source: 'flappy' }),
+    });
+  } catch (e) {}
+  showGame();
+}
+
+function promptRename() {
+  if (!player) return;
+  var name = prompt('Enter a new display name:', player.username || '');
+  if (name == null) return;
+  name = name.trim().slice(0, 20);
+  if (!name) { alert('Please enter a display name.'); return; }
+  player.username = name;
+  savePlayer();
+  if (scores[player.tag]) scores[player.tag].name = name;
+  document.getElementById('playerNameDisplay').innerHTML = player.username + ' <span style="color:var(--muted);font-weight:600">#' + player.tag + '</span>';
+  if (myBest > 0) saveBest();   // push the new name to the DB
+}
+
+function logoutPlayer() {
+  if (!confirm('Log out? Your best score is saved to your email. Sign back in with the same email to pick up where you left off.')) return;
+  player = null; scores = {}; myBest = 0;
+  try { localStorage.removeItem(PLAYER_KEY); localStorage.removeItem(SCORES_KEY); } catch (e) {}
+  stopGame();
+  document.getElementById('gameArea').style.display = 'none';
+  var u = document.getElementById('usernameInput'); if (u) u.value = '';
+  var em = document.getElementById('emailInput'); if (em) em.value = '';
+  if (gameIsLive()) {
+    document.getElementById('emailGate').style.display = '';
+    var notice = document.getElementById('noGameNotice'); if (notice) notice.style.display = 'none';
+  } else {
+    applyGameLiveState();
+  }
+}
+
+function showGame() {
+  if (!applyGameLiveState()) return;
+  document.getElementById('emailGate').style.display = 'none';
+  document.getElementById('gameArea').style.display = 'block';
+  document.getElementById('playerNameDisplay').innerHTML = player.username + ' <span style="color:var(--muted);font-weight:600">#' + player.tag + '</span>';
+  updateScoreDisplay();
+  initGame();
+}
+
+function applyGameLiveState() {
+  var live = gameIsLive();
+  var notice = document.getElementById('noGameNotice');
+  if (notice) notice.style.display = live ? 'none' : 'block';
+  if (!live) {
+    var gate = document.getElementById('emailGate'); if (gate) gate.style.display = 'none';
+    var area = document.getElementById('gameArea'); if (area) area.style.display = 'none';
+    var pt = document.getElementById('prizeText'); if (pt) pt.textContent = 'No game running right now';
+    var ps = document.getElementById('prizeSub'); if (ps) ps.textContent = 'Check back soon for the next round';
+    var wr = document.getElementById('weekRange'); if (wr) wr.textContent = '';
+  }
+  return live;
+}
+
+function updateScoreDisplay() {
+  document.getElementById('playerScoreDisplay').textContent = myBest;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// THE GAME (canvas). All physics runs in a fixed logical 360x560 space and
+// is scaled to the display, so it plays identically on every screen size.
+// ══════════════════════════════════════════════════════════════════════
+var LW = 360, LH = 560;          // logical canvas size
+var GROUND_H = 46;               // ground band height (logical)
+var canvas, ctx, _dpr = 1, _scale = 1, _resizeBound = false;
+var state = 'ready';             // 'ready' | 'playing' | 'over'
+var rafId = null, lastT = 0, startedAt = 0;
+
+// Physics (logical units, per second)
+var GRAVITY = 1500;
+var FLAP_V  = -430;
+var PIPE_W  = 60;
+var BASE_SPEED = 150;
+var BASE_GAP = 165;
+var PIPE_INTERVAL = 210;         // horizontal spacing between pipes (logical px)
+var BANANA_X = 96;               // banana's fixed horizontal position
+var BANANA_R = 15;               // collision radius
+
+var banana = { y: LH / 2, v: 0, angle: 0 };
+var pipes = [];                  // { x, gapY, gapH, scored }
+var spawnAcc = 0;
+var score = 0;
+var _bgScroll = 0;
+
+function curSpeed() { return BASE_SPEED + Math.min(score * 3, 95); }        // 150 → 245
+function curGap()   { return Math.max(BASE_GAP - Math.min(score * 1.2, 40), 125); }  // 165 → 125
+
+function initGame() {
+  canvas = document.getElementById('stage');
+  ctx = canvas.getContext('2d');
+  sizeCanvas();
+  if (!_resizeBound) { window.addEventListener('resize', sizeCanvas); _resizeBound = true; }
+  bindInput();
+  resetRound();
+  showOverlay('ready');
+  loopStart();
+}
+
+function sizeCanvas() {
+  if (!canvas) return;
+  var wrap = document.getElementById('stageWrap');
+  var cssW = Math.min(wrap ? wrap.clientWidth : LW, 400);
+  var cssH = cssW * (LH / LW);
+  _dpr = window.devicePixelRatio || 1;
+  canvas.style.height = cssH + 'px';
+  canvas.width = Math.round(cssW * _dpr);
+  canvas.height = Math.round(cssH * _dpr);
+  _scale = (cssW * _dpr) / LW;   // one transform: logical → backing pixels
+}
+
+var _inputBound = false;
+function bindInput() {
+  if (_inputBound) return; _inputBound = true;
+  var wrap = document.getElementById('stageWrap');
+  // Pointer covers mouse + touch. preventDefault stops the tap from scrolling/zooming.
+  wrap.addEventListener('pointerdown', function (e) { e.preventDefault(); flap(); }, { passive: false });
+  document.addEventListener('keydown', function (e) {
+    if (e.code === 'Space' || e.key === ' ' || e.code === 'ArrowUp') {
+      if (document.getElementById('gameArea').style.display !== 'none') { e.preventDefault(); flap(); }
+    }
+  });
+}
+
+function resetRound() {
+  banana.y = LH / 2; banana.v = 0; banana.angle = 0;
+  pipes = []; spawnAcc = PIPE_INTERVAL;   // spawn the first pipe shortly after start
+  score = 0;
+  state = 'ready';
+  updateHudScore();
+}
+
+function updateHudScore() {
+  // (Live score is drawn on the canvas; nothing else to update mid-run.)
+}
+
+function flap() {
+  if (state === 'ready') { state = 'playing'; startedAt = performance.now(); banana.v = FLAP_V; clearOverlay(); return; }
+  if (state === 'playing') { banana.v = FLAP_V; return; }
+  if (state === 'over') { restart(); return; }   // tapping after death restarts
+}
+
+function restart() {
+  resetRound();
+  clearOverlay();
+  state = 'ready';
+  showOverlay('ready');
+}
+
+function loopStart() {
+  if (rafId) cancelAnimationFrame(rafId);
+  lastT = performance.now();
+  rafId = requestAnimationFrame(loop);
+}
+function stopGame() {
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+}
+
+function loop(t) {
+  var dt = Math.min((t - lastT) / 1000, 0.05);   // cap dt so a tab-switch can't tunnel through pipes
+  lastT = t;
+  if (state === 'playing') update(dt);
+  draw();
+  rafId = requestAnimationFrame(loop);
+}
+
+function update(dt) {
+  _bgScroll = (_bgScroll + curSpeed() * dt * 0.4) % 40;
+  banana.v += GRAVITY * dt;
+  banana.y += banana.v * dt;
+  // tilt: nose up when rising, dive when falling
+  var target = Math.max(-0.5, Math.min(1.1, banana.v / 520));
+  banana.angle += (target - banana.angle) * Math.min(1, dt * 10);
+
+  // soft ceiling
+  if (banana.y < BANANA_R) { banana.y = BANANA_R; if (banana.v < 0) banana.v = 0; }
+
+  // move + spawn pipes
+  var sp = curSpeed();
+  spawnAcc += sp * dt;
+  if (spawnAcc >= PIPE_INTERVAL) {
+    spawnAcc -= PIPE_INTERVAL;
+    spawnPipe();
+  }
+  for (var i = pipes.length - 1; i >= 0; i--) {
+    var p = pipes[i];
+    p.x -= sp * dt;
+    if (!p.scored && p.x + PIPE_W < BANANA_X - BANANA_R) { p.scored = true; score++; if (window.navigator.vibrate) {} }
+    if (p.x + PIPE_W < -10) pipes.splice(i, 1);
+  }
+
+  // collisions
+  if (banana.y + BANANA_R >= LH - GROUND_H) { banana.y = LH - GROUND_H - BANANA_R; return gameOver(); }
+  for (var j = 0; j < pipes.length; j++) {
+    if (hitsPipe(pipes[j])) return gameOver();
+  }
+}
+
+function spawnPipe() {
+  var gap = curGap();
+  var margin = 44;
+  var minTop = margin;
+  var maxTop = LH - GROUND_H - gap - margin;
+  var gapY = minTop + Math.random() * Math.max(10, (maxTop - minTop));   // top of the gap
+  pipes.push({ x: LW + 8, gapY: gapY, gapH: gap, scored: false });
+}
+
+function hitsPipe(p) {
+  // Nearest-point circle vs the two rects (top pillar + bottom pillar).
+  var bx = BANANA_X, by = banana.y, r = BANANA_R - 1;
+  if (bx + r < p.x || bx - r > p.x + PIPE_W) return false;    // horizontally clear
+  // within the pipe's x-span: safe only if fully inside the gap
+  if (by - r > p.gapY && by + r < p.gapY + p.gapH) return false;
+  return true;
+}
+
+function gameOver() {
+  if (state !== 'playing') return;
+  state = 'over';
+  lastGameMs = Math.round(performance.now() - startedAt);
+  var isPb = score > myBest;
+  if (isPb) {
+    myBest = score;
+    updateScoreDisplay();
+    // Reflect the new best locally right away (so the leaderboard shows it before the
+    // server round-trip, and so the demo leaderboard includes "You" too).
+    if (player) scores[player.tag] = { name: player.username, tag: player.tag, bestScore: myBest };
+    saveBest();
+  }
+  showOverlay('over', { score: score, best: myBest, pb: isPb });
+}
+
+// ── DRAW ──────────────────────────────────────────────────────────────
+function draw() {
+  if (!ctx) return;
+  ctx.setTransform(_scale, 0, 0, _scale, 0, 0);
+  // sky
+  var g = ctx.createLinearGradient(0, 0, 0, LH);
+  g.addColorStop(0, '#1c5080'); g.addColorStop(1, '#0f2e47');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, LW, LH);
+
+  // faint parallax dots (subtle motion cue)
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  for (var x = -_bgScroll; x < LW; x += 40) {
+    for (var y = 30; y < LH - GROUND_H; y += 80) ctx.fillRect(x, y, 2, 2);
+  }
+
+  // pipes
+  pipes.forEach(drawPipe);
+
+  // ground
+  drawGround();
+
+  // banana
+  drawBanana(BANANA_X, banana.y, banana.angle);
+
+  // live score
+  if (state !== 'ready') {
+    ctx.font = '900 40px "Barlow Condensed", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(10,31,51,0.75)';
+    ctx.strokeText(String(score), LW / 2, 52);
+    ctx.fillStyle = '#f5c842';
+    ctx.fillText(String(score), LW / 2, 52);
+  }
+}
+
+function drawPipe(p) {
+  var topH = p.gapY;
+  var botY = p.gapY + p.gapH;
+  var botH = LH - GROUND_H - botY;
+  // pillar body (navy) + gold edge + gold cap
+  function pillar(x, y, w, h) {
+    var lg = ctx.createLinearGradient(x, 0, x + w, 0);
+    lg.addColorStop(0, '#0e3357'); lg.addColorStop(0.5, '#17466f'); lg.addColorStop(1, '#0e3357');
+    ctx.fillStyle = lg;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = 'rgba(245,200,66,0.9)';
+    ctx.fillRect(x, y, 3, h);                 // gold left edge
+    ctx.fillRect(x + w - 3, y, 3, h);         // gold right edge
+  }
+  function cap(x, y) {
+    ctx.fillStyle = '#f5c842';
+    ctx.fillRect(x - 4, y, PIPE_W + 8, 14);
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.fillRect(x - 4, y + 11, PIPE_W + 8, 3);
+  }
+  pillar(p.x, 0, PIPE_W, topH);
+  cap(p.x, topH - 14);
+  pillar(p.x, botY, PIPE_W, botH);
+  cap(p.x, botY);
+}
+
+function drawGround() {
+  var y = LH - GROUND_H;
+  ctx.fillStyle = '#0a1f33';
+  ctx.fillRect(0, y, LW, GROUND_H);
+  ctx.fillStyle = '#f5c842';
+  ctx.fillRect(0, y, LW, 3);
+  // dashes
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  for (var x = -_bgScroll * 1.4; x < LW; x += 30) ctx.fillRect(x, y + 16, 16, 4);
+}
+
+// Banana = the mascot emoji, rotated to match the flight arc. Emoji renders
+// reliably across phones (unlike the dice-face glyphs), and it matches the logo.
+function drawBanana(x, y, angle) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle * 0.5);
+  // soft shadow
+  ctx.globalAlpha = 0.25;
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.ellipse(2, 3, BANANA_R + 3, BANANA_R + 1, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.font = (BANANA_R * 2.4) + 'px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('🍌', 0, 1);
+  ctx.restore();
+}
+
+// ── OVERLAYS (start / game over) ──────────────────────────────────────
+function showOverlay(kind, data) {
+  var ov = document.getElementById('stageOverlay');
+  if (!ov) return;
+  if (kind === 'ready') {
+    ov.innerHTML =
+      '<div class="ov-card">' +
+        '<div class="ov-title">Flappy Banana</div>' +
+        '<div class="ov-sub">Tap to flap. Fly through the gaps.</div>' +
+        (myBest > 0 ? '<div class="ov-best">Your best this round: ' + myBest + '</div>' : '') +
+        '<button class="ov-btn" onclick="flap()">Tap to start</button>' +
+      '</div>';
+  } else if (kind === 'over') {
+    ov.innerHTML =
+      '<div class="ov-card">' +
+        '<div class="ov-title">Down it goes</div>' +
+        (data.pb ? '<div class="ov-pb">🍌 New best. Nice.</div>' : '') +
+        '<div class="ov-score">This run<b>' + data.score + '</b></div>' +
+        '<div class="ov-best">Your best this round: ' + data.best + '</div>' +
+        '<button class="ov-btn" onclick="restart()">Play again</button>' +
+      '</div>';
+    var note = document.getElementById('saveNote');
+    if (note) note.textContent = DEMO ? 'Demo run — not saved.' : (data.pb ? 'Saving your new best…' : 'Best score kept. Beat it to move up.');
+  }
+}
+function clearOverlay() { var ov = document.getElementById('stageOverlay'); if (ov) ov.innerHTML = ''; }
+
+// ── LEADERBOARD ───────────────────────────────────────────────────────
+async function renderLeaderboard() {
+  await loadScores();
+  var rows = document.getElementById('lbRows');
+  var yourRankBox = document.getElementById('yourRankBox');
+  document.getElementById('lbWeekRange').textContent = periodRangeString();
+
+  var entries = Object.entries(scores).map(function (e) {
+    return { tag: e[1].tag || e[0], name: e[1].name, score: e[1].bestScore || 0 };
+  }).filter(function (e) { return e.score > 0; });
+  entries.sort(function (a, b) { return b.score - a.score; });
+
+  if (entries.length === 0) {
+    rows.innerHTML = '<div class="lb-empty">No scores yet this round.<br>Be the first to fly. 🍌</div>';
+    yourRankBox.style.display = 'none';
+    return;
+  }
+
+  var top10 = entries.slice(0, 10);
+  var html = '';
+  var rankClasses = ['gold', 'silver', 'bronze'];
+  top10.forEach(function (e, i) {
+    var isYou = player && String(e.tag) === String(player.tag);
+    var rankCls = rankClasses[i] || '';
+    var rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+    html += '<div class="lb-row' + (isYou ? ' you' : '') + '">';
+    html += '<div class="lb-rank ' + rankCls + '">' + rankEmoji + '</div>';
+    html += '<div class="lb-name">' + escapeHtml(e.name) + '<span style="color:var(--muted);font-weight:600;font-size:11px"> #' + e.tag + '</span>' + (isYou ? '<span class="you-tag">YOU</span>' : '') + '</div>';
+    html += '<div style="text-align:right"><div class="lb-score">' + e.score + '</div><div class="lb-pts-label">best</div></div>';
+    html += '</div>';
+  });
+  rows.innerHTML = html;
+
+  if (player) {
+    var myRank = entries.findIndex(function (e) { return String(e.tag) === String(player.tag); });
+    if (myRank >= 10) {
+      yourRankBox.style.display = 'block';
+      yourRankBox.innerHTML = 'You\'re ranked <strong>#' + (myRank + 1) + '</strong> with a best of <strong>' + entries[myRank].score + '</strong> · Keep flying to climb.';
+    } else if (myRank >= 0) {
+      yourRankBox.style.display = 'block';
+      yourRankBox.innerHTML = 'You\'re ranked <strong>#' + (myRank + 1) + '</strong> this round · ' + (myRank === 0 ? '👑 You\'re in the lead.' : 'Keep flying.');
+    } else {
+      yourRankBox.style.display = 'none';
+    }
+  }
+}
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+
+// ── DEMO ──────────────────────────────────────────────────────────────
+function demoSeedScores() {
+  scores = {
+    54321: { name: 'RGV_Deals',  tag: 54321, bestScore: 22 },
+    88012: { name: 'BananaKing', tag: 88012, bestScore: 17 },
+    77104: { name: 'ValleyPicks', tag: 77104, bestScore: 9 }
+  };
+}
+function exitDemo() { location.href = location.pathname; }
+function demoStartGame() {
+  player = { username: 'You (Demo)', email: 'demo@founditcheaper.local', tag: 99999, demo: true };
+  demoSeedScores();
+  document.getElementById('demoBar').style.display = 'block';
+  document.getElementById('weekRange').textContent = periodRangeString();
+  var lb = document.getElementById('lbWeekRange'); if (lb) lb.textContent = periodRangeString();
+  showGame();
+}
+
+// ── SETTINGS + INIT ───────────────────────────────────────────────────
+async function loadGameSettings() {
+  try {
+    var res = await _sb.from('settings').select('key,value').in('key', ['flappy_prize', 'flappy_prize_sub', 'flappy_period_start', 'flappy_period_end', 'flappy_ended']);
+    if (res && res.data) {
+      var m = {}; res.data.forEach(function (r) { m[r.key] = r.value; });
+      _flappyEnded = (m.flappy_ended === '1' || m.flappy_ended === 'true');
+      if (m.flappy_prize) document.getElementById('prizeText').textContent = m.flappy_prize;
+      if (m.flappy_prize_sub) document.getElementById('prizeSub').textContent = m.flappy_prize_sub;
+      if (m.flappy_period_start && m.flappy_period_end) { FLAPPY_START = m.flappy_period_start; FLAPPY_END = m.flappy_period_end; }
+    }
+  } catch (e) {}
+}
+
+loadPlayer();
+if (DEMO) {
+  loadGameSettings().then(demoStartGame);
+} else {
+  loadGameSettings().then(function () {
+    document.getElementById('weekRange').textContent = periodRangeString();
+    var lb = document.getElementById('lbWeekRange'); if (lb) lb.textContent = periodRangeString();
+    return loadScores();
+  }).then(function () {
+    if (!applyGameLiveState()) return;
+    if (player && player.email) showGame();
+  });
+}
+</script>
+</body>
+</html>

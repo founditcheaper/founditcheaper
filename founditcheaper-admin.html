@@ -226,7 +226,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       <button class="tab" id="tabbtn-promocodes" onclick="_pcSource='';switchTab('promocodes')">🏷️ Promo &amp; Seller Deals</button>
       <button class="tab" id="tabbtn-autopicker" onclick="switchTab('autopicker')">🤖 Auto-Fill / Randomizer Settings</button>
       <button class="tab" id="tabbtn-schedule" onclick="switchTab('schedule')">📅 Schedule</button>
-      <button class="tab" id="tabbtn-game" onclick="switchTab('game')">🎲 Dice Game</button>
+      <button class="tab" id="tabbtn-games" onclick="switchTab('games')">🎮 Games</button>
     </div>
 
     <!-- TAB: TODAY'S PICKS -->
@@ -305,8 +305,19 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
 
     </div>
 
-    <!-- TAB: DICE GAME (prize editor + winners + weekly results) -->
-    <div class="tab-content" id="tab-game">
+    <!-- TAB: GAMES (chooser → dice game / flappy banana) -->
+    <div class="tab-content" id="tab-games">
+      <div class="settings-card" style="margin-bottom:18px">
+        <div class="settings-title">🎮 Pick a game to manage</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin:6px 0 12px">Choose which game to open below.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" id="gamechoice-dice" onclick="openGame('dice')" style="flex:1;min-width:150px">🎲 Dice Game <span style="color:#0a1f33;font-weight:800;font-size:11px">● LIVE</span></button>
+          <button class="btn btn-ghost" id="gamechoice-flappy" onclick="openGame('flappy')" style="flex:1;min-width:150px">🍌 Flappy Banana <span style="color:var(--muted);font-weight:700;font-size:11px">DEMO</span></button>
+        </div>
+      </div>
+
+      <!-- DICE GAME -->
+      <div id="games-sub-dice" style="display:none">
       <div class="section-header">
         <div>
           <div class="section-title">Dice Game — Winners & Results</div>
@@ -368,7 +379,77 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <button class="btn btn-ghost" style="flex:1;min-width:0" onclick="loadGameResults()">↻ Refresh Results</button>
       </div>
       <div id="gameResults"></div>
-    </div>
+      </div><!-- /games-sub-dice -->
+
+      <!-- FLAPPY BANANA — demo only for now (not launched to players) -->
+      <div id="games-sub-flappy" style="display:none">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Flappy Banana <span style="font-size:12px;color:var(--muted);font-weight:600">— not launched yet</span></div>
+            <div class="section-sub">Try it with the demo below. When you want to run a real round (prize, dates, winners, leaderboard), tell the game agent and the launch controls turn on here.</div>
+          </div>
+        </div>
+
+        <div class="settings-card" style="margin-bottom:16px">
+          <div class="settings-title">🧪 Test Game (Demo)</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">
+            Opens a full sandbox — fly as many times as you want. Nothing is saved and there's no real leaderboard yet.
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="window.open('founditcheaper-flappy.html?demo=1','_blank')">🧪 Open Demo Game</button>
+          </div>
+        </div>
+
+        <!-- Full launch controls. Hidden until Flappy Banana goes live: flip
+             #flappyLiveControls to display:block and add the public menu link to launch. -->
+        <div id="flappyLiveControls" style="display:none">
+          <div id="flappyStatusBanner" style="margin-bottom:16px"></div>
+
+          <div class="settings-card" style="margin-bottom:16px">
+            <div class="settings-title">🎁 Prize & Competition Dates</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Shown on the Flappy Banana page. Update it anytime — changes go live immediately.</div>
+            <div class="field-group" style="margin-bottom:10px">
+              <label class="field-label">Prize</label>
+              <input type="text" id="flappyPrizeInput" class="field-input" placeholder="$25 Amazon Gift Card" maxlength="120">
+            </div>
+            <div class="field-group" style="margin-bottom:12px">
+              <label class="field-label">Details / deadline line</label>
+              <input type="text" id="flappyPrizeSubInput" class="field-input" placeholder="Highest score by the end of the round wins. Play as many times as you want." maxlength="160">
+            </div>
+            <div class="field-group" style="margin-bottom:8px">
+              <label class="field-label">Competition dates — starting a new period resets the leaderboard</label>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+                <div><div style="font-size:10px;color:var(--muted);margin-bottom:3px">Start</div><input type="date" id="flappyStartInput" class="field-input" style="max-width:170px"></div>
+                <div><div style="font-size:10px;color:var(--muted);margin-bottom:3px">End (last day to score)</div><input type="date" id="flappyEndInput" class="field-input" style="max-width:170px"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+              <span style="font-size:11px;color:var(--muted)">Quick set (starts today):</span>
+              <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setFlappyPreset(1)">1 day</button>
+              <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setFlappyPreset(2)">2 days</button>
+              <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setFlappyPreset(3)">3 days</button>
+              <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setFlappyPreset(7)">1 week</button>
+            </div>
+            <button class="btn btn-primary" id="saveFlappyBtn" onclick="saveFlappySettings()">Start New Game</button>
+            <span id="saveFlappyMsg" style="font-size:12px;margin-left:10px"></span>
+            <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:14px;padding-top:14px">
+              <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:8px"><strong>Force End</strong> stops the game now, before the end date — the page shows no game running and no one can play; scores are kept. Start it back up by setting new Competition dates and saving. <strong>Clear ALL Scores</strong> wipes every player's score for a true restart (use it to clear test runs before launch).</div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                <button class="btn btn-ghost" id="forceEndFlappyBtn" style="border-color:rgba(255,120,120,0.5);color:#ff9a9a" onclick="forceEndFlappy()">⏹ Force End Game Now</button>
+                <button class="btn btn-ghost" id="resetFlappyBtn" style="border-color:rgba(255,120,120,0.5);color:#ff9a9a" onclick="clearAllFlappyScores()">🗑️ Clear ALL Scores (restart)</button>
+              </div>
+              <span id="forceEndFlappyMsg" style="font-size:12px;display:block;margin-top:8px"></span>
+              <span id="resetFlappyMsg" style="font-size:12px;display:block;margin-top:4px"></span>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-bottom:14px">
+            <button class="btn btn-ghost" style="flex:1;min-width:0" onclick="loadFlappyResults()">↻ Refresh Results</button>
+          </div>
+          <div id="flappyResults"></div>
+        </div>
+      </div><!-- /games-sub-flappy -->
+    </div><!-- /tab-games -->
 
     <!-- TAB: PROMO CODE DEALS (All Deals grid) -->
     <div class="tab-content" id="tab-promocodes">
@@ -530,12 +611,28 @@ async function syncCodes() {
 // ── TABS ─────────────────────────────────────────────────────────────
 function switchTab(id) {
   document.querySelectorAll('.tab').forEach(function(t,i) {
-    t.classList.toggle('active', ['picks','promocodes','autopicker','schedule','game'][i] === id);
+    t.classList.toggle('active', ['picks','promocodes','autopicker','schedule','games'][i] === id);
   });
   document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
   document.getElementById('tab-' + id).classList.add('active');
   if (id === 'promocodes') loadPromoCodeDeals();
-  if (id === 'game') loadGameResults();
+  if (id === 'games') openGame(_openGameKey || 'dice');
+}
+
+// Games tab: swap between the dice-game and flappy-banana admin panels.
+var _openGameKey = 'dice';
+function openGame(key) {
+  _openGameKey = key;
+  var dice = document.getElementById('games-sub-dice');
+  var flappy = document.getElementById('games-sub-flappy');
+  if (dice) dice.style.display = (key === 'dice') ? 'block' : 'none';
+  if (flappy) flappy.style.display = (key === 'flappy') ? 'block' : 'none';
+  var db = document.getElementById('gamechoice-dice'), fb = document.getElementById('gamechoice-flappy');
+  if (db) { db.classList.toggle('btn-primary', key === 'dice'); db.classList.toggle('btn-ghost', key !== 'dice'); }
+  if (fb) { fb.classList.toggle('btn-primary', key === 'flappy'); fb.classList.toggle('btn-ghost', key !== 'flappy'); }
+  if (key === 'dice') loadGameResults();
+  var flc = document.getElementById('flappyLiveControls');
+  if (key === 'flappy' && flc && flc.style.display !== 'none') loadFlappyResults();
 }
 
 // ── PROMO CODE DEALS (All Deals grid) — list + remove/block ────────────
@@ -1350,6 +1447,12 @@ async function loadSettings() {
     if (m.game_period_end != null && document.getElementById('gameEndInput')) document.getElementById('gameEndInput').value = m.game_period_end;
     _gameCfg = { start: m.game_period_start || '', end: m.game_period_end || '', ended: String(m.game_ended || '0') === '1' };
     renderGameStatus();
+    if (m.flappy_prize != null && document.getElementById('flappyPrizeInput')) document.getElementById('flappyPrizeInput').value = m.flappy_prize;
+    if (m.flappy_prize_sub != null && document.getElementById('flappyPrizeSubInput')) document.getElementById('flappyPrizeSubInput').value = m.flappy_prize_sub;
+    if (m.flappy_period_start != null && document.getElementById('flappyStartInput')) document.getElementById('flappyStartInput').value = m.flappy_period_start;
+    if (m.flappy_period_end != null && document.getElementById('flappyEndInput')) document.getElementById('flappyEndInput').value = m.flappy_period_end;
+    _flappyCfg = { start: m.flappy_period_start || '', end: m.flappy_period_end || '', ended: String(m.flappy_ended || '0') === '1' };
+    renderFlappyStatus();
   } catch (e) { /* settings table may not exist yet */ }
 }
 async function clearAllScores() {
@@ -1505,6 +1608,130 @@ async function loadGameResults() {
           + '<span style="width:24px;font-weight:800;color:' + (i === 0 ? '#f5c842' : 'var(--muted)') + '">' + (i + 1) + '</span>'
           + '<span style="flex:1;color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(p.username) + ' <span style="color:var(--muted);font-size:11px">#' + _esc(p.player_tag || '?') + ' · ' + _esc(p.email) + '</span></span>'
           + '<span style="font-weight:800;color:#4ade80">' + p.week_score + '</span></div>';
+      });
+      html += '</div>';   // end collapsible player list
+      html += '</div>';   // end game card
+    });
+    el.innerHTML = html;
+  } catch (e) { el.innerHTML = '<div style="color:#f87171;font-size:13px;padding:20px;text-align:center">Could not load results.</div>'; }
+}
+
+// ══ FLAPPY BANANA GAME (independent from the dice game) ═════════════════
+var _flappyCfg = { start: '', end: '', ended: false };
+function renderFlappyStatus() {
+  var el = document.getElementById('flappyStatusBanner'); if (!el) return;
+  var c = _flappyCfg || {}, today = _todayCT();
+  function box(bg, bd, col, html) { return '<div style="background:' + bg + ';border:1px solid ' + bd + ';border-radius:10px;padding:12px 14px;font-size:14px;font-weight:700;color:' + col + '">' + html + '</div>'; }
+  if (!c.start || !c.end) { el.innerHTML = box('rgba(255,255,255,0.05)', 'rgba(255,255,255,0.15)', 'var(--muted)', 'No game configured — set competition dates below to start one.'); return; }
+  var range = (c.start === c.end) ? _fmtDay(c.start) : (_fmtDay(c.start) + ' – ' + _fmtDay(c.end));
+  if (c.ended) {
+    el.innerHTML = box('rgba(255,255,255,0.05)', 'rgba(255,255,255,0.15)', 'var(--muted)', '⏹ Game force-ended (' + range + '). No game running — set new dates below to start one.');
+  } else if (today < c.start) {
+    el.innerHTML = box('rgba(96,165,250,0.12)', 'rgba(96,165,250,0.4)', '#93c5fd', '⏳ Game scheduled — ' + range + '. Not started yet.');
+  } else if (today <= c.end) {
+    var nx = new Date(c.end + 'T12:00:00'); nx.setDate(nx.getDate() + 1);
+    el.innerHTML = box('rgba(74,222,128,0.12)', 'rgba(74,222,128,0.45)', '#4ade80', '🟢 Game LIVE — ' + range + '. Ends ' + nx.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at 12:00 AM CT.');
+  } else {
+    el.innerHTML = box('rgba(245,200,66,0.1)', 'rgba(245,200,66,0.4)', '#f5c842', '⚫ Game ended — ' + range + '. Winner is below; no game currently running.');
+  }
+}
+function setFlappyPreset(days) {
+  var today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  var s = new Date(today + 'T12:00:00'); var e = new Date(s); e.setDate(s.getDate() + (days - 1));
+  document.getElementById('flappyStartInput').value = today;
+  document.getElementById('flappyEndInput').value = e.toLocaleDateString('en-CA');
+}
+async function saveFlappySettings() {
+  var prize = (document.getElementById('flappyPrizeInput').value || '').trim();
+  var sub = (document.getElementById('flappyPrizeSubInput').value || '').trim();
+  var start = document.getElementById('flappyStartInput').value;
+  var end = document.getElementById('flappyEndInput').value;
+  var msg = document.getElementById('saveFlappyMsg');
+  var btn = document.getElementById('saveFlappyBtn');
+  if (start && end && end < start) { msg.style.color = '#f87171'; msg.textContent = 'End date must be on or after the start date.'; return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    var res = await fetch('/.netlify/functions/save-settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass, flappyPrize: prize, flappyPrizeSub: sub, flappyPeriodStart: start, flappyPeriodEnd: end }),
+    });
+    var d = await res.json();
+    if (res.ok && d.ok) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Saved — live on the game page'; _flappyCfg = { start: start, end: end, ended: false }; renderFlappyStatus(); }
+    else { msg.style.color = '#f87171'; msg.textContent = 'Failed' + (d.error ? ': ' + d.error : ''); }
+  } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error'; }
+  btn.disabled = false; btn.textContent = 'Start New Game';
+}
+async function forceEndFlappy() {
+  if (!confirm('Force end the banana game now? The game page will show no game running and no one can play. Scores are kept. You can start a new game anytime by setting Competition dates and saving.')) return;
+  var msg = document.getElementById('forceEndFlappyMsg');
+  var btn = document.getElementById('forceEndFlappyBtn');
+  btn.disabled = true; btn.textContent = 'Ending…';
+  try {
+    var res = await fetch('/.netlify/functions/save-settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass, flappyEnded: true }),
+    });
+    var d = await res.json();
+    if (res.ok && d.ok) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Game ended — live on the game page'; _flappyCfg.ended = true; renderFlappyStatus(); }
+    else { msg.style.color = '#f87171'; msg.textContent = 'Failed' + (d.error ? ': ' + d.error : ''); }
+  } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error'; }
+  btn.disabled = false; btn.textContent = '⏹ Force End Game Now';
+}
+async function clearAllFlappyScores() {
+  var msg = document.getElementById('resetFlappyMsg');
+  var btn = document.getElementById('resetFlappyBtn');
+  if (!confirm('Clear ALL banana-game scores?\n\nThis permanently deletes every player\'s score and cannot be undone. The leaderboard resets to empty for a fresh start.\n\nContinue?')) return;
+  if (!confirm('Last check — this wipes the live leaderboard for everyone. Are you sure?')) return;
+  btn.disabled = true; var orig = btn.textContent; btn.textContent = 'Clearing…';
+  msg.style.color = 'var(--muted)'; msg.textContent = '';
+  try {
+    var res = await fetch('/.netlify/functions/reset-flappy', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass, scope: 'all' }),
+    });
+    var d = await res.json();
+    if (res.ok && d.ok) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Cleared ' + d.deleted + ' score(s) — leaderboard is now empty'; loadFlappyResults(); }
+    else { msg.style.color = '#f87171'; msg.textContent = 'Failed' + (d.error ? ': ' + d.error : ''); }
+  } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error'; }
+  btn.disabled = false; btn.textContent = orig;
+}
+async function loadFlappyResults() {
+  var el = document.getElementById('flappyResults'); if (!el) return;
+  el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Loading…</div>';
+  try {
+    var res = await fetch('/.netlify/functions/flappy-results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass }) });
+    var payload = await res.json();
+    var rows = payload && payload.rows;
+    if (!Array.isArray(rows) || !rows.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No banana game plays yet.</div>'; return; }
+    var byPeriod = {};
+    rows.forEach(function (r) { (byPeriod[r.period_start] = byPeriod[r.period_start] || []).push(r); });
+    var periods = Object.keys(byPeriod).filter(function (w) { return w >= '2020-01-01'; }).sort().reverse();
+    var today = _todayCT();
+    var html = '';
+    periods.forEach(function (wk) {
+      var group = byPeriod[wk];
+      var players = group.slice().sort(function (a, b) { return b.best_score - a.best_score; });
+      var winner = players[0];
+      var pEnd = null;
+      for (var gi = 0; gi < group.length; gi++) { if (group[gi].period_end) { pEnd = group[gi].period_end; break; } }
+      if (!pEnd && _flappyCfg && wk === _flappyCfg.start) pEnd = _flappyCfg.end;
+      if (!pEnd) pEnd = wk;
+      var forceEnded = !!(_flappyCfg && wk === _flappyCfg.start && _flappyCfg.ended);
+      var inProgress = !forceEnded && today >= wk && today <= pEnd;
+      var badge = inProgress
+        ? '<span style="font-size:11px;font-weight:800;color:#4ade80;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.4);padding:2px 8px;border-radius:4px;white-space:nowrap">● IN PROGRESS</span>'
+        : '<span style="font-size:11px;font-weight:800;color:#f5c842;background:rgba(245,200,66,0.12);border:1px solid rgba(245,200,66,0.35);padding:2px 8px;border-radius:4px;white-space:nowrap">✓ FINAL</span>';
+      html += '<div style="border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:14px;margin-bottom:14px">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap"><div style="font-size:15px;font-weight:800;color:#fff">' + _weekRangeLabel(wk, pEnd) + '</div>' + badge + '</div>';
+      html += '<div style="background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.3);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:#fff">🏆 <strong>' + (inProgress ? 'Leading: ' : 'Winner: ') + _esc(winner.username) + ' <span style="color:var(--muted);font-weight:600">#' + _esc(winner.player_tag || '?') + '</span></strong> — <span style="color:#f5c842;font-weight:800">' + winner.best_score + ' pts</span>' + (winner.claimed_at ? ' <span style="color:#4ade80;font-weight:800;font-size:11px">✓ CONFIRMED</span>' : '') + '<br><span style="color:var(--muted);font-size:12px">' + _esc(winner.email) + '</span> <button type="button" data-email="' + _esc(winner.email) + '" onclick="copyEmail(this)" style="font-size:11px;font-weight:800;color:#0a1f33;background:var(--accent);border:none;border-radius:5px;padding:3px 9px;margin-left:4px;cursor:pointer;vertical-align:middle">Copy email</button></div>';
+      var _lbId = 'flb' + String(wk).replace(/[^0-9]/g, '');
+      html += '<button type="button" onclick="toggleLeaderboard(\'' + _lbId + '\', this)" style="width:100%;text-align:left;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;padding:8px 10px;cursor:pointer"><span class="lb-caret">▸</span> All players (' + players.length + ')</button>';
+      html += '<div id="' + _lbId + '" style="display:none;margin-top:6px">';
+      players.forEach(function (p, i) {
+        html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px">'
+          + '<span style="width:24px;font-weight:800;color:' + (i === 0 ? '#f5c842' : 'var(--muted)') + '">' + (i + 1) + '</span>'
+          + '<span style="flex:1;color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(p.username) + ' <span style="color:var(--muted);font-size:11px">#' + _esc(p.player_tag || '?') + ' · ' + _esc(p.email) + '</span></span>'
+          + '<span style="font-weight:800;color:#4ade80">' + p.best_score + '</span></div>';
       });
       html += '</div>';   // end collapsible player list
       html += '</div>';   // end game card

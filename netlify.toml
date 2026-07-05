@@ -70,6 +70,13 @@
   schedule = "5 * * * *"
   timeout = 26
 
+# Flappy Banana: email the winner + Erik when a competition ends. Runs hourly and
+# self-gates — emails only once per game, only after the end date has passed (or a
+# force-end). No-ops until PRIVATE_EMAIL_PASS (the deals@ mailbox password) is set.
+[functions."flappy-end-notify"]
+  schedule = "7 * * * *"
+  timeout = 26
+
 # Deal Alerts: match active `deal_requests` against the live deals feed and email the
 # requester when their wanted item is on sale. Runs every 15 min; self-limits (one alert
 # per request per 12h, dedupes by product). No-ops until PRIVATE_EMAIL_PASS is set.
@@ -106,6 +113,12 @@
 [[redirects]]
   from = "/claim-prize/*"
   to = "/.netlify/functions/claim-prize?t=:splat"
+  status = 200
+
+# Flappy Banana prize claim: pretty URL -> the flappy claim function (token as ?t=).
+[[redirects]]
+  from = "/claim-flappy/*"
+  to = "/.netlify/functions/flappy-claim?t=:splat"
   status = 200
 
 # The homepage is index.html, which Netlify serves at "/" automatically —

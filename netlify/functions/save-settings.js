@@ -30,6 +30,15 @@ exports.handler = async function (event) {
   // resumes a game that was force-ended (clears the flag).
   if (body.gameEnded != null) updates.push(['game_ended', body.gameEnded ? '1' : '0']);
   else if (body.gamePeriodStart != null || body.gamePeriodEnd != null) updates.push(['game_ended', '0']);
+
+  // ── Flappy Banana game (independent settings, same pattern as the dice game) ──
+  if (body.flappyPrize != null) updates.push(['flappy_prize', String(body.flappyPrize).slice(0, 120)]);
+  if (body.flappyPrizeSub != null) updates.push(['flappy_prize_sub', String(body.flappyPrizeSub).slice(0, 160)]);
+  if (body.flappyPeriodStart != null && /^\d{4}-\d{2}-\d{2}$/.test(String(body.flappyPeriodStart))) updates.push(['flappy_period_start', String(body.flappyPeriodStart)]);
+  if (body.flappyPeriodEnd != null && /^\d{4}-\d{2}-\d{2}$/.test(String(body.flappyPeriodEnd))) updates.push(['flappy_period_end', String(body.flappyPeriodEnd)]);
+  if (body.flappyEnded != null) updates.push(['flappy_ended', body.flappyEnded ? '1' : '0']);
+  else if (body.flappyPeriodStart != null || body.flappyPeriodEnd != null) updates.push(['flappy_ended', '0']);
+
   if (!updates.length) return { statusCode: 400, body: JSON.stringify({ error: 'Nothing to save' }) };
 
   try {
