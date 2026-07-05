@@ -244,9 +244,14 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         </div>
       </div>
 
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text);background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text);background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px">
         <input type="checkbox" id="hideTopPicks" onchange="saveHidePicks(this.checked)" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
-        <span><strong>Hide the Top Deal Picks on the site</strong><br><span style="font-size:11px;color:var(--muted);line-height:1.6">Site opens straight to the All Deals grid. The "We found X deals" line stays. Picks aren't deleted, just hidden — turn it back off anytime.</span></span>
+        <span><strong>Hide the Top Deal Picks on the site</strong><br><span style="font-size:11px;color:var(--muted);line-height:1.6">Site skips the carousel. Picks aren't deleted, just hidden — turn it back off anytime.</span></span>
+      </label>
+
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text);background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+        <input type="checkbox" id="hideDealsBanner" onchange="saveHideBanner(this.checked)" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
+        <span><strong>Hide the "We found X deals" bar</strong><br><span style="font-size:11px;color:var(--muted);line-height:1.6">Removes the top line so the site opens straight to All Deals. Turn both on to clear everything above the All Deals section.</span></span>
       </label>
 
       <div class="deals-grid" id="dealsGrid"></div>
@@ -1570,6 +1575,7 @@ async function loadSettings() {
       document.getElementById('svPromo').textContent = m.promo_target;
     }
     if (document.getElementById('hideTopPicks')) document.getElementById('hideTopPicks').checked = (m.hide_top_picks === '1');
+    if (document.getElementById('hideDealsBanner')) document.getElementById('hideDealsBanner').checked = (m.hide_deals_banner === '1');
     if (m.game_prize != null && document.getElementById('gamePrizeInput')) document.getElementById('gamePrizeInput').value = m.game_prize;
     if (m.game_prize_sub != null && document.getElementById('gamePrizeSubInput')) document.getElementById('gamePrizeSubInput').value = m.game_prize_sub;
     if (m.game_period_start != null && document.getElementById('gameStartInput')) document.getElementById('gameStartInput').value = m.game_period_start;
@@ -1887,6 +1893,13 @@ async function saveHidePicks(on) {
     var res = await fetch('/.netlify/functions/save-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, hideTopPicks: !!on }) });
     var d = await res.json();
     showToast(d.ok ? (on ? 'Top Picks hidden on the site' : 'Top Picks showing again') : 'Save failed' + (d.error ? ': ' + d.error : ''));
+  } catch (e) { showToast('Network error'); }
+}
+async function saveHideBanner(on) {
+  try {
+    var res = await fetch('/.netlify/functions/save-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, hideDealsBanner: !!on }) });
+    var d = await res.json();
+    showToast(d.ok ? (on ? '"We found X deals" bar hidden' : 'Deals bar showing again') : 'Save failed' + (d.error ? ': ' + d.error : ''));
   } catch (e) { showToast('Network error'); }
 }
 async function generatePicksNow() {

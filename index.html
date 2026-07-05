@@ -944,6 +944,10 @@ var dailyPicks = [];
 // When the admin sets hide_top_picks='1', the site opens straight to the All Deals
 // grid: the carousel is skipped and only the "We found X deals" banner is rendered.
 var HIDE_PICKS = false;
+// hide_deals_banner='1' also removes the "We found X deals" bar, so the page goes
+// straight to the All Deals section with nothing above it (avoids the count looking
+// off next to the date-filtered grid).
+var HIDE_BANNER = false;
 
 // ── ALL DEALS DATA (populated from Supabase) ─────────────────────────
 var allProducts = [];
@@ -1098,7 +1102,7 @@ function pickGridHtml(items, groupId) {
   }
   html += '</div>';
   // See All Deals banner — only for today's carousel; filled in by updateDealsBanner() after Phase 2
-  if (groupId === 'today') {
+  if (groupId === 'today' && !HIDE_BANNER) {
     html += '<div id="dealsBanner" style="width:100%;margin-top:14px;padding:8px 20px 2px;color:#ffffff;font-size:15px;font-weight:700;text-align:center;font-family:Inter,sans-serif;box-sizing:border-box;line-height:1.6">Loading deals. Check back soon.</div>';
   }
   return html;
@@ -1236,10 +1240,16 @@ function expandPicks(groupId, restCount) {
 
 function renderPicks() {
   var container = document.getElementById('picksContainer');
-  // Admin "hide Top Picks" test mode: skip the carousel entirely and keep only the
-  // "We found X deals" banner (updateDealsBanner fills #dealsBanner in Phase 2).
+  // Admin "hide Top Picks" test mode: skip the carousel. Keep the "We found X deals"
+  // banner unless the banner is ALSO hidden (hide_deals_banner) — then the page goes
+  // straight to the All Deals section with nothing above it.
   if (HIDE_PICKS) {
-    container.innerHTML = '<div id="dealsBanner" style="width:100%;margin-top:6px;padding:8px 20px 2px;color:#ffffff;font-size:15px;font-weight:700;text-align:center;font-family:Inter,sans-serif;box-sizing:border-box;line-height:1.6">Loading deals. Check back soon.</div>';
+    if (HIDE_BANNER) {
+      var _po = document.querySelector('.picks-outer'); if (_po) _po.style.display = 'none';
+      container.innerHTML = '';
+    } else {
+      container.innerHTML = '<div id="dealsBanner" style="width:100%;margin-top:6px;padding:8px 20px 2px;color:#ffffff;font-size:15px;font-weight:700;text-align:center;font-family:Inter,sans-serif;box-sizing:border-box;line-height:1.6">Loading deals. Check back soon.</div>';
+    }
     return;
   }
   var today = dailyPicks[0];
@@ -1371,6 +1381,7 @@ function getFiltered() {
     return out;
   }
   f.sort(function(a, b) {
+    if (state.sort === 'newest') return (b._ts || 0) - (a._ts || 0);
     if (state.sort === 'rating') return b.rating - a.rating;
     if (state.sort === 'discount') return b.off - a.off;
     if (state.sort === 'price-asc') return a.price - b.price;
@@ -1542,7 +1553,7 @@ function loadMore(fromFilter) {
     var slice = filtered.slice(start, start + PAGE_SIZE);
     var html = '';
     for (var i = 0; i < slice.length; i++) html += cardHtml(slice[i]);
-    if (page === 0 && !window.promoShown) {
+    if (page === 0 && !window.promoShown && !EMBED_GRID) {   // no dice/alert cards in the game-page feed
       html += promoCardsHtml();
       window.promoShown = true;
     }
@@ -1976,11 +1987,11 @@ function _afterLoad() {
   var allPromise = _gridPage(0, true);
   // Front-page display toggle (admin: hide_top_picks) — fetched in parallel, resolved
   // before the carousel renders so we either draw it or skip straight to the grid.
-  var settingsPromise = _sb.from('settings').select('key,value').eq('key', 'hide_top_picks');
+  var settingsPromise = _sb.from('settings').select('key,value').in('key', ['hide_top_picks', 'hide_deals_banner']);
 
   // ── PHASE 1: carousel renders as soon as picks arrive ─────────────────
   try {
-    try { var _sres = await settingsPromise; if (_sres && _sres.data && _sres.data[0] && _sres.data[0].value === '1') HIDE_PICKS = true; } catch (e) {}
+    try { var _sres = await settingsPromise; if (_sres && _sres.data) _sres.data.forEach(function (r) { if (r.key === 'hide_top_picks' && r.value === '1') HIDE_PICKS = true; if (r.key === 'hide_deals_banner' && r.value === '1') HIDE_BANNER = true; }); } catch (e) {}
     var picksRes = await picksPromise;
     if (picksRes.data && picksRes.data.length > 0) {
       // Group rows by active_date (query is already sorted newest-first by date then rank)
@@ -2063,6 +2074,7 @@ function _afterLoad() {
           off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
           rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
           found: formatFound(d.first_seen || d.created_at, d.active_date), addedDay: _addedDayOf(d), code: d.code || null,
+          _ts: (function(){ var t = d.first_seen || d.created_at || d.active_date; var n = t ? new Date(t).getTime() : 0; return isNaN(n) ? 0 : n; })(),  // for the "newest" sort
           verifiedLow: !!d.verified_low,   // at/near its 30-day low (set by the price-tracking job)
           endsAt: d.ends_at || null,       // seller-set expiry — deal is hidden once this passes
           _jit: Math.random(),   // stable per-load jitter so the Top Value sort interleaves stores
@@ -2088,7 +2100,8 @@ function _afterLoad() {
   // Grid render + deep-link handling. Load the game card's live/prize state first so the
   // in-grid dice card shows the current game on the very first render.
   await loadGameCardInfo();
-  applyDefaultDate();   // open on the most recent day that has deals (before the first render)
+  if (EMBED_GRID) { state.sort = 'newest'; }   // game-page feed: newest first, across all days
+  else { applyDefaultDate(); }                  // main site: open on the most recent day that has deals
   resetAndRender();
   updateDealsBanner();
   // Initialize dual price slider visual state
