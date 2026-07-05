@@ -75,10 +75,17 @@ exports.handler = async function (event) {
 
   // Plain tagged web URL — the universal fallback (works everywhere).
   const webUrl = `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`;
-  // Amazon shopping app URL scheme — opens the app to this product on BOTH iOS
-  // and Android. This is the exact scheme Joylink uses (verified), and it opens
-  // the app even from inside Instagram/Facebook in-app browsers.
+  // Amazon shopping app URL scheme — opens the app to this product on iOS (and as a
+  // fallback path). This is the exact scheme Joylink uses (verified), and it opens the
+  // app even from inside Instagram/Facebook in-app browsers.
   const appUrl = `com.amazon.mobile.shopping.web://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`;
+  // Android intent:// URL — far more reliable than a bare custom scheme at breaking OUT of
+  // an in-app webview (Gmail, etc.) into the real Amazon app. It carries its own web
+  // fallback (browser_fallback_url), so if the app isn't installed it lands on the tagged
+  // web page by itself. Package = the Amazon Shopping app on Google Play.
+  const intentUrl = `intent://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`
+    + `#Intent;scheme=https;package=com.amazon.mShop.android.shopping;`
+    + `S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
 
   // Log without blocking anything.
   await logClick(asin, event);
@@ -108,9 +115,12 @@ exports.handler = async function (event) {
   <div class="h">or <a id="web" class="web" href="${webUrl}">continue on the web</a></div>
   <script>
   (function(){
-    var web=${J(webUrl)}, app=${J(appUrl)};
+    var web=${J(webUrl)}, app=${J(appUrl)}, intent=${J(intentUrl)};
     var ua=navigator.userAgent||'';
-    function redirectToApp(){ try{ window.location = app; }catch(e){} }
+    var isAndroid=/Android/i.test(ua);
+    // Android: use the intent:// URL (best at escaping in-app browsers into the app; it has
+    // its own web fallback built in). iOS/other: use the custom app scheme.
+    function redirectToApp(){ try{ window.location = isAndroid ? intent : app; }catch(e){} }
     function redirectToFallBack(){ try{ window.location = web; }catch(e){} }
 
     // Manual button = a guaranteed one-tap path if the auto-open is blocked.
@@ -122,13 +132,13 @@ exports.handler = async function (event) {
     //    just go to the web page.
     //  - Facebook in-app browser on Android: open the app and DON'T fire the web
     //    fallback (the fallback would cancel the app hand-off).
-    //  - Everything else: fire the app scheme, then the web fallback 100ms later.
-    //    If the app opens it takes over before the fallback matters; if it isn't
-    //    installed the scheme no-ops and the web page loads.
+    //  - Everything else: fire the app hand-off, then (iOS only) the web fallback 100ms
+    //    later. On Android the intent:// URL carries its own fallback, so firing a second
+    //    web redirect there would fight the app hand-off — skip it.
     var isFacebookMessengerIphone = /FBCR/i.test(ua) && /iPhone/i.test(ua);
-    var isAndroidFacebookInApp = /Android/i.test(ua) && /FB_IAB|FBAN|FBAV/i.test(ua);
+    var isAndroidFacebookInApp = isAndroid && /FB_IAB|FBAN|FBAV/i.test(ua);
     if(!isFacebookMessengerIphone){ redirectToApp(); }
-    if(!isAndroidFacebookInApp){ setTimeout(redirectToFallBack, 100); }
+    if(!isAndroidFacebookInApp && !isAndroid){ setTimeout(redirectToFallBack, 100); }
   })();
   </script>
 </body></html>`;
