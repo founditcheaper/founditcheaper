@@ -827,12 +827,22 @@ function renderRemindBtn() {
   if (!wrap || !btn) return;
   if (DEMO || !player || !player.email) { wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
-  btn.innerHTML = _remindOn ? '🔔 Reminders on · tap to turn off' : '🔔 Remind me when I can roll again';
-  btn.style.opacity = '1';
   var note = document.getElementById('remindNote');
-  if (note) note.textContent = _remindOn
-    ? "Done. We'll email you when it's time to roll again, every hour you're eligible. Tap above to stop."
-    : "We'll send you an email when it's time to roll again.";
+  if (_remindOn) {
+    // Make the OFF switch obvious: a clearly-labeled, differently-colored button.
+    btn.innerHTML = '🔕 Turn off reminders';
+    btn.style.color = '#ff9a9a';
+    btn.style.background = 'rgba(248,113,113,0.12)';
+    btn.style.borderColor = 'rgba(248,113,113,0.55)';
+    if (note) note.textContent = "Reminders are on. You'll get an email each hour you can roll again. Tap the button above to stop them anytime.";
+  } else {
+    btn.innerHTML = '🔔 Remind me when I can roll again';
+    btn.style.color = 'var(--accent)';
+    btn.style.background = 'rgba(245,200,66,0.1)';
+    btn.style.borderColor = 'var(--border-gold)';
+    if (note) note.textContent = "We'll send you an email when it's time to roll again.";
+  }
+  btn.style.opacity = '1';
 }
 async function loadRemindState() {
   if (DEMO || !player || !player.email) return;
