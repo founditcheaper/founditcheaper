@@ -222,15 +222,15 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
 
     <!-- TABS -->
     <div class="tabs">
-      <button class="tab active" id="tabbtn-picks" onclick="switchTab('picks')">📋 Today's Top Deal Picks</button>
-      <button class="tab" id="tabbtn-promocodes" onclick="_pcSource='';switchTab('promocodes')">📤 Uploaded Deals</button>
+      <button class="tab" id="tabbtn-picks" onclick="switchTab('picks')">📋 Today's Top Deal Picks</button>
+      <button class="tab active" id="tabbtn-promocodes" onclick="_pcSource='';switchTab('promocodes')">📤 Uploaded Deals</button>
       <button class="tab" id="tabbtn-autopicker" onclick="switchTab('autopicker')">🤖 Auto-Fill / Randomizer Settings</button>
       <button class="tab" id="tabbtn-schedule" onclick="switchTab('schedule')">📅 Schedule</button>
       <button class="tab" id="tabbtn-games" onclick="switchTab('games')">🎮 Games</button>
     </div>
 
     <!-- TAB: TODAY'S PICKS -->
-    <div class="tab-content active" id="tab-picks">
+    <div class="tab-content" id="tab-picks">
       <div class="section-header">
         <div>
           <div class="section-title">Today's Top Deal Picks</div>
@@ -462,7 +462,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
     </div><!-- /tab-games -->
 
     <!-- TAB: PROMO CODE DEALS (All Deals grid) -->
-    <div class="tab-content" id="tab-promocodes">
+    <div class="tab-content active" id="tab-promocodes">
       <div class="section-header">
         <div>
           <div class="section-title">Uploaded Deals</div>
@@ -2268,6 +2268,7 @@ async function loadPicks() {
 async function initAdmin() {
   renderBrands();
   updateUndoBtn();
+  loadPromoCodeDeals();   // default tab is Uploaded Deals — load its list right away
   var grid = document.getElementById('dealsGrid');
   grid.innerHTML = '<div style="padding:28px;text-align:center;color:rgba(255,255,255,0.4);font-size:13px">Loading published deals…</div>';
   await loadPicks();
