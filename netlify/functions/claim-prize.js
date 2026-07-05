@@ -93,7 +93,7 @@ exports.handler = async function (event) {
     const prizeLine = prize ? (' your <strong>' + esc(prize) + '</strong>') : ' your gift card';
     const msg = already
       ? 'You already confirmed this one. We have your details and will send' + prizeLine + ' to ' + esc(win.email || 'your email') + '. Nothing else to do.'
-      : 'Confirmed. We will send' + prizeLine + ' to <strong>' + esc(win.email || 'your email') + '</strong>. Give it a little time — a real human sends these out.';
+      : 'Confirmed. We will send' + prizeLine + ' to <strong>' + esc(win.email || 'your email') + '</strong>. Give it a little time. A real human sends these out.';
     return { statusCode: 200, headers: HTML, body: page('You are confirmed', msg) };
   } catch (e) {
     return { statusCode: 500, headers: HTML, body: page('Something went wrong', 'Try again in a bit, or reply to the email we sent you.') };
