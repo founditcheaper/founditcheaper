@@ -969,6 +969,9 @@ var HIDE_PICKS = false;
 // straight to the All Deals section with nothing above it (avoids the count looking
 // off next to the date-filtered grid).
 var HIDE_BANNER = false;
+// pinned_deals: ordered deal ids (strings) the admin pins to the very top of All Deals
+// (paid placements). Applied only on the pristine landing view — see applyPins().
+var PINNED = [];
 
 // ── ALL DEALS DATA (populated from Supabase) ─────────────────────────
 var allProducts = [];
@@ -1348,6 +1351,27 @@ function valueScore(p) {
   var promo   = p.code ? 0.05 : 0;                                  // small promo-code nudge
   return off * 0.6 + rating * 0.25 + reviews * 0.1 + promo;
 }
+// Paid placements: pin PINNED deals to the very top of All Deals, but ONLY on the pristine
+// landing view. The moment a shopper sorts, searches, or filters, order goes fully natural.
+// (The auto date pick is ignored here so a pinned promo shows even if it isn't from today.)
+function isDefaultView() {
+  return state.sort === 'value' && !state.search
+      && state.store === 'all' && state.category === 'all'
+      && !state.brandOnly && !state.promoOnly && !state.verifiedOnly;
+}
+function applyPins(list) {
+  if (!PINNED.length || !isDefaultView()) return list;
+  var allById = {};
+  (allProducts || []).forEach(function (d) { allById[String(d.id)] = d; });
+  var seen = {}, pinned = [];
+  PINNED.slice(0, 6).forEach(function (id) {
+    id = String(id);
+    if (allById[id] && !seen[id]) { seen[id] = true; pinned.push(allById[id]); }
+  });
+  if (!pinned.length) return list;
+  var natural = list.filter(function (d) { return !seen[String(d.id)]; });
+  return pinned.concat(natural);
+}
 function getFiltered() {
   var f = allProducts.filter(function(p) {
     if (state.promoOnly && !p.code) return false;
@@ -1408,7 +1432,7 @@ function getFiltered() {
       for (var i = 0; i < pool.length; i++) { if (recent.indexOf(pool[i]._ck) === -1) { idx = i; break; } }
       out.push(pool.splice(idx, 1)[0]);
     }
-    return out;
+    return applyPins(out);   // paid placements float to the very top on the default view
   }
   f.sort(function(a, b) {
     if (state.sort === 'random') return a._jit - b._jit;   // fresh shuffle each page load (_jit is per-load)
@@ -2040,11 +2064,11 @@ function _afterLoad() {
   var allPromise = _gridPage(0, true);
   // Front-page display toggle (admin: hide_top_picks) — fetched in parallel, resolved
   // before the carousel renders so we either draw it or skip straight to the grid.
-  var settingsPromise = _sb.from('settings').select('key,value').in('key', ['hide_top_picks', 'hide_deals_banner']);
+  var settingsPromise = _sb.from('settings').select('key,value').in('key', ['hide_top_picks', 'hide_deals_banner', 'pinned_deals']);
 
   // ── PHASE 1: carousel renders as soon as picks arrive ─────────────────
   try {
-    try { var _sres = await settingsPromise; if (_sres && _sres.data) _sres.data.forEach(function (r) { if (r.key === 'hide_top_picks' && r.value === '1') HIDE_PICKS = true; if (r.key === 'hide_deals_banner' && r.value === '1') HIDE_BANNER = true; }); } catch (e) {}
+    try { var _sres = await settingsPromise; if (_sres && _sres.data) _sres.data.forEach(function (r) { if (r.key === 'hide_top_picks' && r.value === '1') HIDE_PICKS = true; if (r.key === 'hide_deals_banner' && r.value === '1') HIDE_BANNER = true; if (r.key === 'pinned_deals') { try { var _pa = JSON.parse(r.value || '[]'); if (Array.isArray(_pa)) PINNED = _pa.map(String); } catch (e2) {} } }); } catch (e) {}
     var picksRes = await picksPromise;
     if (picksRes.data && picksRes.data.length > 0) {
       // Group rows by active_date (query is already sorted newest-first by date then rank)

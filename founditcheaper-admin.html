@@ -528,6 +528,10 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         </div>
       </div>
 
+      <!-- Paid placements: pin specific deals to the top spots of the site's All Deals grid.
+           Empty = everything shows naturally. Use the 📌 Feature button on any deal below. -->
+      <div id="pinPanel" style="border:1px solid rgba(245,200,66,0.3);border-radius:10px;padding:12px 14px;margin-bottom:14px;background:rgba(245,200,66,0.05)"></div>
+
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
         <div id="pcTodayStat" style="display:flex;gap:10px;flex-wrap:wrap"></div>
         <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
@@ -740,6 +744,7 @@ async function loadPromoCodeDeals() {
     _pcDeals = Object.keys(_byA).map(function (k) { return _byA[k]; }).sort(function (a, b) { return String(b.created_at || '').localeCompare(String(a.created_at || '')); });
   } catch (e) { _pcDeals = []; }
   renderPromoCodeDeals();
+  renderPinPanel();   // names for featured deals resolve now that the full list is loaded
 }
 function renderPromoCodeDeals() {
   var list = document.getElementById('pcList'); if (!list) return;
@@ -857,6 +862,9 @@ function renderPromoCodeDeals() {
     var moveBtn = asin ? '<button class="abtn abtn-gold" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="promoteToPicks(\'' + asin + '\')">Move to Today\'s Top Deal Picks</button>' : '';
     var removeArg = asin ? '\'' + asin + '\'' : 'null';
     var removeBtn = '<button class="abtn abtn-red" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="removeDeal(\'' + d.id + '\', ' + removeArg + ', this)">Remove</button>';
+    // Feature (paid placement): pin this deal to the top of the site's All Deals grid.
+    var _isFeat = _pinned.indexOf(String(d.id)) !== -1;
+    var featureBtn = '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0;border-color:' + (_isFeat ? '#f5c842' : 'rgba(245,200,66,0.5)') + ';color:#f5c842' + (_isFeat ? ';background:rgba(245,200,66,0.12)' : '') + '" onclick="' + (_isFeat ? 'unfeatureDeal(\'' + d.id + '\')' : 'featureDeal(\'' + d.id + '\')') + '" title="Pin this deal to the top of All Deals on the site">' + (_isFeat ? '📌 Featured' : '📌 Feature') + '</button>';
     var actions = inPicks
       ? '<button class="abtn" style="width:auto;padding:8px 12px;flex-shrink:0" onclick="demoteFromPicks(\'' + asin + '\')">Move back to All Deals</button>'
         + removeBtn
@@ -877,7 +885,7 @@ function renderPromoCodeDeals() {
           + '<div style="font-size:11px;color:var(--muted);margin-top:3px">🕒 Added ' + _fmtAdded(d.created_at) + (d.uploaded_by ? ' · <span style="color:' + (d.uploaded_by === 'Kuldeep' ? '#7dd3fc' : '#f5c842') + ';font-weight:700">by ' + d.uploaded_by + '</span>' : ' · <span style="color:#9ae6b4;font-weight:700">by API</span>') + '</div>'
         + '</div>'
       + '</div>'
-      + '<div class="pc-actions">' + copyBtn + editBtn + actions + '</div>'
+      + '<div class="pc-actions">' + copyBtn + editBtn + featureBtn + actions + '</div>'
     + '</div>';
   }).join('') + (items.length > _CAP ? '<div style="text-align:center;color:var(--muted);font-size:12px;padding:14px 0">Showing the first ' + _CAP + ' of ' + items.length + '. Use search or the filters above to narrow.</div>' : '');
   pcRefreshBulkBar();
@@ -890,6 +898,52 @@ var _pcStore = '';    // '' = all stores; 'HomeDepot' / 'Amazon' / 'Walmart' = t
 function pcSetStore(v) { _pcStore = v; renderPromoCodeDeals(); }
 var _pcDay = '';      // '' = all days; 'YYYY-MM-DD' (Central) = deals added that day only
 function pcSetDay(v) { _pcDay = v; renderPromoCodeDeals(); }
+
+// ── FEATURED (paid placements): pin up to 6 deals to the top of the site's All Deals ──
+var _pinned = [];   // ordered deal ids (strings); spot 1 first
+function _dealById(id) { id = String(id); for (var i = 0; i < _pcDeals.length; i++) if (String(_pcDeals[i].id) === id) return _pcDeals[i]; return null; }
+function renderPinPanel() {
+  var el = document.getElementById('pinPanel'); if (!el) return;
+  var head = '<div style="font-weight:800;color:#f5c842;font-size:13px;margin-bottom:2px">📌 Featured at the top of All Deals</div>'
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Paid placements. These sit at the very top of the site in this order. Everything else shows naturally. Use <b>📌 Feature</b> on any deal below to add one (up to 6).</div>';
+  if (!_pinned.length) { el.innerHTML = head + '<div style="font-size:12px;color:var(--muted)">Nothing featured — the site shows all deals in their natural order.</div>'; return; }
+  var rows = _pinned.map(function (id, i) {
+    var d = _dealById(id);
+    var img = (d && d.img) ? '<img src="' + d.img + '" style="width:34px;height:34px;object-fit:contain;background:#fff;border-radius:5px;flex-shrink:0" onerror="this.style.display=\'none\'">' : '';
+    var name = d ? d.name : 'Deal #' + id + ' (not on this list)';
+    var up = i > 0 ? '<button class="abtn" style="width:auto;padding:5px 9px" onclick="moveFeatured(' + i + ',-1)" title="Move up">▲</button>' : '';
+    var dn = i < _pinned.length - 1 ? '<button class="abtn" style="width:auto;padding:5px 9px" onclick="moveFeatured(' + i + ',1)" title="Move down">▼</button>' : '';
+    return '<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid rgba(255,255,255,0.07)">'
+      + '<span style="font-weight:900;color:#f5c842;width:20px;flex-shrink:0">' + (i + 1) + '</span>' + img
+      + '<div style="flex:1;min-width:0;font-size:13px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</div>'
+      + '<div style="display:flex;gap:5px;flex-shrink:0">' + up + dn
+      + '<button class="abtn abtn-red" style="width:auto;padding:5px 9px" onclick="unfeatureDeal(\'' + id + '\')" title="Remove from featured">✕</button></div></div>';
+  }).join('');
+  el.innerHTML = head + rows;
+}
+function featureDeal(id) {
+  id = String(id);
+  if (_pinned.indexOf(id) !== -1) return;
+  if (_pinned.length >= 6) { showToast('Top spots are full (6). Remove one first.'); return; }
+  _pinned.push(id); savePins(); renderPinPanel(); renderPromoCodeDeals();
+}
+function unfeatureDeal(id) {
+  id = String(id);
+  _pinned = _pinned.filter(function (x) { return x !== id; });
+  savePins(); renderPinPanel(); renderPromoCodeDeals();
+}
+function moveFeatured(i, dir) {
+  var j = i + dir; if (j < 0 || j >= _pinned.length) return;
+  var t = _pinned[i]; _pinned[i] = _pinned[j]; _pinned[j] = t;
+  savePins(); renderPinPanel();
+}
+async function savePins() {
+  try {
+    var res = await fetch('/.netlify/functions/save-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, pinnedDeals: _pinned }) });
+    var d = await res.json();
+    showToast(d.ok ? (_pinned.length ? 'Featured deals saved (' + _pinned.length + ')' : 'Featured deals cleared') : 'Save failed' + (d.error ? ': ' + d.error : ''));
+  } catch (e) { showToast('Network error'); }
+}
 async function approveDealById(id) {
   showToast('Publishing…');
   try {
@@ -1576,6 +1630,8 @@ async function loadSettings() {
     }
     if (document.getElementById('hideTopPicks')) document.getElementById('hideTopPicks').checked = (m.hide_top_picks === '1');
     if (document.getElementById('hideDealsBanner')) document.getElementById('hideDealsBanner').checked = (m.hide_deals_banner === '1');
+    if (m.pinned_deals != null) { try { var _pa = JSON.parse(m.pinned_deals || '[]'); if (Array.isArray(_pa)) _pinned = _pa.map(String); } catch (e3) {} }
+    renderPinPanel();
     if (m.game_prize != null && document.getElementById('gamePrizeInput')) document.getElementById('gamePrizeInput').value = m.game_prize;
     if (m.game_prize_sub != null && document.getElementById('gamePrizeSubInput')) document.getElementById('gamePrizeSubInput').value = m.game_prize_sub;
     if (m.game_period_start != null && document.getElementById('gameStartInput')) document.getElementById('gameStartInput').value = m.game_period_start;
