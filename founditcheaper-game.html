@@ -1042,6 +1042,8 @@ async function rollDice() {
     updateScoreDisplay();
     document.getElementById('playedMsg').style.display = 'block';
     startCountdown();
+    // Reveal the "remind me when I can roll" opt-in right after rolling (not just on reload).
+    if (_remindOn === null) loadRemindState(); else renderRemindBtn();
   }
 
   doRoll();
