@@ -966,7 +966,7 @@ async function addManualDeal() {
     var data = await res.json();
     if (res.ok && data.ok) {
       ['mName', 'mUrl', 'mImg', 'mPrice', 'mWas', 'mCode'].forEach(function (id) { document.getElementById(id).value = ''; });
-      showToast('Added — live on the site now');
+      showToast(data.replaced ? 'Updated the existing deal (no duplicate made)' : 'Added — live on the site now');
       loadPromoCodeDeals();
     } else {
       showToast('Add failed: ' + (data.error || ('HTTP ' + res.status)));
