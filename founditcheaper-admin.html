@@ -735,69 +735,87 @@ function renderPromoCodeDeals() {
   var list = document.getElementById('pcList'); if (!list) return;
   var q = (document.getElementById('pcSearch').value || '').toLowerCase();
   function _statusOf(d) { var s = d.review_status; return (s === 'pending' || s === 'flagged') ? s : 'live'; }
-  // Status counts respect the active source + search scope, so the chip numbers always
-  // match the list below (e.g. on "Seller submitted" the Flagged count reflects only
-  // seller-submitted deals, not every source).
-  function _pcMatchBase(d) {   // search + source (used for per-store counts)
-    var okSearch = !q || (d.name||'').toLowerCase().indexOf(q) >= 0 || (d.code||'').toLowerCase().indexOf(q) >= 0;
-    var okSource = !_pcSource || (_pcSource === '__api__' ? !d.uploaded_by : (d.uploaded_by === _pcSource));
-    return okSearch && okSource;
-  }
-  function _pcMatch(d) { return _pcMatchBase(d) && (!_pcStore || (d.store || '') === _pcStore); }
-  var counts = { all: 0, live: 0, pending: 0, flagged: 0 };
-  _pcDeals.forEach(function(d) { if (_pcMatch(d)) { counts.all++; counts[_statusOf(d)]++; } });
+  // Faceted filters (day / source / store / status). Each chip's count reflects the OTHER
+  // active filters but NOT its own dimension, so e.g. picking the "Jul 5" day makes the
+  // source + store chips read out how many products each source/store brought in that day.
+  function fSearch(d) { return !q || (d.name||'').toLowerCase().indexOf(q) >= 0 || (d.code||'').toLowerCase().indexOf(q) >= 0; }
+  function fSource(d) { return !_pcSource || (_pcSource === '__api__' ? !d.uploaded_by : (d.uploaded_by === _pcSource)); }
+  function fStore(d)  { return !_pcStore  || (d.store || '') === _pcStore; }
+  function fDay(d)    { return !_pcDay    || _ctDate(d.created_at) === _pcDay; }
+  // The list = every facet + the status tab.
   var items = _pcDeals.filter(function(d) {
-    return _pcMatch(d) && (_pcStatus === 'all' || _statusOf(d) === _pcStatus);
+    return fSearch(d) && fSource(d) && fStore(d) && fDay(d) && (_pcStatus === 'all' || _statusOf(d) === _pcStatus);
   });
+  // Status counts: search + source + store + day (skip status), grouped by status.
+  var counts = { all: 0, live: 0, pending: 0, flagged: 0 };
+  _pcDeals.forEach(function(d) { if (fSearch(d) && fSource(d) && fStore(d) && fDay(d)) { counts.all++; counts[_statusOf(d)]++; } });
   var stat = document.getElementById('pcTodayStat');
   if (stat) {
     var todayN = _addedTodayCount();
     var sHtml =
       '<div style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.45);border-radius:8px;padding:10px 14px;font-size:13px;color:#fff"><span style="font-size:22px;font-weight:900;color:#4ade80">' + todayN + '</span> <span style="color:var(--muted)">added today (Central)</span></div>'
       + '<div style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;color:#fff"><span style="font-size:22px;font-weight:900;color:#f5c842">' + _pcDeals.length + '</span> <span style="color:var(--muted)">total on this list</span></div>';
-    if (q) sHtml += '<div style="background:rgba(125,211,252,0.1);border:1px solid rgba(125,211,252,0.5);border-radius:8px;padding:10px 14px;font-size:13px;color:#fff"><span style="font-size:22px;font-weight:900;color:#7dd3fc">' + items.length + '</span> <span style="color:var(--muted)">search result' + (items.length === 1 ? '' : 's') + '</span></div>';
+    if (q || _pcDay || _pcSource || _pcStore) sHtml += '<div style="background:rgba(125,211,252,0.1);border:1px solid rgba(125,211,252,0.5);border-radius:8px;padding:10px 14px;font-size:13px;color:#fff"><span style="font-size:22px;font-weight:900;color:#7dd3fc">' + items.length + '</span> <span style="color:var(--muted)">in this view</span></div>';
     stat.innerHTML = sHtml;
   }
-  // Status filter chips (Live / Pending / Flagged) — the "flagged section" to study.
+  function _rowLabel(t) { return '<span style="font-size:11px;color:var(--muted);align-self:center;margin-right:2px">' + t + '</span>'; }
+  // DAY facet — how many products came in each day. Counts respect search + source + store
+  // (skip day). This is the headline: pick a day, then read the source/store rows for it.
+  function _pcDayLabel(k) {
+    if (k === _ctDate(new Date())) return 'Today';
+    var p = k.split('-'); if (p.length !== 3) return k;
+    return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(p[1],10)-1] + ' ' + parseInt(p[2],10);
+  }
+  function _dayChip(v, label) {
+    var on = _pcDay === v;
+    return '<button class="btn" style="padding:6px 11px;font-size:12px;border:1px solid ' + (on ? '#7dd3fc' : 'var(--border)') + ';background:' + (on ? 'rgba(125,211,252,0.14)' : 'transparent') + ';color:' + (on ? '#7dd3fc' : '#cfd8e3') + '" onclick="pcSetDay(\'' + v + '\')">' + label + '</button>';
+  }
+  var _dayCounts = {}, _dayTotal = 0;
+  _pcDeals.forEach(function (d) { if (fSearch(d) && fSource(d) && fStore(d)) { var k = _ctDate(d.created_at); if (k) { _dayCounts[k] = (_dayCounts[k] || 0) + 1; _dayTotal++; } } });
+  var _days = Object.keys(_dayCounts).sort().reverse();
+  var dayRow = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' + _rowLabel('Day') + _dayChip('', 'All days (' + _dayTotal + ')');
+  _days.slice(0, 10).forEach(function (k) { dayRow += _dayChip(k, _pcDayLabel(k) + ' (' + _dayCounts[k] + ')'); });
+  dayRow += '</div>';
+  // SOURCE facet — count per source (search + store + day, skip source).
+  var sellerN = 0, apiN = 0, srcTotal = 0;
+  _pcDeals.forEach(function (d) { if (fSearch(d) && fStore(d) && fDay(d)) { srcTotal++; if (d.uploaded_by === 'Seller Submission') sellerN++; if (!d.uploaded_by) apiN++; } });
+  function _srcChip(v, label, color) {
+    var on = _pcSource === v;
+    return '<button class="btn" style="padding:6px 11px;font-size:12px;border:1px solid ' + (on ? color : 'var(--border)') + ';background:' + (on ? 'rgba(255,255,255,0.07)' : 'transparent') + ';color:' + (on ? color : '#cfd8e3') + '" onclick="pcSetSource(\'' + v + '\')">' + label + '</button>';
+  }
+  var srcRow = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' + _rowLabel('Source')
+    + _srcChip('', 'All sources (' + srcTotal + ')', '#f5c842')
+    + _srcChip('Seller Submission', '🧑‍💼 Seller submitted (' + sellerN + ')', '#7dd3fc')
+    + _srcChip('__api__', '🤖 API uploads (' + apiN + ')', '#9ae6b4')
+    + '</div>';
+  // STORE facet — count per store (search + source + day, skip store).
+  var _stNames = { Amazon: 'Amazon', Walmart: 'Walmart', HomeDepot: 'Home Depot', BestBuy: 'Best Buy', Lowes: "Lowe's" };
+  var _stCounts = {}, _stTotal = 0;
+  _pcDeals.forEach(function (d) { if (fSearch(d) && fSource(d) && fDay(d)) { var s = d.store || 'Other'; _stCounts[s] = (_stCounts[s] || 0) + 1; _stTotal++; } });
+  function _stChip(v, label) {
+    var on = _pcStore === v;
+    return '<button class="btn" style="padding:6px 11px;font-size:12px;border:1px solid ' + (on ? '#f5c842' : 'var(--border)') + ';background:' + (on ? 'rgba(245,200,66,0.12)' : 'transparent') + ';color:' + (on ? '#f5c842' : '#cfd8e3') + '" onclick="pcSetStore(\'' + v + '\')">' + label + '</button>';
+  }
+  var storeRow = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' + _rowLabel('Store') + _stChip('', 'All stores (' + _stTotal + ')');
+  ['Amazon', 'Walmart', 'HomeDepot', 'BestBuy', 'Lowes'].forEach(function (s) { if (_stCounts[s]) storeRow += _stChip(s, _stNames[s] + ' (' + _stCounts[s] + ')'); });
+  storeRow += '</div>';
+  // STATUS facet — Live / Pending / Flagged (the review queue).
   function _chip(v, label, color) {
     var on = _pcStatus === v;
     return '<button class="btn" style="padding:6px 11px;font-size:12px;border:1px solid ' + (on ? color : 'var(--border)') + ';background:' + (on ? 'rgba(255,255,255,0.07)' : 'transparent') + ';color:' + (on ? color : '#cfd8e3') + '" onclick="pcSetStatus(\'' + v + '\')">' + label + '</button>';
   }
-  var chips = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+  var statusRow = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' + _rowLabel('Status')
     + _chip('all', 'All (' + counts.all + ')', '#f5c842')
     + _chip('live', 'Live (' + counts.live + ')', '#4ade80')
     + _chip('pending', '⏳ Pending (' + counts.pending + ')', '#f5c842')
     + _chip('flagged', '⚑ Flagged (' + counts.flagged + ')', '#f87171')
     + '</div>';
-  // Source filter — lets you view just the seller-submitted deals (they run through the
-  // exact same pending → scan → approve flow as agent deals; only the source tag differs).
-  var sellerN = _pcDeals.filter(function(d){ return d.uploaded_by === 'Seller Submission'; }).length;
-  var apiN = _pcDeals.filter(function(d){ return !d.uploaded_by; }).length;   // auto-synced = no uploader
-  function _srcChip(v, label, color) {
-    var on = _pcSource === v;
-    return '<button class="btn" style="padding:6px 11px;font-size:12px;border:1px solid ' + (on ? color : 'var(--border)') + ';background:' + (on ? 'rgba(255,255,255,0.07)' : 'transparent') + ';color:' + (on ? color : '#cfd8e3') + '" onclick="pcSetSource(\'' + v + '\')">' + label + '</button>';
-  }
-  // Store filter — see per-store what's on the list (Amazon / Walmart / Home Depot …).
-  var _stNames = { Amazon: 'Amazon', Walmart: 'Walmart', HomeDepot: 'Home Depot', BestBuy: 'Best Buy', Lowes: "Lowe's" };
-  var _stCounts = {}, _stTotal = 0;
-  _pcDeals.forEach(function (d) { if (_pcMatchBase(d)) { var s = d.store || 'Other'; _stCounts[s] = (_stCounts[s] || 0) + 1; _stTotal++; } });
-  function _stChip(v, label) {
-    var on = _pcStore === v;
-    return '<button class="btn" style="padding:6px 11px;font-size:12px;border:1px solid ' + (on ? '#f5c842' : 'var(--border)') + ';background:' + (on ? 'rgba(245,200,66,0.12)' : 'transparent') + ';color:' + (on ? '#f5c842' : '#cfd8e3') + '" onclick="pcSetStore(\'' + v + '\')">' + label + '</button>';
-  }
-  var storeRow = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' + _stChip('', 'All stores (' + _stTotal + ')');
-  ['Amazon', 'Walmart', 'HomeDepot', 'BestBuy', 'Lowes'].forEach(function (s) { if (_stCounts[s]) storeRow += _stChip(s, _stNames[s] + ' (' + _stCounts[s] + ')'); });
-  storeRow += '</div>';
-  chips = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
-      + _srcChip('', 'All sources', '#f5c842')
-      + _srcChip('Seller Submission', '🧑‍💼 Seller submitted (' + sellerN + ')', '#7dd3fc')
-      + _srcChip('__api__', '🤖 API uploads (' + apiN + ')', '#9ae6b4')
-      + '</div>' + storeRow + chips;
+  var chips = dayRow + srcRow + storeRow + statusRow;
   if (!items.length) { list.innerHTML = chips + '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No ' + (_pcStatus !== 'all' ? _pcStatus + ' ' : '') + 'uploaded deals' + (q ? ' match your search' : '') + '.</div>'; _pcShownIds = []; pcRefreshBulkBar(); return; }
   // Render is capped (the API view can be thousands of deals); narrow with search/filters
   // to reach the rest. Selection is keyed by id — not ASIN — so deals with no ASIN are still
   // selectable and approvable.
-  var _CAP = 300;
+  var _CAP = 100;
   var shown = items.slice(0, _CAP);
   _pcShownIds = shown.map(function(d) { return d.id; }).filter(Boolean);
   var allSelected = _pcShownIds.length && _pcShownIds.every(function(id) { return _pcSelected[id]; });
@@ -859,6 +877,8 @@ var _pcSource = '';   // '' = all sources; 'Seller Submission' = seller-submitte
 function pcSetSource(v) { _pcSource = v; renderPromoCodeDeals(); }
 var _pcStore = '';    // '' = all stores; 'HomeDepot' / 'Amazon' / 'Walmart' = that store only
 function pcSetStore(v) { _pcStore = v; renderPromoCodeDeals(); }
+var _pcDay = '';      // '' = all days; 'YYYY-MM-DD' (Central) = deals added that day only
+function pcSetDay(v) { _pcDay = v; renderPromoCodeDeals(); }
 async function approveDealById(id) {
   showToast('Publishing…');
   try {
