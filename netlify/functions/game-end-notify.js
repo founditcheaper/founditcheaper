@@ -111,19 +111,28 @@ exports.handler = async function () {
   if (winnerEmail && claimToken) {
     try {
       const claimUrl = 'https://founditcheaper.net/claim-prize/' + claimToken;
+      // Deliverability first: the winner has to actually SEE this, so we keep it plain and
+      // avoid the words spam filters hate (gift card, prize, won, free, $ amounts). We lead
+      // with the game they played, ask them to confirm, and offer a plain reply as a backup.
+      // The actual reward is revealed on the confirmation page (not email-filtered).
       const wHtml =
-        '<div style="font-family:Arial,Helvetica,sans-serif;color:#111;max-width:520px">' +
-          '<h2 style="margin:0 0 10px">You won the founditcheaper dice game</h2>' +
-          '<p style="font-size:15px;margin:0 0 6px">You had the top score this round' + (prize ? ', so you won <strong>' + esc(prize) + '</strong>' : '') + '.</p>' +
-          '<p style="font-size:14px;color:#333;margin:0 0 14px">To get it, confirm you are a real person by clicking below.</p>' +
-          '<p style="margin:0 0 16px"><a href="' + claimUrl + '" style="background:#f5c842;color:#0a1a2f;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:6px;display:inline-block">Yes, send me my gift card</a></p>' +
-          '<p style="font-size:13px;color:#555;margin:0 0 4px">Why the extra step: emails sometimes go unseen, and sometimes they are fake. This click tells us a real person is on the other end, so we can send your gift card safely.</p>' +
+        '<div style="font-family:Arial,Helvetica,sans-serif;color:#111;max-width:520px;font-size:15px;line-height:1.55">' +
+          '<p style="margin:0 0 12px">Hey, you had the top score in the founditcheaper dice game this round.</p>' +
+          '<p style="margin:0 0 14px">Before we sort out the details, confirm it is really you:</p>' +
+          '<p style="margin:0 0 16px"><a href="' + claimUrl + '" style="background:#f5c842;color:#0a1a2f;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:6px;display:inline-block">Confirm it is me</a></p>' +
+          '<p style="margin:0 0 14px;color:#333">Or just reply to this email with a yes, and we will take it from there.</p>' +
+          '<p style="font-size:13px;color:#555;margin:0 0 4px">Why the step: emails get missed sometimes, and not every address is a real person. This is how we know someone real is on the other end before we send anything out.</p>' +
           '<p style="font-size:12px;color:#999;margin:12px 0 0">If this was not you, you can ignore this email.</p>' +
         '</div>';
+      const wText = 'You had the top score in the founditcheaper dice game this round. '
+        + 'Confirm it is really you here: ' + claimUrl + '. Or reply to this email with a yes. '
+        + 'We ask because emails get missed and not every address is a real person, so this tells us '
+        + 'someone real is on the other end. If this was not you, ignore this email.';
       await transporter.sendMail({
         from: `founditcheaper <${FROM}>`, to: winnerEmail,
-        subject: 'You won the founditcheaper dice game',
+        subject: 'Your founditcheaper dice game result',
         html: wHtml,
+        text: wText,
       });
     } catch (e) { console.error('[game-end-notify] winner email failed:', e.message); }
   }
