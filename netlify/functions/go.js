@@ -118,8 +118,9 @@ exports.handler = async function (event) {
     var web=${J(webUrl)}, app=${J(appUrl)}, intent=${J(intentUrl)};
     var ua=navigator.userAgent||'';
     var isAndroid=/Android/i.test(ua);
+    var isIOS=/iPhone|iPad|iPod/i.test(ua);
     // Android: use the intent:// URL (best at escaping in-app browsers into the app; it has
-    // its own web fallback built in). iOS/other: use the custom app scheme.
+    // its own web fallback built in). iOS: use the custom app scheme.
     function redirectToApp(){ try{ window.location = isAndroid ? intent : app; }catch(e){} }
     function redirectToFallBack(){ try{ window.location = web; }catch(e){} }
 
@@ -127,18 +128,25 @@ exports.handler = async function (event) {
     var btn=document.getElementById('appBtn');
     if(btn){ btn.addEventListener('click', function(e){ e.preventDefault(); redirectToApp(); }); }
 
-    // Same logic Joylink uses (verified against a live Joylink deep link):
-    //  - Facebook Messenger on iPhone: skip the app scheme (it misbehaves there),
-    //    just go to the web page.
-    //  - Facebook in-app browser on Android: open the app and DON'T fire the web
-    //    fallback (the fallback would cancel the app hand-off).
-    //  - Everything else: fire the app hand-off, then (iOS only) the web fallback 100ms
-    //    later. On Android the intent:// URL carries its own fallback, so firing a second
-    //    web redirect there would fight the app hand-off — skip it.
     var isFacebookMessengerIphone = /FBCR/i.test(ua) && /iPhone/i.test(ua);
-    var isAndroidFacebookInApp = isAndroid && /FB_IAB|FBAN|FBAV/i.test(ua);
-    if(!isFacebookMessengerIphone){ redirectToApp(); }
-    if(!isAndroidFacebookInApp && !isAndroid){ setTimeout(redirectToFallBack, 100); }
+    if(isAndroid){
+      // intent:// opens the app and carries its own web fallback — no timer needed.
+      redirectToApp();
+    } else if(isIOS && !isFacebookMessengerIphone){
+      // Launch the Amazon app, then fall back to the tagged web page ONLY if the app
+      // didn't take over. Give iOS ~1.4s: the old 100ms fired the web redirect before the
+      // OS could hand off to the app, which cancelled the launch and dumped everyone on
+      // the mobile web page. The elapsed-time guard means that when the app DID open (JS
+      // is frozen while Safari is backgrounded, so far more than 2s elapses), we don't yank
+      // the shopper back to the web page when they return.
+      redirectToApp();
+      var _t0=Date.now();
+      setTimeout(function(){ if(Date.now()-_t0 < 2000){ redirectToFallBack(); } }, 1400);
+    } else {
+      // Desktop (no app to open, and the custom scheme errors there) or FB Messenger on
+      // iPhone (the scheme misbehaves): go straight to the tagged web page.
+      redirectToFallBack();
+    }
   })();
   </script>
 </body></html>`;
