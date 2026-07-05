@@ -117,21 +117,31 @@ exports.handler = async function (event) {
     var web=${J(webUrl)}, app=${J(appUrl)}, intent=${J(intentUrl)};
     var ua=navigator.userAgent||'';
     var isAndroid=/Android/i.test(ua);
-    // Android → intent:// (Chrome's real app-launch; the bare custom scheme leaves Android
-    // stuck on the mobile web page). iOS → custom scheme (works on iPhones).
+    // Android → intent:// (Chrome's real app-launch). iOS → custom scheme (works on iPhones).
     function redirectToApp(){ try{ window.location = isAndroid ? intent : app; }catch(e){} }
     function redirectToFallBack(){ try{ window.location = web; }catch(e){} }
 
-    // Manual button = a guaranteed one-tap path if the auto-open is blocked.
+    // The button is the reliable path: tapping it is a real user gesture, which is exactly
+    // what Chrome/Android REQUIRES to launch an app (it blocks gesture-less auto-launches).
     var btn=document.getElementById('appBtn');
     if(btn){ btn.addEventListener('click', function(e){ e.preventDefault(); redirectToApp(); }); }
 
-    //  - Facebook Messenger on iPhone: skip the app scheme (it misbehaves there).
     var isFacebookMessengerIphone = /FBCR/i.test(ua) && /iPhone/i.test(ua);
-    if(!isFacebookMessengerIphone){ redirectToApp(); }
-    // The Android intent:// carries its OWN web fallback, so only iOS needs this JS fallback
-    // (firing a web redirect on Android would fight the app hand-off). 100ms, like Joylink.
-    if(!isAndroid){ setTimeout(redirectToFallBack, 100); }
+    if(isAndroid){
+      // Samsung Internet honours a gesture-less auto-launch — keep it seamless there. Chrome
+      // (and most other Android browsers) BLOCK it and would drop the shopper on the mobile
+      // web page (the intent's own fallback), so DON'T auto-fire there — have them tap the
+      // button (a real gesture), which opens the app reliably. Make the prompt say so.
+      if(/SamsungBrowser/i.test(ua)){
+        redirectToApp();
+      } else {
+        var t=document.querySelector('.t'); if(t){ t.textContent='Tap to open in the Amazon app'; }
+      }
+    } else {
+      // iOS/desktop: seamless auto hand-off, then the tagged web page as fallback.
+      if(!isFacebookMessengerIphone){ redirectToApp(); }
+      setTimeout(redirectToFallBack, 100);
+    }
   })();
   </script>
 </body></html>`;
