@@ -710,19 +710,20 @@ async function loadPromoCodeDeals() {
   if (list) list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Loading…</div>';
   try {
     var _hdr = { apikey: _ADMIN_SB_KEY, Authorization: 'Bearer ' + _ADMIN_SB_KEY };
-    // Managed deals only: everything with a promo code (Amazon promo + seller), PLUS every
-    // manually-added no-API store deal (Home Depot / Best Buy / Lowe's) even without a code.
-    // (Not the thousands of auto-synced Amazon/Walmart grid deals.)
-    var _base = _ADMIN_SB_URL + '/rest/v1/deals?or=(code.not.is.null,store.in.(HomeDepot,BestBuy,Lowes))&order=created_at.desc&select=';
-    var _cols = 'id,name,price,was,off,code,img,url,store,is_top_pick,created_at';
-    var res = await fetch(_base + _cols + ',uploaded_by,review_status,flag_reason', { headers: _hdr });
-    _pcDeals = await res.json();
-    if (!Array.isArray(_pcDeals)) {
-      // extra columns may not exist yet (SQL not run) — retry without them.
-      res = await fetch(_base + _cols, { headers: _hdr });
-      _pcDeals = await res.json();
+    // Every deal on the site — promo / seller / manual PLUS the auto-synced (API) Amazon &
+    // Walmart deals — so the store + source tabs can show everything. Paginated because
+    // Supabase caps a request at 1000 rows.
+    var _cols = 'id,name,price,was,off,code,img,url,store,is_top_pick,created_at,uploaded_by,review_status,flag_reason';
+    var _all = [], _from = 0;
+    while (_from < 12000) {
+      var res = await fetch(_ADMIN_SB_URL + '/rest/v1/deals?order=created_at.desc&select=' + _cols + '&limit=1000&offset=' + _from, { headers: _hdr });
+      var rows = await res.json();
+      if (!Array.isArray(rows) || !rows.length) break;
+      _all = _all.concat(rows);
+      if (rows.length < 1000) break;
+      _from += 1000;
     }
-    if (!Array.isArray(_pcDeals)) _pcDeals = [];
+    _pcDeals = _all;
     // Dedup by ASIN (guards against transient duplicate rows), keeping the Top-Pick copy if any.
     var _byA = {};
     _pcDeals.forEach(function (d) { var a = _asinFromUrl(d.url) || d.id; if (!_byA[a] || d.is_top_pick) _byA[a] = d; });
@@ -739,7 +740,7 @@ function renderPromoCodeDeals() {
   // seller-submitted deals, not every source).
   function _pcMatchBase(d) {   // search + source (used for per-store counts)
     var okSearch = !q || (d.name||'').toLowerCase().indexOf(q) >= 0 || (d.code||'').toLowerCase().indexOf(q) >= 0;
-    var okSource = !_pcSource || (d.uploaded_by === _pcSource);
+    var okSource = !_pcSource || (_pcSource === '__api__' ? !d.uploaded_by : (d.uploaded_by === _pcSource));
     return okSearch && okSource;
   }
   function _pcMatch(d) { return _pcMatchBase(d) && (!_pcStore || (d.store || '') === _pcStore); }
@@ -771,6 +772,7 @@ function renderPromoCodeDeals() {
   // Source filter — lets you view just the seller-submitted deals (they run through the
   // exact same pending → scan → approve flow as agent deals; only the source tag differs).
   var sellerN = _pcDeals.filter(function(d){ return d.uploaded_by === 'Seller Submission'; }).length;
+  var apiN = _pcDeals.filter(function(d){ return !d.uploaded_by; }).length;   // auto-synced = no uploader
   function _srcChip(v, label, color) {
     var on = _pcSource === v;
     return '<button class="btn" style="padding:6px 11px;font-size:12px;border:1px solid ' + (on ? color : 'var(--border)') + ';background:' + (on ? 'rgba(255,255,255,0.07)' : 'transparent') + ';color:' + (on ? color : '#cfd8e3') + '" onclick="pcSetSource(\'' + v + '\')">' + label + '</button>';
@@ -789,18 +791,22 @@ function renderPromoCodeDeals() {
   chips = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
       + _srcChip('', 'All sources', '#f5c842')
       + _srcChip('Seller Submission', '🧑‍💼 Seller submitted (' + sellerN + ')', '#7dd3fc')
+      + _srcChip('__api__', '🤖 API uploads (' + apiN + ')', '#9ae6b4')
       + '</div>' + storeRow + chips;
   if (!items.length) { list.innerHTML = chips + '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No ' + (_pcStatus !== 'all' ? _pcStatus + ' ' : '') + 'uploaded deals' + (q ? ' match your search' : '') + '.</div>'; _pcShownIds = []; pcRefreshBulkBar(); return; }
-  // Row ids currently shown (for select-all). Selection is keyed by id — not ASIN — so
-  // deals with no ASIN (seller promo-code links) are still selectable and approvable.
-  _pcShownIds = items.map(function(d) { return d.id; }).filter(Boolean);
+  // Render is capped (the API view can be thousands of deals); narrow with search/filters
+  // to reach the rest. Selection is keyed by id — not ASIN — so deals with no ASIN are still
+  // selectable and approvable.
+  var _CAP = 300;
+  var shown = items.slice(0, _CAP);
+  _pcShownIds = shown.map(function(d) { return d.id; }).filter(Boolean);
   var allSelected = _pcShownIds.length && _pcShownIds.every(function(id) { return _pcSelected[id]; });
   var toolbar = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">'
     + '<button class="btn btn-ghost" style="padding:7px 12px" onclick="pcSelectAllShown()">' + (allSelected ? '☐ Clear selection' : '☑ Select all shown (' + _pcShownIds.length + ')') + '</button>'
     + '<button id="pcApproveSelBtn" class="btn" style="padding:7px 12px;background:rgba(74,222,128,0.95);color:#0a2a14;border:none;font-weight:700" onclick="pcApproveSelected()">✓ Approve selected (0)</button>'
     + '<button id="pcRemoveSelBtn" class="btn" style="padding:7px 12px;background:rgba(220,38,38,0.9);color:#fff;border:none" onclick="pcRemoveSelected()">🗑 Remove selected (0)</button>'
     + '</div>';
-  list.innerHTML = chips + toolbar + items.map(function(d) {
+  list.innerHTML = chips + toolbar + shown.map(function(d) {
     var asin = _asinFromUrl(d.url);
     var st = _statusOf(d);
     var checkbox = '<input type="checkbox" class="pc-check" style="width:18px;height:18px;flex-shrink:0;accent-color:#f5c842;cursor:pointer" ' + (_pcSelected[d.id] ? 'checked' : '') + ' onchange="pcToggleSel(\'' + d.id + '\', this.checked)">';
@@ -839,12 +845,12 @@ function renderPromoCodeDeals() {
         + '<div style="flex:1;min-width:0">'
           + '<div style="font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + nameHtml + stBadge + '</div>'
           + '<div style="font-size:12px;color:var(--muted)"><span style="color:#4ade80;font-weight:800">$' + d.price + '</span> · code <span style="color:#f5c842;font-weight:700">' + (d.code || '') + '</span> · ' + d.store + (inPicks ? ' &nbsp;' + status : '') + '</div>'
-          + '<div style="font-size:11px;color:var(--muted);margin-top:3px">🕒 Added ' + _fmtAdded(d.created_at) + (d.uploaded_by ? ' · <span style="color:' + (d.uploaded_by === 'Kuldeep' ? '#7dd3fc' : '#f5c842') + ';font-weight:700">by ' + d.uploaded_by + '</span>' : '') + '</div>'
+          + '<div style="font-size:11px;color:var(--muted);margin-top:3px">🕒 Added ' + _fmtAdded(d.created_at) + (d.uploaded_by ? ' · <span style="color:' + (d.uploaded_by === 'Kuldeep' ? '#7dd3fc' : '#f5c842') + ';font-weight:700">by ' + d.uploaded_by + '</span>' : ' · <span style="color:#9ae6b4;font-weight:700">by API</span>') + '</div>'
         + '</div>'
       + '</div>'
       + '<div class="pc-actions">' + copyBtn + editBtn + actions + '</div>'
     + '</div>';
-  }).join('');
+  }).join('') + (items.length > _CAP ? '<div style="text-align:center;color:var(--muted);font-size:12px;padding:14px 0">Showing the first ' + _CAP + ' of ' + items.length + '. Use search or the filters above to narrow.</div>' : '');
   pcRefreshBulkBar();
 }
 var _pcStatus = 'all';
