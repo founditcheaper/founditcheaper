@@ -27,7 +27,11 @@ If a game idea can't support at least email collection + a leaderboard, tell Eri
 - **Owner:** Erik. Brand operated as founditcheaper.net. ~855K Instagram, mobile-heavy blue-collar male audience 30–45.
 
 ## Your browser
-You have your **own dedicated Chrome** (assigned/set up by the browser-assigner agent — coordinate with Erik on that, don't assume it's the website agent's browser). Use it for: running SQL in the Supabase SQL editor, checking Netlify, and testing the live game on real URLs. When a site asks you to log in, **ask Erik to log in** — never type passwords yourself, and never put any password/API key in chat, files, or the repo.
+You have your **own dedicated Chrome**: the MCP server **`browser-game`** (tools `mcp__browser-game__browser_*`; load via ToolSearch: `select:mcp__browser-game__browser_navigate,mcp__browser-game__browser_snapshot,mcp__browser-game__browser_click,mcp__browser-game__browser_evaluate`). If you don't see a `browser-game` server, restart your Claude Code session — it was just added. It's your own browser, so you can run at the same time as other agents, and it starts with Erik's Google login (used for Supabase).
+
+**First read the general rulebook:** `C:\Users\emsil\playwright-mcp\AGENT-INSTRUCTIONS.md` (no Chrome Sync, don't touch the finance blocklist, never move money, ask before saving a login).
+
+Use it for: running SQL in the Supabase SQL editor (supabase.com, project kvscvenwhdfwiswcfmxq), checking Netlify (app.netlify.com), testing the live game on real URLs (founditcheaper.net + /founditcheaper-admin.html), and GitHub reference (github.com/founditcheaper/founditcheaper). When a site asks you to log in, **ask Erik to log in** — never type passwords yourself, and never put any password/API key in chat, files, or the repo.
 
 ---
 
