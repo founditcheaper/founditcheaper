@@ -877,7 +877,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ASSOCIATE_TAG = "founditchea09-20";
-const PAGE_SIZE = 6;
+// Desktop grid is ~5 columns, so 6 leaves a stubby second row — open with 8 there so the
+// first screen looks full. Mobile (≤820px, 2 columns) and the game-page feed stay at 6.
+const PAGE_SIZE = (/[?&]embed=grid(?:&|$)/.test(location.search)) ? 6 : (window.innerWidth > 820 ? 8 : 6);
 const MAX_PAST_DAYS = 5;
 
 // ── EMBED MODE (?embed=picks) ─────────────────────────────────────────
@@ -1599,6 +1601,10 @@ if (!EMBED_GRID) {
   }
   window.addEventListener('scroll', _onScrollCheck, { passive: true });
   window.addEventListener('resize', _onScrollCheck);
+  // Images/fonts settling can change card heights after the first render, so re-check once
+  // everything has loaded — otherwise a short first screen (common on wide desktops) can
+  // sit at the opening page with nothing triggering the next load.
+  window.addEventListener('load', maybeFillViewport);
 }
 
 // ── FILTER FUNCTIONS ──────────────────────────────────────────────────
@@ -2122,6 +2128,9 @@ function _afterLoad() {
   if (EMBED_GRID) { state.sort = 'random'; }   // game-page feed: shuffled each visit so repeat players see fresh deals
   else { applyDefaultDate(); }                  // main site: open on the most recent day that has deals
   resetAndRender();
+  // A wide desktop's first screen can be short enough that nothing triggers the next page.
+  // Nudge the fill a few times as layout/images settle (no-op once the fold is covered).
+  if (!EMBED_GRID) { [200, 700, 1500].forEach(function (ms) { setTimeout(maybeFillViewport, ms); }); }
   updateDealsBanner();
   // Initialize dual price slider visual state
   updateDualPrice();
