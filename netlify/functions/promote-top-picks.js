@@ -53,6 +53,34 @@ function baseNameKey(name) {
     .split(' ').slice(0, 8).join(' ');
 }
 
+// ── Near-duplicate guard for the picks lineup ─────────────────────────────
+// baseNameKey (first 8 words) only catches near-identical titles. Two DIFFERENTLY
+// worded deals for the same kind of product (e.g. two HP laptops, two RGB light
+// strips) slip past it. So we also treat two picks as "too similar" when they share
+// a brand, or when their meaningful title words overlap heavily.
+const _STOP = new Set(['for','with','and','the','of','to','in','on','pack','set','kit','piece','pieces','pcs','inch','inches','count','pack','new','plus','pro','max','mini','large','small','black','white','blue','red','green','pink','gray','grey','silver','gold']);
+function _sigTokens(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
+    .filter(w => w.length >= 3 && !_STOP.has(w) && !/^\d+$/.test(w));
+}
+// Brand identity: the brand FIELD when present, else the first real word of the title
+// (product titles almost always lead with the brand — "HP …", "DAYBETTER …").
+function _brandKey(d) {
+  const b = String(d.brand_name || '').trim().toLowerCase();
+  if (b) return b;
+  const t = String(d.name || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean);
+  return t.length ? t[0] : '';
+}
+function _tooSimilar(a, b) {
+  const ka = _brandKey(a), kb = _brandKey(b);
+  if (ka && ka === kb) return true;                 // same brand / leading name → too similar
+  const ta = new Set(_sigTokens(a.name)), tb = _sigTokens(b.name);
+  if (!ta.size || !tb.length) return false;
+  let inter = 0; tb.forEach(w => { if (ta.has(w)) inter++; });
+  const uni = ta.size + tb.length - inter;
+  return uni > 0 && inter / uni >= 0.5;              // >= 50% word overlap → too similar
+}
+
 // Current Central-Time date + minutes-since-midnight (handles CST/CDT).
 function ctParts() {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -126,14 +154,25 @@ exports.handler = async function (event) {
   const regAmz  = regular.filter(d => d.store === 'Amazon');
   const regWmt  = regular.filter(d => d.store !== 'Amazon');
 
-  const ordered = promo.slice(0, promoTarget);
+  // Build the lineup, skipping any deal too similar to one already chosen (same brand
+  // or heavy title overlap). Promo codes get first priority (up to promoTarget FRESH
+  // ones), then a round-robin of regular Amazon/Walmart deals, then leftover promos.
+  const ordered = [];
+  const addFresh = function (cand) {
+    if (!cand || ordered.length >= PICKS) return false;
+    for (const o of ordered) if (_tooSimilar(cand, o)) return false;   // no dupes / near-dupes
+    ordered.push(cand); return true;
+  };
+  let promoAdded = 0;
+  for (let i = 0; i < promo.length && promoAdded < promoTarget && ordered.length < PICKS; i++) {
+    if (addFresh(promo[i])) promoAdded++;
+  }
   let ai = 0, wi = 0;
   while (ordered.length < PICKS && (ai < regAmz.length || wi < regWmt.length)) {
-    if (ai < regAmz.length && ordered.length < PICKS) ordered.push(regAmz[ai++]);
-    if (wi < regWmt.length && ordered.length < PICKS) ordered.push(regWmt[wi++]);
+    if (ai < regAmz.length) addFresh(regAmz[ai++]);
+    if (ordered.length < PICKS && wi < regWmt.length) addFresh(regWmt[wi++]);
   }
-  // Thin catalog? Top up from any leftover promo deals.
-  for (let i = promoTarget; i < promo.length && ordered.length < PICKS; i++) ordered.push(promo[i]);
+  for (let i = 0; i < promo.length && ordered.length < PICKS; i++) addFresh(promo[i]);
 
   // Safety: if the grid is empty (a sync failed), leave the existing picks alone
   // rather than blanking the carousel.

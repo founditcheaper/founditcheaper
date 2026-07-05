@@ -652,9 +652,9 @@
 <div class="filters-top">
   <div class="filter-panel" id="filterPanel">
     <div class="fbar">
-      <button type="button" class="fbar-btn" id="chipPromo" onclick="togglePromo(this)">🏷️ Promo Codes Only</button>
-      <button class="filters-toggle" id="filtersToggle" onclick="toggleFilterBar()"><span>All Filters</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnDate" onclick="toggleDrop('dDate', this, event)">🗓️ <span id="fbtnDateLabel">Date Added</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <button class="filters-toggle" id="filtersToggle" onclick="toggleFilterBar()"><span>All Filters</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <button type="button" class="fbar-btn" id="chipPromo" onclick="togglePromo(this)">🏷️ Promo Codes Only</button>
       <button type="button" class="fbar-btn" id="fbtnDiscount" onclick="toggleDrop('dDiscount', this, event)">Discount<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnStore" onclick="toggleDrop('dStore', this, event)">Store<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnCategory" onclick="toggleDrop('dCategory', this, event)">Category<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
@@ -1649,19 +1649,20 @@ function setDate(el, day, label) {
 // latest day that does have deals — never a blank page. Runs once after deals load.
 function applyDefaultDate() {
   try {
-    var chipDays = [];
-    document.querySelectorAll('#dateChips .chip[data-day]').forEach(function (c) {
-      var d = c.getAttribute('data-day'); if (d && d !== 'all') chipDays.push(d);   // newest-first
-    });
+    // Land on the MOST RECENT day that actually has deals — today, or the latest day
+    // before it that does. We NEVER default to "Any time"; that only happens when a
+    // person taps it.
     var have = {};
     allProducts.forEach(function (p) { if (p.addedDay) have[p.addedDay] = 1; });
-    var pick = null;
-    for (var i = 0; i < chipDays.length; i++) { if (have[chipDays[i]]) { pick = chipDays[i]; break; } }
-    if (!pick) return;   // no dated deals in range — leave it on "Any time"
+    var days = Object.keys(have).sort();          // ascending YYYY-MM-DD (chronological)
+    if (!days.length) return;                      // truly no dated deals at all
+    var pick = days[days.length - 1];              // newest day with deals
     var el = document.querySelector('#dateChips .chip[data-day="' + pick + '"]');
+    var label = el ? el.textContent
+              : new Date(pick + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     document.querySelectorAll('#dateChips .chip').forEach(function (c) { c.classList.remove('active'); });
     if (el) el.classList.add('active');
-    state.dateAdded = pick; state.dateLabel = el ? el.textContent : pick;
+    state.dateAdded = pick; state.dateLabel = label;
     if (typeof updateFilterBars === 'function') updateFilterBars();
   } catch (e) {}
 }
