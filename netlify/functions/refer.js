@@ -7,6 +7,11 @@
 // policy) so referrals can't be faked by hitting Supabase directly. Self-referrals
 // are rejected and each email can only ever count once (unique referred_email).
 //
+// FIRST-TIME PLAYERS ONLY: a referral is credited only if the invited email has never
+// scored in an earlier competition. A returning player (email already in game_scores
+// from a prior week_start) earns nobody the bonus — that's what stops referral farming
+// by "inviting" people who already play.
+//
 // POST { refTag, email, weekStart }
 
 // Same stable per-email ID the game uses — lets us reject self-referrals.
@@ -36,6 +41,25 @@ exports.handler = async function (event) {
 
   const sbUrl = process.env.SUPABASE_URL, sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!sbUrl || !sbKey) return { statusCode: 500, body: JSON.stringify({ error: 'Config error' }) };
+  const authH = { apikey: sbKey, Authorization: `Bearer ${sbKey}` };
+
+  // First-time players only. If this email already scored in an EARLIER competition
+  // (any week_start other than this one), they've played before, so no referral is
+  // credited. That cancels both the referrer's +25 and the friend's welcome +25, since
+  // both are derived from the single game_referrals row we would otherwise insert.
+  // (The current round's own row shares this week_start, so it's correctly excluded —
+  // a genuine first-timer only has the current row, or none yet.)
+  try {
+    const pr = await fetch(`${sbUrl}/rest/v1/game_scores?email=eq.${encodeURIComponent(email)}&week_start=neq.${encodeURIComponent(weekStart)}&select=id&limit=1`, { headers: authH });
+    const prev = await pr.json().catch(function () { return []; });
+    if (Array.isArray(prev) && prev.length) {
+      return { statusCode: 200, body: JSON.stringify({ ok: false, reason: 'not-first-time' }) };
+    }
+  } catch (e) {
+    // Don't deny a possibly-legit new player over a transient lookup error. Fall through;
+    // the self-referral block and the unique-email guard below still apply.
+    console.warn('[refer] first-time-player check failed:', e.message);
+  }
 
   try {
     const r = await fetch(`${sbUrl}/rest/v1/game_referrals`, {
