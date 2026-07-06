@@ -1091,10 +1091,13 @@ function isDirectAndroid() {
 }
 // Client-side twin of go.js's Android intent:// URL (opens the Amazon app, carries its own
 // web fallback if the app isn't installed). Kept in sync with netlify/functions/go.js.
+// Uses Amazon's app SCHEME (com.amazon.mobile.shopping.web) rather than the https App Link:
+// verified on real devices (Z Fold + S9) to open the app even when the phone's "Open
+// supported links" setting is off/"Always ask", which the https App Link needs.
 function amazonIntentUrl(asin) {
   var web = 'https://www.amazon.com/dp/' + asin + '?tag=' + ASSOCIATE_TAG;
   return 'intent://www.amazon.com/dp/' + asin + '?tag=' + ASSOCIATE_TAG
-    + '#Intent;scheme=https;package=com.amazon.mShop.android.shopping;'
+    + '#Intent;scheme=com.amazon.mobile.shopping.web;package=com.amazon.mShop.android.shopping;'
     + 'S.browser_fallback_url=' + encodeURIComponent(web) + ';end';
 }
 var _dealLoadTimer = null;
