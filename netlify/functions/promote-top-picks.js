@@ -12,6 +12,7 @@
 const PICKS = 10;
 const PROMO_TARGET = 5;   // include up to this many promo-code deals (if available)
 const MIN_OFF = 15;       // quality floor
+const COOLDOWN_DAYS = 8;  // a product that was in Top Picks can't return to the top for this many days (variety, not reruns)
 
 function score(d) {
   const off     = Number(d.off) || 0;
@@ -92,6 +93,13 @@ function ctParts() {
   return { date: `${p.year}-${p.month}-${p.day}`, minutes: hour * 60 + parseInt(p.minute, 10) };
 }
 
+// 'YYYY-MM-DD' minus N days, back to 'YYYY-MM-DD' (used for the featured-recently cutoff).
+function minusDays(dateStr, days) {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
 exports.handler = async function (event) {
   const sbUrl = process.env.SUPABASE_URL;
   const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -102,7 +110,7 @@ exports.handler = async function (event) {
   const today = nowCT.date;
 
   // Editable settings (run time + promo count); defaults if the table is missing.
-  let runTime = '02:30', promoTarget = PROMO_TARGET, lastRun = '';
+  let runTime = '02:30', promoTarget = PROMO_TARGET, lastRun = '', historyRaw = '';
   try {
     const sres = await fetch(`${sbUrl}/rest/v1/settings?select=key,value`, { headers: H });
     const srows = await sres.json();
@@ -111,8 +119,18 @@ exports.handler = async function (event) {
       if (m.pick_run_time) runTime = m.pick_run_time;
       if (m.promo_target != null && m.promo_target !== '') promoTarget = Math.max(0, Math.min(10, parseInt(m.promo_target, 10) || PROMO_TARGET));
       lastRun = m.pick_last_run || '';
+      historyRaw = m.recent_top_picks || '';
     }
   } catch (e) { /* settings table missing -> defaults */ }
+
+  // Recently-featured cooldown: any deal that was in Top Picks within the last COOLDOWN_DAYS
+  // is held out of today's lineup, so the top rotates instead of showing the same items daily.
+  // History lives in settings under `recent_top_picks` as [{ d:'YYYY-MM-DD', ids:[...] }].
+  const cutoff = minusDays(today, COOLDOWN_DAYS);
+  let history = [];
+  try { const h = JSON.parse(historyRaw || '[]'); if (Array.isArray(h)) history = h; } catch (e) { history = []; }
+  const recentIds = new Set();
+  history.forEach(e => { if (e && e.d && e.d >= cutoff && Array.isArray(e.ids)) e.ids.forEach(id => recentIds.add(id)); });
 
   // Scheduled runs fire once per day at/after the configured time. The manual
   // "Generate now" button passes ?force=1 to bypass this gate.
@@ -158,21 +176,29 @@ exports.handler = async function (event) {
   // or heavy title overlap). Promo codes get first priority (up to promoTarget FRESH
   // ones), then a round-robin of regular Amazon/Walmart deals, then leftover promos.
   const ordered = [];
-  const addFresh = function (cand) {
+  const addPick = function (cand, allowRecent) {
     if (!cand || ordered.length >= PICKS) return false;
+    if (ordered.some(o => o.id === cand.id)) return false;              // already picked
+    if (!allowRecent && recentIds.has(cand.id)) return false;          // featured in the last COOLDOWN_DAYS
     for (const o of ordered) if (_tooSimilar(cand, o)) return false;   // no dupes / near-dupes
     ordered.push(cand); return true;
   };
-  let promoAdded = 0;
-  for (let i = 0; i < promo.length && promoAdded < promoTarget && ordered.length < PICKS; i++) {
-    if (addFresh(promo[i])) promoAdded++;
-  }
-  let ai = 0, wi = 0;
-  while (ordered.length < PICKS && (ai < regAmz.length || wi < regWmt.length)) {
-    if (ai < regAmz.length) addFresh(regAmz[ai++]);
-    if (ordered.length < PICKS && wi < regWmt.length) addFresh(regWmt[wi++]);
-  }
-  for (let i = 0; i < promo.length && ordered.length < PICKS; i++) addFresh(promo[i]);
+  // One selection pass. Promo codes first (up to promoTarget), then a round-robin of
+  // regular Amazon/Walmart deals, then leftover promos.
+  const fill = function (allowRecent) {
+    let promoAdded = ordered.filter(d => d.code).length;
+    for (let i = 0; i < promo.length && promoAdded < promoTarget && ordered.length < PICKS; i++) {
+      if (addPick(promo[i], allowRecent)) promoAdded++;
+    }
+    let ai = 0, wi = 0;
+    while (ordered.length < PICKS && (ai < regAmz.length || wi < regWmt.length)) {
+      if (ai < regAmz.length) addPick(regAmz[ai++], allowRecent);
+      if (ordered.length < PICKS && wi < regWmt.length) addPick(regWmt[wi++], allowRecent);
+    }
+    for (let i = 0; i < promo.length && ordered.length < PICKS; i++) addPick(promo[i], allowRecent);
+  };
+  fill(false);                              // prefer FRESH deals not featured in the last COOLDOWN_DAYS
+  if (ordered.length < PICKS) fill(true);   // backfill with recent ones only if too few fresh, so the carousel is never short
 
   // Safety: if the grid is empty (a sync failed), leave the existing picks alone
   // rather than blanking the carousel.
@@ -195,6 +221,17 @@ exports.handler = async function (event) {
     });
     if (r.ok) promoted++; else console.error(`[promote-top-picks] patch ${ordered[i].id} -> ${r.status}`);
   }
+
+  // Remember today's lineup so these products sit out of Top Picks for COOLDOWN_DAYS.
+  // Prune anything older than the window so the setting stays small.
+  try {
+    const kept = history.filter(e => e && e.d && e.d >= cutoff && e.d !== today);
+    kept.push({ d: today, ids: ordered.map(o => o.id) });
+    await fetch(`${sbUrl}/rest/v1/settings`, {
+      method: 'POST', headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ key: 'recent_top_picks', value: JSON.stringify(kept) }),
+    });
+  } catch (e) { console.error('[promote-top-picks] history write failed:', e.message); }
 
   console.log(`[promote-top-picks] ✓ refreshed Top Picks: ${promoted} deals`);
   return {
