@@ -141,6 +141,14 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
 .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
 .toggle-switch input:checked + .toggle-slider::after { transform: translateX(18px); background: #0a1f33; }
 
+/* TOGGLE SWITCH */
+  .switch { position: relative; display: inline-block; width: 48px; height: 27px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .switch-slider { position: absolute; inset: 0; background: rgba(255,255,255,0.16); border: 1px solid var(--border); border-radius: 27px; cursor: pointer; transition: background .2s; }
+  .switch-slider::before { content: ''; position: absolute; height: 21px; width: 21px; left: 3px; top: 2px; background: #fff; border-radius: 50%; transition: transform .2s; }
+  .switch input:checked + .switch-slider { background: var(--accent); border-color: var(--accent); }
+  .switch input:checked + .switch-slider::before { transform: translateX(21px); }
+  .switch input:focus-visible + .switch-slider { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* STATS BAR */
   .stats-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; width:100%; }
   .stat-card { background: rgba(10,31,51,0.7); border: 1px solid var(--border); border-radius: 9px; padding: 12px 10px; min-width:0; overflow:hidden; }
@@ -214,24 +222,13 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
   <div style="background:rgba(10,31,51,0.5);padding:6px 14px;font-size:11px;color:var(--muted);border-bottom:1px solid rgba(255,255,255,0.06)">June 26, 2026 · founditcheaper Admin Panel</div>
   <div class="admin-body">
 
-    <!-- SITE CONTROLS -->
-    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text);background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:12px 14px;flex:1;min-width:260px">
-        <input type="checkbox" id="picksEnabled" onchange="setPicksEnabled(this.checked)" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
-        <span><strong>Top Deal Picks</strong><br><span style="font-size:11px;color:var(--muted);line-height:1.6">On = show the Top Picks carousel on the site, plus its Picks / Auto-Fill tabs here. Off = hide the carousel and hide those tabs (nothing is deleted).</span></span>
-      </label>
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text);background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:12px 14px;flex:1;min-width:260px">
-        <input type="checkbox" id="hideDealsBanner" onchange="saveHideBanner(this.checked)" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
-        <span><strong>Hide the "We found X deals" bar</strong><br><span style="font-size:11px;color:var(--muted);line-height:1.6">Removes the top line so the site opens straight to All Deals.</span></span>
-      </label>
-    </div>
-
     <!-- TABS -->
     <div class="tabs">
       <button class="tab active" id="tabbtn-promocodes" onclick="_pcSource='';switchTab('promocodes')">📤 Uploaded Deals</button>
       <button class="tab" id="tabbtn-games" onclick="switchTab('games')">🎮 Games</button>
       <button class="tab" id="tabbtn-picks" onclick="switchTab('picks')">📋 Today's Top Deal Picks</button>
       <button class="tab" id="tabbtn-autopicker" onclick="switchTab('autopicker')">🤖 Auto-Fill &amp; Schedule</button>
+      <button class="tab" id="tabbtn-hidden" onclick="switchTab('hidden')">🙈 Hidden Features</button>
     </div>
 
     <!-- TAB: TODAY'S PICKS -->
@@ -452,6 +449,28 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         </div>
       </div><!-- /games-sub-flappy -->
     </div><!-- /tab-games -->
+
+    <!-- TAB: HIDDEN FEATURES (site display toggles) -->
+    <div class="tab-content" id="tab-hidden">
+      <div class="section-title" style="margin-bottom:6px">Hidden Features</div>
+      <div class="section-sub" style="margin-bottom:16px">Turn parts of the site on or off. Nothing is deleted — flip a switch back anytime.</div>
+      <div class="settings-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+          <div><div class="settings-title" style="margin-bottom:2px">Top Deal Picks</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.6"><strong>On</strong> = the Top Picks carousel shows on the site, plus its Picks and Auto-Fill &amp; Schedule tabs here. <strong>Off</strong> = the carousel is hidden and those two tabs disappear.</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="picksEnabled" onchange="setPicksEnabled(this.checked)"><span class="switch-slider"></span></label>
+        </div>
+      </div>
+      <div class="settings-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+          <div><div class="settings-title" style="margin-bottom:2px">"We found X deals" bar</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.6">The line at the very top of the site. <strong>Off</strong> hides it so the site opens straight to All Deals.</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="bannerEnabled" onchange="setBannerEnabled(this.checked)"><span class="switch-slider"></span></label>
+        </div>
+      </div>
+    </div>
 
     <!-- TAB: PROMO CODE DEALS (All Deals grid) -->
     <div class="tab-content active" id="tab-promocodes">
@@ -693,11 +712,12 @@ function applyTabVisibility() {
   _setTabVis('picks', _picksEnabled);
   _setTabVis('autopicker', _picksEnabled && !vaOnly);   // Auto-Fill & Schedule
   _setTabVis('games', !vaOnly);
+  _setTabVis('hidden', !vaOnly);                         // Hidden Features (owner-only)
   // If the currently-open tab just got hidden, fall back to Uploaded Deals.
   var active = document.querySelector('.tab-content.active');
   if (active) {
     var aid = active.id.replace('tab-', '');
-    if ((aid === 'picks' && !_picksEnabled) || (aid === 'autopicker' && (!_picksEnabled || vaOnly)) || (aid === 'games' && vaOnly)) switchTab('promocodes');
+    if ((aid === 'picks' && !_picksEnabled) || (aid === 'autopicker' && (!_picksEnabled || vaOnly)) || ((aid === 'games' || aid === 'hidden') && vaOnly)) switchTab('promocodes');
   }
 }
 function setPicksEnabled(on) {
@@ -1701,7 +1721,7 @@ async function loadSettings() {
     if (document.getElementById('picksEnabled')) document.getElementById('picksEnabled').checked = _picksEnabled;
     applyTabVisibility();
     if (_pcDeals && _pcDeals.length) renderPromoCodeDeals();   // reflect the flag on already-rendered cards
-    if (document.getElementById('hideDealsBanner')) document.getElementById('hideDealsBanner').checked = (m.hide_deals_banner === '1');
+    if (document.getElementById('bannerEnabled')) document.getElementById('bannerEnabled').checked = (m.hide_deals_banner !== '1');   // ON = bar shown
     if (m.pinned_deals != null) { try { var _pa = JSON.parse(m.pinned_deals || '[]'); if (Array.isArray(_pa)) _pinned = _pa.map(String); } catch (e3) {} }
     renderPinPanel();
     if (m.game_prize != null && document.getElementById('gamePrizeInput')) document.getElementById('gamePrizeInput').value = m.game_prize;
@@ -2025,6 +2045,8 @@ async function saveHidePicks(on) {
     showToast(d.ok ? (on ? 'Top Picks hidden on the site' : 'Top Picks showing again') : 'Save failed' + (d.error ? ': ' + d.error : ''));
   } catch (e) { showToast('Network error'); }
 }
+// Toggle reads as "the bar is ON/OFF"; the stored setting is the inverse (hide_deals_banner).
+function setBannerEnabled(on) { saveHideBanner(!on); }
 async function saveHideBanner(on) {
   try {
     var res = await fetch('/.netlify/functions/save-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, hideDealsBanner: !!on }) });
