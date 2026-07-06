@@ -556,12 +556,12 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
           <select id="pcCat" class="field-input" style="width:140px;padding:6px 8px" onchange="renderPromoCodeDeals()"><option value="">All</option></select>
         </div>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text);flex-shrink:0"><input type="checkbox" id="pcPromoOnly" style="width:16px;height:16px;accent-color:#f5c842;cursor:pointer" onchange="renderPromoCodeDeals()"> Promo only</label>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><span style="font-size:12px;color:var(--muted)">Sort</span>
+        <button class="btn btn-ghost" style="padding:6px 10px;font-size:12px;flex-shrink:0" onclick="pcClearFilters()">Clear filters</button>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:auto"><span style="font-size:12px;color:var(--muted)">Sort</span>
           <select id="pcSort" class="field-input" style="width:auto;padding:6px 8px" onchange="renderPromoCodeDeals()">
             <option value="new">Newest</option><option value="off">Biggest discount</option><option value="plow">Price: low → high</option><option value="phigh">Price: high → low</option>
           </select>
         </div>
-        <button class="btn btn-ghost" style="padding:6px 10px;font-size:12px;flex-shrink:0" onclick="pcClearFilters()">Clear filters</button>
       </div>
       <div id="pcList"></div>
     </div>
