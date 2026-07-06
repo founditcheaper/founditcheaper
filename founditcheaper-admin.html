@@ -1982,7 +1982,8 @@ async function loadGameResults() {
     var html = '';
     weeks.forEach(function (wk) {
       var group = byWeek[wk];
-      var players = group.slice().sort(function (a, b) { return b.week_score - a.week_score; });
+      var _sc = function (x) { return (x.total_score != null ? x.total_score : x.week_score) || 0; };   // week_score + referral bonus
+      var players = group.slice().sort(function (a, b) { return _sc(b) - _sc(a); });
       var winner = players[0];
       // Each row in a group shares the game's real end date. Fall back to the current
       // competition's end if this is the active game, else treat it as a single day.
@@ -1998,7 +1999,7 @@ async function loadGameResults() {
         : '<span style="font-size:11px;font-weight:800;color:#f5c842;background:rgba(245,200,66,0.12);border:1px solid rgba(245,200,66,0.35);padding:2px 8px;border-radius:4px;white-space:nowrap">✓ FINAL</span>';
       html += '<div style="border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:14px;margin-bottom:14px">';
       html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap"><div style="font-size:15px;font-weight:800;color:#fff">' + _weekRangeLabel(wk, pEnd) + '</div>' + badge + '</div>';
-      html += '<div style="background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.3);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:#fff">🏆 <strong>' + (inProgress ? 'Leading: ' : 'Winner: ') + _esc(winner.username) + ' <span style="color:var(--muted);font-weight:600">#' + _esc(winner.player_tag || '?') + '</span></strong> — <span style="color:#f5c842;font-weight:800">' + winner.week_score + ' pts</span><br><span style="color:var(--muted);font-size:12px">' + _esc(winner.email) + '</span> <button type="button" data-email="' + _esc(winner.email) + '" onclick="copyEmail(this)" style="font-size:11px;font-weight:800;color:#0a1f33;background:var(--accent);border:none;border-radius:5px;padding:3px 9px;margin-left:4px;cursor:pointer;vertical-align:middle">Copy email</button></div>';
+      html += '<div style="background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.3);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:#fff">🏆 <strong>' + (inProgress ? 'Leading: ' : 'Winner: ') + _esc(winner.username) + ' <span style="color:var(--muted);font-weight:600">#' + _esc(winner.player_tag || '?') + '</span></strong> — <span style="color:#f5c842;font-weight:800">' + _sc(winner) + ' pts</span>' + (winner.referral_bonus ? ' <span style="color:var(--muted);font-size:11px">(' + winner.week_score + ' + ' + winner.referral_bonus + ' referrals)</span>' : '') + '<br><span style="color:var(--muted);font-size:12px">' + _esc(winner.email) + '</span> <button type="button" data-email="' + _esc(winner.email) + '" onclick="copyEmail(this)" style="font-size:11px;font-weight:800;color:#0a1f33;background:var(--accent);border:none;border-radius:5px;padding:3px 9px;margin-left:4px;cursor:pointer;vertical-align:middle">Copy email</button></div>';
       var _lbId = 'lb' + String(wk).replace(/[^0-9]/g, '');
       html += '<button type="button" onclick="toggleLeaderboard(\'' + _lbId + '\', this)" style="width:100%;text-align:left;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;padding:8px 10px;cursor:pointer"><span class="lb-caret">▸</span> All players (' + players.length + ')</button>';
       html += '<div id="' + _lbId + '" style="display:none;margin-top:6px">';
@@ -2006,7 +2007,7 @@ async function loadGameResults() {
         html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px">'
           + '<span style="width:24px;font-weight:800;color:' + (i === 0 ? '#f5c842' : 'var(--muted)') + '">' + (i + 1) + '</span>'
           + '<span style="flex:1;color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(p.username) + ' <span style="color:var(--muted);font-size:11px">#' + _esc(p.player_tag || '?') + ' · ' + _esc(p.email) + '</span></span>'
-          + '<span style="font-weight:800;color:#4ade80">' + p.week_score + '</span></div>';
+          + '<span style="font-weight:800;color:#4ade80">' + _sc(p) + '</span></div>';
       });
       html += '</div>';   // end collapsible player list
       html += '</div>';   // end game card

@@ -17,12 +17,26 @@ exports.handler = async function (event) {
   if (!sbUrl || !sbKey) return { statusCode: 500, body: JSON.stringify({ error: 'Config error' }) };
 
   try {
-    const r = await fetch(`${sbUrl}/rest/v1/game_scores?select=email,username,player_tag,week_score,week_start,period_end,streak&order=week_start.desc,week_score.desc`, {
-      headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
-    });
+    const H = { apikey: sbKey, Authorization: `Bearer ${sbKey}` };
+    const r = await fetch(`${sbUrl}/rest/v1/game_scores?select=email,username,player_tag,week_score,week_start,period_end,streak&order=week_start.desc,week_score.desc`, { headers: H });
     const rows = await r.json();
     if (!r.ok) return { statusCode: 502, body: JSON.stringify({ error: 'read failed', detail: JSON.stringify(rows).slice(0, 160) }) };
-    return { statusCode: 200, body: JSON.stringify({ ok: true, rows: Array.isArray(rows) ? rows : [] }) };
+
+    // Merge the referral bonus (same as the public leaderboard view) so admin standings +
+    // the winner match what players see. total_score = week_score + referral_bonus.
+    const bmap = {};
+    try {
+      const rb = await fetch(`${sbUrl}/rest/v1/game_leaderboard?select=player_tag,week_start,referral_bonus`, { headers: H });
+      const brows = await rb.json();
+      if (Array.isArray(brows)) brows.forEach(function (x) { bmap[x.player_tag + '|' + x.week_start] = Number(x.referral_bonus) || 0; });
+    } catch (e) { /* view missing → bonuses default to 0 */ }
+    const out = (Array.isArray(rows) ? rows : []).map(function (row) {
+      const b = bmap[row.player_tag + '|' + row.week_start] || 0;
+      row.referral_bonus = b;
+      row.total_score = (Number(row.week_score) || 0) + b;
+      return row;
+    });
+    return { statusCode: 200, body: JSON.stringify({ ok: true, rows: out }) };
   } catch (e) {
     return { statusCode: 500, body: JSON.stringify({ error: 'game-results failed', detail: String(e).slice(0, 160) }) };
   }

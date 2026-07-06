@@ -56,10 +56,22 @@ exports.handler = async function () {
   // 5) Standings for this game.
   let players = [];
   try {
-    const r = await fetch(`${sbUrl}/rest/v1/game_scores?week_start=eq.${encodeURIComponent(start)}&select=id,username,player_tag,email,week_score,claim_token,claimed_at&order=week_score.desc&limit=25`, { headers: H });
+    const r = await fetch(`${sbUrl}/rest/v1/game_scores?week_start=eq.${encodeURIComponent(start)}&select=id,username,player_tag,email,week_score,claim_token,claimed_at&order=week_score.desc&limit=2000`, { headers: H });
     const rows = await r.json();
     if (Array.isArray(rows)) players = rows;
   } catch (e) { console.error('[game-end-notify] scores read failed:', e.message); }
+
+  // Add the referral bonus — the SAME total the public leaderboard shows — so the true
+  // winner wins. Raw week_score alone under-counts anyone who earned referral points, which
+  // would send the prize to the wrong person.
+  try {
+    const rb = await fetch(`${sbUrl}/rest/v1/game_leaderboard?week_start=eq.${encodeURIComponent(start)}&select=player_tag,referral_bonus`, { headers: H });
+    const brows = await rb.json();
+    const bmap = {};
+    if (Array.isArray(brows)) brows.forEach(function (x) { bmap[x.player_tag] = Number(x.referral_bonus) || 0; });
+    players.forEach(function (p) { p.total_score = (Number(p.week_score) || 0) + (bmap[p.player_tag] || 0); });
+  } catch (e) { players.forEach(function (p) { p.total_score = Number(p.week_score) || 0; }); }
+  players.sort(function (a, b) { return (b.total_score || 0) - (a.total_score || 0); });
 
   const range = start === end ? start : (start + ' to ' + end);
   const prize = settings.game_prize || '';
@@ -78,17 +90,17 @@ exports.handler = async function () {
   }
 
   const subject = winner
-    ? `Dice game ended (${range}) — winner: ${winner.username} (${winner.week_score} pts)`
+    ? `Dice game ended (${range}) — winner: ${winner.username} (${winner.total_score} pts)`
     : `Dice game ended (${range}) — no players`;
 
   let html = `<h2 style="margin:0 0 8px">Dice game ended</h2><p style="margin:0 0 12px"><strong>Competition:</strong> ${esc(range)}${prize ? ` &middot; <strong>Prize:</strong> ${esc(prize)}` : ''}</p>`;
   if (winner) {
-    html += `<p style="font-size:15px;margin:0 0 12px">🏆 <strong>Winner: ${esc(winner.username)}</strong> <span style="color:#888">#${esc(winner.player_tag || '?')}</span> — <strong>${winner.week_score} pts</strong><br><span style="color:#555">${esc(winner.email || '(no email on file)')}</span></p>`;
+    html += `<p style="font-size:15px;margin:0 0 12px">🏆 <strong>Winner: ${esc(winner.username)}</strong> <span style="color:#888">#${esc(winner.player_tag || '?')}</span> — <strong>${winner.total_score} pts</strong><br><span style="color:#555">${esc(winner.email || '(no email on file)')}</span></p>`;
     html += winnerEmail
       ? `<p style="font-size:13px;color:#0a7d2c;margin:0 0 12px">We emailed the winner a "Yes, send me my gift card" button. You'll get a second email the moment they click it — that confirms a real person is on the other end before you send the gift card.</p>`
       : `<p style="font-size:13px;color:#b00;margin:0 0 12px">This winner has no email on file, so we could not send them a claim link. Reach out via their standings info.</p>`;
     html += `<p style="margin:0 0 4px"><strong>Top players:</strong></p><ol style="margin:0 0 12px;padding-left:20px">`;
-    players.slice(0, 10).forEach(function (p) { html += `<li>${esc(p.username)} <span style="color:#888">#${esc(p.player_tag || '?')}</span> — ${p.week_score} pts — <span style="color:#555">${esc(p.email || '')}</span></li>`; });
+    players.slice(0, 10).forEach(function (p) { html += `<li>${esc(p.username)} <span style="color:#888">#${esc(p.player_tag || '?')}</span> — ${p.total_score} pts — <span style="color:#555">${esc(p.email || '')}</span></li>`; });
     html += `</ol>`;
   } else {
     html += `<p>No one played this round.</p>`;
