@@ -976,7 +976,26 @@ function initEmbed() {
       // The admin pushes the authoritative featured list; update the Feature buttons to match.
       if (e.data.ficFeatureSet) { FEATURED = (e.data.ficFeatureSet || []).map(String); _featSynced = true; ficRefreshFeatBtns(); }
       // The admin's search box drives the grid.
-      if (typeof e.data.ficSearch === 'string') { try { updateSearch(e.data.ficSearch); } catch (_) {} }
+      if (typeof e.data.ficSearch === 'string') { _onlyDeal = null; try { updateSearch(e.data.ficSearch); } catch (_) {} }
+      // A pasted founditcheaper deal link → show just that one deal. Value is a numeric deal
+      // id (from ?deal=<id>) or a 10-char ASIN (from /deal/<ASIN>); resolve ASIN to the deal.
+      if (e.data.ficShowDeal !== undefined) {
+        var v = String(e.data.ficShowDeal || '').trim();
+        if (!v) { _onlyDeal = null; }
+        else if (/^\d+$/.test(v)) { _onlyDeal = v; }
+        else {
+          var up = v.toUpperCase();
+          var hit = (allProducts || []).filter(function (d) {
+            return String(d.asin || '').toUpperCase() === up
+              || String(d.url || '').toUpperCase().indexOf(up) !== -1
+              || String(d.amazon_url || '').toUpperCase().indexOf(up) !== -1
+              || String(d.affiliate_url || '').toUpperCase().indexOf(up) !== -1;
+          })[0];
+          _onlyDeal = hit ? String(hit.id) : '__none__';   // no match → show nothing (bad link)
+        }
+        try { state.search = ''; var _sc = document.getElementById('searchClear'); if (_sc) _sc.style.display = 'none'; } catch (_) {}
+        resetAndRender();
+      }
     });
   }
   if (window.ResizeObserver) { try { new ResizeObserver(postEmbedHeight).observe(document.body); } catch (e) {} }
@@ -1002,6 +1021,9 @@ var PIN_MAX = 10;              // how many featured/pinned deals show at the ver
 // sort each day (8-day no-repeat, set by promote-top-picks). Floated to the top on the
 // default view, BELOW any manual Featured/pinned deals. See applyDailyTop().
 var DAILY_TOP = [];
+// (admin Featured tab) when set to a deal id, the grid shows ONLY that deal — used when Erik
+// pastes a founditcheaper share link (?deal=<id>) or a /deal/<ASIN> link into the search box.
+var _onlyDeal = null;
 // (admin Featured tab only) the current featured ids, for each card's Feature button state.
 var FEATURED = [];
 var _featSynced = false;       // true once the admin has pushed the authoritative list
@@ -1446,6 +1468,8 @@ function applyPins(list) {
   return pinned.concat(natural);
 }
 function getFiltered() {
+  // Admin Featured tab: a pasted deal link narrows the grid to that single deal.
+  if (_onlyDeal) return (allProducts || []).filter(function (d) { return String(d.id) === _onlyDeal; });
   var f = allProducts.filter(function(p) {
     if (state.promoOnly && !p.code) return false;
     if (state.store !== 'all' && p.store !== state.store) return false;
