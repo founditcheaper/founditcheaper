@@ -331,7 +331,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <div class="settings-title">🎁 Prize & Competition Dates</div>
         <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Shown on the Daily Dice Roll page. Update it anytime — changes go live immediately. The top 3 scorers each win their matching prize. Leave 2nd/3rd blank to award a single winner only.</div>
         <div class="field-group" style="margin-bottom:10px">
-          <label class="field-label">🥇 1st place prize</label>
+          <label class="field-label">🥇 1st place prize <span style="color:#f5c842;font-weight:400">(required)</span></label>
           <input type="text" id="gamePrizeInput" class="field-input" placeholder="$25 Amazon Gift Card" maxlength="120">
         </div>
         <div class="field-group" style="margin-bottom:10px">
@@ -1897,6 +1897,7 @@ async function saveGameSettings() {
   var end = document.getElementById('gameEndInput').value;
   var msg = document.getElementById('savePrizeMsg');
   var btn = document.getElementById('savePrizeBtn');
+  if (!prize) { msg.style.color = '#f87171'; msg.textContent = 'Enter a 1st place prize (required). 2nd and 3rd are optional.'; return; }
   if (start && end && end < start) { msg.style.color = '#f87171'; msg.textContent = 'End date must be on or after the start date.'; return; }
   btn.disabled = true; btn.textContent = 'Saving…';
   try {
