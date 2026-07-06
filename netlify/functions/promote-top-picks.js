@@ -12,7 +12,8 @@
 const PICKS = 10;
 const PROMO_TARGET = 5;   // include up to this many promo-code deals (if available)
 const MIN_OFF = 15;       // quality floor
-const COOLDOWN_DAYS = 8;  // a product that was in Top Picks can't return to the top for this many days (variety, not reruns)
+const COOLDOWN_DAYS = 8;  // a product can't return to the grid's Top Value top for this many days (variety, not reruns)
+const GRID_TOP_K = 30;    // how many deals get floated to the top of the main list's Top Value sort each day
 
 function score(d) {
   const off     = Number(d.off) || 0;
@@ -119,13 +120,15 @@ exports.handler = async function (event) {
       if (m.pick_run_time) runTime = m.pick_run_time;
       if (m.promo_target != null && m.promo_target !== '') promoTarget = Math.max(0, Math.min(10, parseInt(m.promo_target, 10) || PROMO_TARGET));
       lastRun = m.pick_last_run || '';
-      historyRaw = m.recent_top_picks || '';
+      historyRaw = m.recent_top_value || '';
     }
   } catch (e) { /* settings table missing -> defaults */ }
 
-  // Recently-featured cooldown: any deal that was in Top Picks within the last COOLDOWN_DAYS
-  // is held out of today's lineup, so the top rotates instead of showing the same items daily.
-  // History lives in settings under `recent_top_picks` as [{ d:'YYYY-MM-DD', ids:[...] }].
+  // Grid Top-Value cooldown: any deal floated to the top of the main list's Top Value sort
+  // within the last COOLDOWN_DAYS is held out, so that top rotates instead of showing the same
+  // items daily. History lives in settings under `recent_top_value` as [{ d:'YYYY-MM-DD', ids:[...] }].
+  // (This cooldown is for the GRID's Top Value order only — NOT the Top Picks carousel below,
+  // and NOT the manually-featured/pinned deals.)
   const cutoff = minusDays(today, COOLDOWN_DAYS);
   let history = [];
   try { const h = JSON.parse(historyRaw || '[]'); if (Array.isArray(h)) history = h; } catch (e) { history = []; }
@@ -175,30 +178,25 @@ exports.handler = async function (event) {
   // Build the lineup, skipping any deal too similar to one already chosen (same brand
   // or heavy title overlap). Promo codes get first priority (up to promoTarget FRESH
   // ones), then a round-robin of regular Amazon/Walmart deals, then leftover promos.
+  // The Top Picks carousel keeps its original behavior (no cross-day cooldown — that rule is
+  // for the grid's Top Value order, handled further down).
   const ordered = [];
-  const addPick = function (cand, allowRecent) {
+  const addFresh = function (cand) {
     if (!cand || ordered.length >= PICKS) return false;
-    if (ordered.some(o => o.id === cand.id)) return false;              // already picked
-    if (!allowRecent && recentIds.has(cand.id)) return false;          // featured in the last COOLDOWN_DAYS
+    if (ordered.some(o => o.id === cand.id)) return false;
     for (const o of ordered) if (_tooSimilar(cand, o)) return false;   // no dupes / near-dupes
     ordered.push(cand); return true;
   };
-  // One selection pass. Promo codes first (up to promoTarget), then a round-robin of
-  // regular Amazon/Walmart deals, then leftover promos.
-  const fill = function (allowRecent) {
-    let promoAdded = ordered.filter(d => d.code).length;
-    for (let i = 0; i < promo.length && promoAdded < promoTarget && ordered.length < PICKS; i++) {
-      if (addPick(promo[i], allowRecent)) promoAdded++;
-    }
-    let ai = 0, wi = 0;
-    while (ordered.length < PICKS && (ai < regAmz.length || wi < regWmt.length)) {
-      if (ai < regAmz.length) addPick(regAmz[ai++], allowRecent);
-      if (ordered.length < PICKS && wi < regWmt.length) addPick(regWmt[wi++], allowRecent);
-    }
-    for (let i = 0; i < promo.length && ordered.length < PICKS; i++) addPick(promo[i], allowRecent);
-  };
-  fill(false);                              // prefer FRESH deals not featured in the last COOLDOWN_DAYS
-  if (ordered.length < PICKS) fill(true);   // backfill with recent ones only if too few fresh, so the carousel is never short
+  let promoAdded = 0;
+  for (let i = 0; i < promo.length && promoAdded < promoTarget && ordered.length < PICKS; i++) {
+    if (addFresh(promo[i])) promoAdded++;
+  }
+  let ai = 0, wi = 0;
+  while (ordered.length < PICKS && (ai < regAmz.length || wi < regWmt.length)) {
+    if (ai < regAmz.length) addFresh(regAmz[ai++]);
+    if (ordered.length < PICKS && wi < regWmt.length) addFresh(regWmt[wi++]);
+  }
+  for (let i = 0; i < promo.length && ordered.length < PICKS; i++) addFresh(promo[i]);
 
   // Safety: if the grid is empty (a sync failed), leave the existing picks alone
   // rather than blanking the carousel.
@@ -222,18 +220,35 @@ exports.handler = async function (event) {
     if (r.ok) promoted++; else console.error(`[promote-top-picks] patch ${ordered[i].id} -> ${r.status}`);
   }
 
-  // Remember today's lineup so these products sit out of Top Picks for COOLDOWN_DAYS.
-  // Prune anything older than the window so the setting stays small.
+  // ── Grid "Top Value" rotation (the actual 8-day no-repeat Erik wants) ──────────────────
+  // Pick ~GRID_TOP_K fresh, high-value deals — excluding today's carousel picks and anything
+  // floated to the grid top in the last COOLDOWN_DAYS — and save them as the grid's daily top
+  // order. The site floats these to the top of the Top Value sort (below any manual Featured
+  // deals). Record today's set and prune the history so the same products don't top daily.
+  let gridTopCount = 0;
   try {
-    const kept = history.filter(e => e && e.d && e.d >= cutoff && e.d !== today);
-    kept.push({ d: today, ids: ordered.map(o => o.id) });
-    await fetch(`${sbUrl}/rest/v1/settings`, {
-      method: 'POST', headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify({ key: 'recent_top_picks', value: JSON.stringify(kept) }),
-    });
-  } catch (e) { console.error('[promote-top-picks] history write failed:', e.message); }
+    const inCarousel = new Set(ordered.map(o => o.id));
+    const gridTop = all
+      .filter(d => !inCarousel.has(d.id) && !recentIds.has(d.id))
+      .sort((a, b) => b._s - a._s)
+      .slice(0, GRID_TOP_K)
+      .map(d => d.id);
+    if (gridTop.length) {
+      gridTopCount = gridTop.length;
+      await fetch(`${sbUrl}/rest/v1/settings`, {
+        method: 'POST', headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ key: 'top_value_order', value: JSON.stringify(gridTop) }),
+      });
+      const kept = history.filter(e => e && e.d && e.d >= cutoff && e.d !== today);
+      kept.push({ d: today, ids: gridTop });
+      await fetch(`${sbUrl}/rest/v1/settings`, {
+        method: 'POST', headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ key: 'recent_top_value', value: JSON.stringify(kept) }),
+      });
+    }
+  } catch (e) { console.error('[promote-top-picks] grid-top rotation failed:', e.message); }
 
-  console.log(`[promote-top-picks] ✓ refreshed Top Picks: ${promoted} deals`);
+  console.log(`[promote-top-picks] ✓ Top Picks: ${promoted} · grid Top-Value rotated: ${gridTopCount}`);
   return {
     statusCode: 200,
     headers: { 'Content-Type': 'application/json' },

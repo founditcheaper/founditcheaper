@@ -995,6 +995,10 @@ var HIDE_BANNER = false;
 // (paid placements). Applied only on the pristine landing view — see applyPins().
 var PINNED = [];
 var PIN_MAX = 10;              // how many featured/pinned deals show at the very top
+// top_value_order: the server-picked set of deals that rotate at the top of the Top Value
+// sort each day (8-day no-repeat, set by promote-top-picks). Floated to the top on the
+// default view, BELOW any manual Featured/pinned deals. See applyDailyTop().
+var DAILY_TOP = [];
 // (admin Featured tab only) the current featured ids, for each card's Feature button state.
 var FEATURED = [];
 var _featSynced = false;       // true once the admin has pushed the authoritative list
@@ -1411,6 +1415,20 @@ function isDefaultView() {
       && state.store === 'all' && state.category === 'all'
       && !state.brandOnly && !state.promoOnly && !state.verifiedOnly;
 }
+// Daily rotation: float the server-picked Top-Value set (DAILY_TOP) to the top of the value
+// sort on the default view, so the same products don't sit at the top day after day (8-day
+// no-repeat is enforced server-side). Runs BEFORE applyPins, so manual Featured deals still win
+// the very top. Any DAILY_TOP deal filtered out or missing is simply skipped.
+function applyDailyTop(list) {
+  if (!DAILY_TOP.length || !isDefaultView()) return list;
+  var byId = {};
+  list.forEach(function (d) { byId[String(d.id)] = d; });
+  var seen = {}, top = [];
+  DAILY_TOP.forEach(function (id) { id = String(id); if (byId[id] && !seen[id]) { seen[id] = true; top.push(byId[id]); } });
+  if (!top.length) return list;
+  var rest = list.filter(function (d) { return !seen[String(d.id)]; });
+  return top.concat(rest);
+}
 function applyPins(list) {
   if (!PINNED.length || !isDefaultView()) return list;
   var allById = {};
@@ -1486,7 +1504,8 @@ function getFiltered() {
       for (var i = 0; i < pool.length; i++) { if (recent.indexOf(pool[i]._ck) === -1) { idx = i; break; } }
       out.push(pool.splice(idx, 1)[0]);
     }
-    return applyPins(out);   // paid placements float to the very top on the default view
+    // Manual Featured deals win the very top; the daily-rotated Top-Value set fills in below them.
+    return applyPins(applyDailyTop(out));
   }
   f.sort(function(a, b) {
     if (state.sort === 'random') return a._jit - b._jit;   // fresh shuffle each page load (_jit is per-load)
@@ -2216,11 +2235,11 @@ function _afterLoad() {
   var allPromise = _gridPage(0, true);
   // Front-page display toggle (admin: hide_top_picks) — fetched in parallel, resolved
   // before the carousel renders so we either draw it or skip straight to the grid.
-  var settingsPromise = _sb.from('settings').select('key,value').in('key', ['hide_top_picks', 'hide_deals_banner', 'pinned_deals']);
+  var settingsPromise = _sb.from('settings').select('key,value').in('key', ['hide_top_picks', 'hide_deals_banner', 'pinned_deals', 'top_value_order']);
 
   // ── PHASE 1: carousel renders as soon as picks arrive ─────────────────
   try {
-    try { var _sres = await settingsPromise; if (_sres && _sres.data) _sres.data.forEach(function (r) { if (r.key === 'hide_top_picks' && r.value === '1') HIDE_PICKS = true; if (r.key === 'hide_deals_banner' && r.value === '1') HIDE_BANNER = true; if (r.key === 'pinned_deals') { try { var _pa = JSON.parse(r.value || '[]'); if (Array.isArray(_pa)) PINNED = _pa.map(String); } catch (e2) {} } }); } catch (e) {}
+    try { var _sres = await settingsPromise; if (_sres && _sres.data) _sres.data.forEach(function (r) { if (r.key === 'hide_top_picks' && r.value === '1') HIDE_PICKS = true; if (r.key === 'hide_deals_banner' && r.value === '1') HIDE_BANNER = true; if (r.key === 'pinned_deals') { try { var _pa = JSON.parse(r.value || '[]'); if (Array.isArray(_pa)) PINNED = _pa.map(String); } catch (e2) {} } if (r.key === 'top_value_order') { try { var _tv = JSON.parse(r.value || '[]'); if (Array.isArray(_tv)) DAILY_TOP = _tv.map(String); } catch (e4) {} } }); } catch (e) {}
     var picksRes = await picksPromise;
     if (picksRes.data && picksRes.data.length > 0) {
       // Group rows by active_date (query is already sorted newest-first by date then rank)
