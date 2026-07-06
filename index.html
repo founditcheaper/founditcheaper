@@ -1539,12 +1539,18 @@ function resetAndRender() {
   document.getElementById('loader').classList.remove('visible');
   var noRes = document.getElementById('noResults');
   var count = document.getElementById('resultsCount');
+  // Restore the sort bar + filter row every render; the finder state hides them below.
+  var _ft = document.querySelector('.filters-top'), _rb = document.querySelector('.results-bar');
+  if (_ft) _ft.style.display = ''; if (_rb) _rb.style.display = '';
   if (filtered.length === 0) {
     // Hidden test: on an empty SEARCH (not just a filter combo), offer a deep Amazon search
     // instead of a dead end. Everyone else still sees the normal message.
     if (FINDER_ON && state.search && allProducts.length > 0) {
       _siteFinderQ = state.search;
-      noRes.style.padding = '8px 12px 40px';   // sit high so the button clears the keyboard
+      // Hide the (now-pointless) sort bar + filters so the prompt sits right under the search
+      // box and its button clears the mobile keyboard.
+      if (_ft) _ft.style.display = 'none'; if (_rb) _rb.style.display = 'none';
+      noRes.style.padding = '10px 12px 40px';
       noRes.innerHTML = _finderPromptHtml(state.search);
     } else {
       noRes.style.padding = '';                  // back to the roomy default
