@@ -1082,7 +1082,11 @@ function _finderCard(d, source, idx) {
     action = '<button class="abtn" style="width:auto;padding:8px 12px" onclick="finderCopy(\'' + d.id + '\', this)">🔗 Copy share link</button>';
   } else {
     badge = '<span style="font-size:10px;font-weight:800;color:#f5c842;background:rgba(245,200,66,0.12);border:1px solid rgba(245,200,66,0.4);padding:1px 7px;border-radius:4px">Amazon · not on site yet</span>';
-    action = '<button class="abtn abtn-gold" style="width:auto;padding:8px 12px" onclick="finderAdd(' + idx + ', this)">+ Add to site &amp; get link</button>';
+    // INSTANT customer-facing link: routes through /deal/<ASIN> so the affiliate tag is added
+    // and the click is logged — no import needed, works for any ASIN. "+ Add to my site" is the
+    // optional curate step (makes a permanent deal card).
+    var viewBtn = '<a class="abtn abtn-gold" style="width:auto;padding:8px 12px;text-decoration:none;display:inline-flex;align-items:center" href="https://founditcheaper.net/deal/' + d.asin + '" target="_blank" rel="noopener">View on Amazon ↗</a>';
+    action = viewBtn + '<button class="abtn" style="width:auto;padding:8px 12px" onclick="finderAdd(' + idx + ', this)">+ Add to my site</button>';
   }
   return '<div class="pc-card" style="border:1px solid var(--border)"><div class="pc-main">' + img +
     '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(d.name || '') + '</div>' +
