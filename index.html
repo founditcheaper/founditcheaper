@@ -909,7 +909,10 @@ const MAX_PAST_DAYS = 5;
 // duplicated code. Everything else on the page is hidden.
 // embed=picks → the Top Picks carousel; embed=grid → the All Deals feed (dice game page).
 var EMBED_PICKS = /[?&]embed=picks(?:&|$)/.test(location.search);
-var EMBED_GRID  = /[?&]embed=grid(?:&|$)/.test(location.search);
+// embed=feature → the admin "Featured" tab: the exact All Deals grid + a Feature button on
+// each card, wired to the admin via postMessage. It's a superset of embed=grid.
+var EMBED_FEATURE = /[?&]embed=feature(?:&|$)/.test(location.search);
+var EMBED_GRID  = /[?&]embed=grid(?:&|$)/.test(location.search) || EMBED_FEATURE;
 var EMBED = EMBED_PICKS || EMBED_GRID;
 function postEmbedHeight() {
   if (!EMBED) return;
@@ -932,7 +935,13 @@ function initEmbed() {
   // Keep only the embedded section (picks carousel, or the All Deals grid + its divider)
   // plus the drawer plumbing; hide every other top-level section.
   function _keep(el) {
-    if (EMBED_GRID) return (el.classList && el.classList.contains('layout')) || el.id === 'allDealsAnchor';
+    if (EMBED_GRID) {
+      var k = (el.classList && el.classList.contains('layout')) || el.id === 'allDealsAnchor';
+      // The admin Featured tab also keeps the full filter/search bar so Erik gets the same
+      // filters as the live site (the game-page grid embed leaves it hidden).
+      if (EMBED_FEATURE && el.classList && el.classList.contains('filters-bar-outer')) k = true;
+      return k;
+    }
     return el.classList && el.classList.contains('picks-outer');
   }
   Array.prototype.forEach.call(document.body.children, function (el) {
@@ -945,16 +954,26 @@ function initEmbed() {
   if (EMBED_GRID) {
     // Tapping a deal in the game-page feed opens the FULL site on that product (roomy
     // drawer + the rest of the catalog), instead of a cramped drawer inside the iframe.
-    window.openDrawer = function (id) {
-      var u = '/?deal=' + encodeURIComponent(id);
-      try { (window.top || window).location.href = u; } catch (e) { window.location.href = u; }
-      return Promise.resolve();
-    };
+    // In the admin Featured tab we keep the normal in-iframe drawer so Erik can inspect a
+    // deal without leaving the admin (the Feature button is a separate control).
+    if (!EMBED_FEATURE) {
+      window.openDrawer = function (id) {
+        var u = '/?deal=' + encodeURIComponent(id);
+        try { (window.top || window).location.href = u; } catch (e) { window.location.href = u; }
+        return Promise.resolve();
+      };
+    }
     // The iframe auto-grows to fit its content, so the grid's own scroll observer would
     // load every page at once. Instead load one more page only when the parent page
     // (where the actual scrolling happens) asks for it.
     window.addEventListener('message', function (e) {
       if (e && e.data && e.data.ficLoadMore) { try { loadMore(); } catch (_) {} }
+    });
+  }
+  if (EMBED_FEATURE) {
+    // The admin pushes the authoritative featured list; update the Feature buttons to match.
+    window.addEventListener('message', function (e) {
+      if (e && e.data && e.data.ficFeatureSet) { FEATURED = (e.data.ficFeatureSet || []).map(String); _featSynced = true; ficRefreshFeatBtns(); }
     });
   }
   if (window.ResizeObserver) { try { new ResizeObserver(postEmbedHeight).observe(document.body); } catch (e) {} }
@@ -975,6 +994,10 @@ var HIDE_BANNER = false;
 // pinned_deals: ordered deal ids (strings) the admin pins to the very top of All Deals
 // (paid placements). Applied only on the pristine landing view — see applyPins().
 var PINNED = [];
+var PIN_MAX = 10;              // how many featured/pinned deals show at the very top
+// (admin Featured tab only) the current featured ids, for each card's Feature button state.
+var FEATURED = [];
+var _featSynced = false;       // true once the admin has pushed the authoritative list
 // DEAL FINDER: when a search comes up empty, offer a deep Amazon search instead of a dead
 // "no results". LIVE for everyone; ?finder=0 disables it (debug / compare to the old empty state).
 var FINDER_ON = !/[?&]finder=0/.test(location.search);
@@ -1393,7 +1416,7 @@ function applyPins(list) {
   var allById = {};
   (allProducts || []).forEach(function (d) { allById[String(d.id)] = d; });
   var seen = {}, pinned = [];
-  PINNED.slice(0, 6).forEach(function (id) {
+  PINNED.slice(0, PIN_MAX).forEach(function (id) {
     id = String(id);
     if (allById[id] && !seen[id]) { seen[id] = true; pinned.push(allById[id]); }
   });
@@ -1512,7 +1535,7 @@ function cardHtml(p) {
   var storeNames = { 'Amazon':'Amazon', 'Walmart':'Walmart', 'HomeDepot':'Home Depot', 'BestBuy':'Best Buy', 'Lowes':"Lowe's" };
   var sName = storeNames[p.store] || p.store;
 
-  var html = '<div class="product-card" onclick="openDrawer(\'' + p.id + '\')" style="cursor:pointer">';
+  var html = '<div class="product-card" data-id="' + p.id + '" onclick="openDrawer(\'' + p.id + '\')" style="cursor:pointer">';
 
   // Image first with store badge overlaid top-left
   html += '<div style="position:relative;background:#ffffff;overflow:hidden">';
@@ -1528,8 +1551,32 @@ function cardHtml(p) {
   if (p.rating && p.reviews) { html += '<div class="product-stars"><span class="stars-display">★</span><span class="rating-num">' + parseFloat(p.rating).toFixed(1) + ' (' + Number(p.reviews).toLocaleString() + ')</span></div>'; }
   html += (p.code ? '<div class="code-row"><span class="code-label">CODE</span><span class="code-value">' + p.code + '</span></div>' : '');
   html += '<div class="price-row" style="margin-top:auto"><span class="current-price">$' + money(p.price) + '</span><span class="was-price">$' + money(p.was) + '</span></div>';
+  if (EMBED_FEATURE) html += ficFeatBtn(p);   // admin Featured tab: per-card Feature button
   html += '</div></div>';
   return html;
+}
+
+// ── Admin "Featured" tab: per-card Feature button (only rendered when embed=feature) ──
+function _featArr() { return _featSynced ? FEATURED : PINNED; }
+function ficFeatBtn(p) {
+  var idx = _featArr().indexOf(String(p.id)), on = idx !== -1;
+  return '<button class="fic-feat-btn" data-fid="' + p.id + '" onclick="ficToggleFeature(event,\'' + p.id + '\')" '
+    + 'style="width:100%;margin-top:10px;border:none;border-radius:8px;padding:9px;font-weight:800;font-size:12px;cursor:pointer;'
+    + 'background:' + (on ? '#f5c842' : 'rgba(255,255,255,0.14)') + ';color:' + (on ? '#0a1f33' : '#e8eef7') + '">'
+    + (on ? '★ Featured #' + (idx + 1) : '☆ Feature') + '</button>';
+}
+function ficToggleFeature(e, id) {
+  if (e) { e.stopPropagation(); e.preventDefault(); }
+  try { parent.postMessage({ ficFeatureToggle: String(id) }, '*'); } catch (_) {}
+}
+function ficRefreshFeatBtns() {
+  var arr = _featArr(), btns = document.querySelectorAll('.fic-feat-btn');
+  for (var i = 0; i < btns.length; i++) {
+    var idx = arr.indexOf(String(btns[i].getAttribute('data-fid'))), on = idx !== -1;
+    btns[i].textContent = on ? '★ Featured #' + (idx + 1) : '☆ Feature';
+    btns[i].style.background = on ? '#f5c842' : 'rgba(255,255,255,0.14)';
+    btns[i].style.color = on ? '#0a1f33' : '#e8eef7';
+  }
 }
 
 function resetAndRender() {

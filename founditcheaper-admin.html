@@ -225,7 +225,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
     <!-- TABS -->
     <div class="tabs">
       <button class="tab active" id="tabbtn-promocodes" onclick="_pcSource='';switchTab('promocodes')">📤 Uploaded Deals</button>
-      <button class="tab" id="tabbtn-finder" onclick="switchTab('finder')">🔎 Deal Finder</button>
+      <button class="tab" id="tabbtn-finder" onclick="switchTab('finder')">⭐ Featured</button>
       <button class="tab" id="tabbtn-games" onclick="switchTab('games')">🎮 Games</button>
       <button class="tab" id="tabbtn-picks" onclick="switchTab('picks')">📋 Today's Top Deal Picks</button>
       <button class="tab" id="tabbtn-autopicker" onclick="switchTab('autopicker')">🤖 Auto-Fill &amp; Schedule</button>
@@ -481,15 +481,14 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       </div>
     </div>
 
-    <!-- TAB: DEAL FINDER (demo) — search your catalog + Amazon on demand, import, share -->
+    <!-- TAB: FEATURED — the live All Deals grid with a Feature button on each card -->
     <div class="tab-content" id="tab-finder">
-      <div class="section-title" style="margin-bottom:4px">🔎 Deal Finder <span style="font-size:12px;color:var(--muted);font-weight:400">— demo</span></div>
-      <div class="section-sub" style="margin-bottom:16px">Type a product someone asked for. It searches your live deals AND Amazon on the spot. Add one to the site and copy its share link. If nothing turns up, you'll see the "watch it for me" catch a customer would get.</div>
-      <div style="display:flex;gap:8px;margin-bottom:16px">
-        <input class="field-input" id="finderQuery" placeholder="e.g. dewalt cordless drill kit" onkeydown="if(event.key==='Enter')runFinder()" style="flex:1">
-        <button class="btn btn-primary" id="finderBtn" onclick="runFinder()" style="flex-shrink:0">Search</button>
+      <div class="section-title" style="margin-bottom:4px">⭐ Featured deals</div>
+      <div class="section-sub" style="margin-bottom:14px">This is your live deals grid, exactly like the site. Scroll through, hit <b>Feature</b> on the ones you want up top, and drag the order below. Up to 10 spots.</div>
+      <div id="pinPanel2" class="pin-panel" style="border:1px solid rgba(245,200,66,0.3);border-radius:10px;padding:12px 14px;margin-bottom:14px;background:rgba(245,200,66,0.05)"></div>
+      <div style="border:1px solid rgba(255,255,255,0.1);border-radius:12px;overflow:hidden">
+        <iframe id="featureFrame" title="Deals" scrolling="no" style="width:100%;height:900px;border:none;overflow:hidden;display:block;background:#0a1f33"></iframe>
       </div>
-      <div id="finderResults"></div>
     </div>
 
     <!-- TAB: PROMO CODE DEALS (All Deals grid) -->
@@ -561,7 +560,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
 
       <!-- Paid placements: pin specific deals to the top spots of the site's All Deals grid.
            Empty = everything shows naturally. Use the 📌 Feature button on any deal below. -->
-      <div id="pinPanel" style="border:1px solid rgba(245,200,66,0.3);border-radius:10px;padding:12px 14px;margin-bottom:14px;background:rgba(245,200,66,0.05)"></div>
+      <div id="pinPanel" class="pin-panel" style="border:1px solid rgba(245,200,66,0.3);border-radius:10px;padding:12px 14px;margin-bottom:14px;background:rgba(245,200,66,0.05)"></div>
 
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
         <div id="pcTodayStat" style="display:flex;gap:10px;flex-wrap:wrap"></div>
@@ -752,7 +751,51 @@ function switchTab(id) {
   var el = document.getElementById('tab-' + id); if (el) el.classList.add('active');
   if (id === 'promocodes') loadPromoCodeDeals();
   if (id === 'games') openGame(_openGameKey || 'dice');
+  if (id === 'finder') openFeatured();
 }
+
+// ── FEATURED tab: host the live All Deals grid (embed=feature) with a Feature button per card ──
+var _featFrameLoaded = false;
+function openFeatured() {
+  renderPinPanel();
+  var f = document.getElementById('featureFrame'); if (!f) return;
+  if (!_featFrameLoaded) {
+    _featFrameLoaded = true;
+    f.onload = function () { setTimeout(syncFeatureFrame, 300); setTimeout(syncFeatureFrame, 1200); };
+    f.src = '/?embed=feature';
+  } else {
+    syncFeatureFrame();
+  }
+}
+// The embedded grid auto-grows and posts its height; resize the iframe to match, and when the
+// admin scrolls near its bottom, ask the grid for another page (parent-driven infinite scroll).
+window.addEventListener('message', function (e) {
+  if (!e || !e.data) return;
+  if (e.data.ficEmbedHeight) {
+    var f = document.getElementById('featureFrame');
+    if (f) { var h = e.data.ficEmbedHeight + 8, cur = parseInt(f.style.height, 10) || 0; if (Math.abs(h - cur) > 2) f.style.height = h + 'px'; }
+  } else if (e.data.ficFeatureToggle) {
+    var id = String(e.data.ficFeatureToggle);
+    if (_pinned.indexOf(id) !== -1) unfeatureDeal(id); else featureDeal(id);
+  }
+});
+(function () {
+  var cooldown = false;
+  function maybeMore() {
+    if (cooldown) return;
+    var tab = document.getElementById('tab-finder'); if (!tab || !tab.classList.contains('active')) return;
+    var f = document.getElementById('featureFrame'); if (!f) return;
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    if (f.getBoundingClientRect().bottom - vh < 700) {
+      cooldown = true;
+      try { f.contentWindow.postMessage({ ficLoadMore: 1 }, '*'); } catch (e) {}
+      setTimeout(function () { cooldown = false; }, 700);
+    }
+  }
+  window.addEventListener('scroll', maybeMore, { passive: true });
+  window.addEventListener('resize', maybeMore);
+  setInterval(maybeMore, 1200);
+})();
 
 // Games tab: swap between the dice-game and flappy-banana admin panels.
 var _openGameKey = 'dice';
@@ -1012,10 +1055,11 @@ function pcClearFilters() {
 var _pinned = [];   // ordered deal ids (strings); spot 1 first
 function _dealById(id) { id = String(id); for (var i = 0; i < _pcDeals.length; i++) if (String(_pcDeals[i].id) === id) return _pcDeals[i]; return null; }
 function renderPinPanel() {
-  var el = document.getElementById('pinPanel'); if (!el) return;
+  var els = document.querySelectorAll('.pin-panel'); if (!els.length) return;
   var head = '<div style="font-weight:800;color:#f5c842;font-size:13px;margin-bottom:2px">📌 Featured at the top of All Deals</div>'
-    + '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Paid placements. These sit at the very top of the site in this order. Everything else shows naturally. Use <b>📌 Feature</b> on any deal below to add one (up to 6).</div>';
-  if (!_pinned.length) { el.innerHTML = head + '<div style="font-size:12px;color:var(--muted)">Nothing featured — the site shows all deals in their natural order.</div>'; return; }
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">These sit at the very top of the site in this order. Everything else shows naturally. Use <b>Feature</b> on any deal to add one (up to 10).</div>';
+  var body;
+  if (!_pinned.length) { body = '<div style="font-size:12px;color:var(--muted)">Nothing featured — the site shows all deals in their natural order.</div>'; els.forEach(function (el) { el.innerHTML = head + body; }); return; }
   var rows = _pinned.map(function (id, i) {
     var d = _dealById(id);
     var img = (d && d.img) ? '<img src="' + d.img + '" style="width:34px;height:34px;object-fit:contain;background:#fff;border-radius:5px;flex-shrink:0" onerror="this.style.display=\'none\'">' : '';
@@ -1028,23 +1072,29 @@ function renderPinPanel() {
       + '<div style="display:flex;gap:5px;flex-shrink:0">' + up + dn
       + '<button class="abtn abtn-red" style="width:auto;padding:5px 9px" onclick="unfeatureDeal(\'' + id + '\')" title="Remove from featured">✕</button></div></div>';
   }).join('');
-  el.innerHTML = head + rows;
+  els.forEach(function (el) { el.innerHTML = head + rows; });
+}
+var PIN_MAX = 10;   // how many deals can be featured at the top
+// Push the current featured list to the Featured-tab grid iframe so its buttons/badges match.
+function syncFeatureFrame() {
+  var f = document.getElementById('featureFrame');
+  if (f && f.contentWindow) { try { f.contentWindow.postMessage({ ficFeatureSet: _pinned }, '*'); } catch (e) {} }
 }
 function featureDeal(id) {
   id = String(id);
   if (_pinned.indexOf(id) !== -1) return;
-  if (_pinned.length >= 6) { showToast('Top spots are full (6). Remove one first.'); return; }
-  _pinned.push(id); savePins(); renderPinPanel(); renderPromoCodeDeals();
+  if (_pinned.length >= PIN_MAX) { showToast('Top spots are full (' + PIN_MAX + '). Remove one first.'); syncFeatureFrame(); return; }
+  _pinned.push(id); savePins(); renderPinPanel(); renderPromoCodeDeals(); syncFeatureFrame();
 }
 function unfeatureDeal(id) {
   id = String(id);
   _pinned = _pinned.filter(function (x) { return x !== id; });
-  savePins(); renderPinPanel(); renderPromoCodeDeals();
+  savePins(); renderPinPanel(); renderPromoCodeDeals(); syncFeatureFrame();
 }
 function moveFeatured(i, dir) {
   var j = i + dir; if (j < 0 || j >= _pinned.length) return;
   var t = _pinned[i]; _pinned[i] = _pinned[j]; _pinned[j] = t;
-  savePins(); renderPinPanel();
+  savePins(); renderPinPanel(); syncFeatureFrame();
 }
 async function savePins() {
   try {
