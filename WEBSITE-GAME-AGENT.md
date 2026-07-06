@@ -84,11 +84,11 @@ Before building anything, **read these files** to learn the exact patterns, then
 
 **3. Fair play:** enforce one-play-per-period (or a cooldown) **on the server** in the save function, using `last_play` — never trust the browser alone.
 
-**4. Leaderboard:** read top N by `score` for the current `period_start`, order desc.
+**4. Leaderboard:** read top N for the current `period_start`, ordered by each player's **TOTAL** score desc — base score **plus any bonus points** (referrals, streaks). If the game awards bonuses, never rank by the raw base score alone (see the referral gotcha below — it caused a wrong-winner bug).
 
 **5. Config via `settings`:** keys like `<game>_period_start`, `<game>_period_end`, `<game>_ended`, `<game>_prize`, `<game>_notified_period`. Read them in functions; edit them from the admin.
 
-**6. Winner flow (copy dice):** when the period ends, `game-end-notify`-style job emails the top scorer a **"confirm it's you"** button and emails Erik. Winner clicks → `claim-prize`-style function marks it claimed + emails Erik "a real person confirmed, send the prize." Erik gets notified on **both** the win and the confirmation.
+**6. Winner flow (copy dice):** when the period ends, `game-end-notify`-style job emails the top scorer a **"confirm it's you"** button and emails Erik. The "top scorer" is by **TOTAL** score (base + any bonuses like referrals) — the same total the public leaderboard and admin show, so the prize goes to who players actually saw winning (see the referral gotcha). Winner clicks → `claim-prize`-style function marks it claimed + emails Erik "a real person confirmed, send the prize." Erik gets notified on **both** the win and the confirmation.
 
 **7. Wire into the site:**
 - Add a game card / entry on `index.html` (the All-Deals grid game card and/or the hamburger menu) and any "Back to Deals" button → `index.html`.
@@ -120,6 +120,7 @@ Before building anything, **read these files** to learn the exact patterns, then
 - **Netlify Functions cap total env vars at ~4KB** (AWS Lambda). The project is near the limit — do **not** add env vars without checking, and grep the code for a dead var to remove first if you must add one.
 - **SMTP-sent mail doesn't appear in the webmail Sent folder** — verify sends via the function's return/logs or the recipient inbox, not Sent.
 - **Email auth is fully set up** (SPF + DKIM + DMARC live) and `PRIVATE_EMAIL_PASS` is set, so email works — but respect the deliverability word rules above.
+- **If a game awards BONUS points (referrals, streaks, etc.), the true score is base + bonus — rank EVERYTHING by that total.** This one actually bit us (2026-07-05). The dice game's raw roll score lives in `game_scores.week_score`. The referral bonus (+25 per referral, capped at +125) is stored separately (`game_referrals`) and added by the `game_leaderboard` **view** (`referral_bonus` column). The public leaderboard shows `week_score + referral_bonus`. BUT the admin standings AND `game-end-notify` were ranking by raw `week_score` only — so the admin showed the wrong leader, and the winner email/claim link would have gone to the **wrong person** (a player at 107 raw beat one at 220 real). Fix + rule: the leaderboard display, the winner pick, and the prize/notify function must **all** use the same total (query `game_leaderboard` for `referral_bonus` and add it, or read the view directly — note the view has no emails, so `game-end-notify`/`game-results` join it to `game_scores` by `player_tag`+`week_start`). **The score a player sees themselves ranked by on the public page must be the exact score the admin ranks by and the payout is based on** — otherwise someone gets paid who didn't actually win.
 
 ---
 
@@ -129,7 +130,7 @@ Before building anything, **read these files** to learn the exact patterns, then
 2. Score saves to Supabase; leaderboard updates; one-play-per-period is enforced **server-side**.
 3. Email capture works and lands in the score table.
 4. Admin can configure the game, set the prize, and see standings.
-5. Winner email + Erik email fire correctly (once per period, deduped), and the claim/confirm loop works.
+5. Winner email + Erik email fire correctly (once per period, deduped), and the claim/confirm loop works. **Confirm the winner is picked by TOTAL score (base + any bonuses), matching the public leaderboard exactly** — if there's a bonus system, verify the admin standings, the public page, and the payout all agree on #1.
 6. Copy passes the brand rules (no em dashes, no exclamation, deadpan) and every email link is a `?deal=` share link (if any).
 7. `git push origin main`, then confirm the Netlify deploy **succeeded** (a bad function fails the whole deploy).
 
