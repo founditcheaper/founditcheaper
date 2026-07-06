@@ -98,7 +98,10 @@ exports.handler = async function () {
   let sent = 0;
   for (let j = 0; j < toSend.length; j++) {
     const d = toSend[j].deal, q = toSend[j].req;
-    const want = q.query_text || (q.keywords && q.keywords.join(' ')) || 'this item';
+    // New link-requests store the resolved product name in query_text; older ones stored the
+    // raw URL — don't print a naked link, show a clean label instead.
+    let want = q.query_text || (q.keywords && q.keywords.join(' ')) || 'this item';
+    if (/^https?:\/\//i.test(want)) want = 'the item you linked';
     const shareUrl = SITE + '/?deal=' + encodeURIComponent(d.id);                  // COMPLIANT: on-site deal card, never a direct Amazon link
     const stopUrl = SITE + '/stop-alert/' + encodeURIComponent(q.alert_token);
     const price = Math.round(Number(d.price) || 0);
