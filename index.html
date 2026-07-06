@@ -1479,7 +1479,7 @@ function getFiltered() {
     if (state.dateAdded !== 'all' && !state.search && p.addedDay !== state.dateAdded) return false;
     if (state.search) {
       var q = state.search.toLowerCase();
-      var hay = (p.name + ' ' + p.brandName + ' ' + p.category + ' ' + p.store).toLowerCase();
+      var hay = (p.name + ' ' + p.brandName + ' ' + p.category + ' ' + p.store + ' ' + (p.code || '')).toLowerCase();
       if (hay.indexOf(q) === -1) return false;
     }
     if (p.off < state.minDiscount) return false;
