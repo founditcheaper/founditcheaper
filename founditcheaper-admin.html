@@ -541,27 +541,27 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       </div>
       <input class="field-input" id="pcSearch" placeholder="Search uploaded deals by name or code..." style="margin-bottom:12px" oninput="renderPromoCodeDeals()">
       <!-- Deal filters (mirror the live site) — find the good ones to Feature at the top. -->
-      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.03)">
-        <div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;color:var(--muted)">Min % off</span>
+      <div style="display:flex;gap:10px;flex-wrap:nowrap;overflow-x:auto;align-items:center;margin-bottom:12px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.03);white-space:nowrap">
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><span style="font-size:12px;color:var(--muted)">Min % off</span>
           <select id="pcMinOff" class="field-input" style="width:auto;padding:6px 8px" onchange="renderPromoCodeDeals()">
             <option value="0">Any</option><option value="10">10%+</option><option value="20">20%+</option><option value="30">30%+</option><option value="40">40%+</option><option value="50">50%+</option><option value="60">60%+</option><option value="70">70%+</option>
           </select>
         </div>
-        <div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;color:var(--muted)">Price $</span>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><span style="font-size:12px;color:var(--muted)">Price $</span>
           <input id="pcMinPrice" class="field-input no-spin" type="number" placeholder="min" style="width:66px;padding:6px 8px" oninput="renderPromoCodeDeals()">
           <span style="color:var(--muted)">–</span>
           <input id="pcMaxPrice" class="field-input no-spin" type="number" placeholder="max" style="width:66px;padding:6px 8px" oninput="renderPromoCodeDeals()">
         </div>
-        <div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;color:var(--muted)">Category</span>
-          <select id="pcCat" class="field-input" style="width:auto;max-width:210px;padding:6px 8px" onchange="renderPromoCodeDeals()"><option value="">All</option></select>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><span style="font-size:12px;color:var(--muted)">Category</span>
+          <select id="pcCat" class="field-input" style="width:140px;padding:6px 8px" onchange="renderPromoCodeDeals()"><option value="">All</option></select>
         </div>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text)"><input type="checkbox" id="pcPromoOnly" style="width:16px;height:16px;accent-color:#f5c842;cursor:pointer" onchange="renderPromoCodeDeals()"> Promo codes only</label>
-        <div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;color:var(--muted)">Sort</span>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text);flex-shrink:0"><input type="checkbox" id="pcPromoOnly" style="width:16px;height:16px;accent-color:#f5c842;cursor:pointer" onchange="renderPromoCodeDeals()"> Promo only</label>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><span style="font-size:12px;color:var(--muted)">Sort</span>
           <select id="pcSort" class="field-input" style="width:auto;padding:6px 8px" onchange="renderPromoCodeDeals()">
             <option value="new">Newest</option><option value="off">Biggest discount</option><option value="plow">Price: low → high</option><option value="phigh">Price: high → low</option>
           </select>
         </div>
-        <button class="btn btn-ghost" style="padding:6px 10px;font-size:12px" onclick="pcClearFilters()">Clear filters</button>
+        <button class="btn btn-ghost" style="padding:6px 10px;font-size:12px;flex-shrink:0" onclick="pcClearFilters()">Clear filters</button>
       </div>
       <div id="pcList"></div>
     </div>
