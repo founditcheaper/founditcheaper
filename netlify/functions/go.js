@@ -82,8 +82,15 @@ exports.handler = async function (event) {
   // left Android stuck on the mobile web page), so use its sanctioned intent:// URL. It opens
   // the Amazon app and carries its OWN web fallback (browser_fallback_url) if the app isn't
   // installed. Package = the Amazon Shopping app on Google Play.
+  //
+  // TEST TOGGLE: ?m=amz builds the intent around Amazon's own app SCHEME instead of the https
+  // App Link. A custom scheme isn't tied to the phone's "Open supported links" setting, so it
+  // can open the app even where App Links is set to "Always ask"/off (like the S9). This is
+  // opt-in via the query param ONLY — with no ?m param, behavior is identical for everyone.
+  const androidScheme = (event.queryStringParameters && event.queryStringParameters.m === 'amz')
+    ? 'com.amazon.mobile.shopping.web' : 'https';
   const intentUrl = `intent://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`
-    + `#Intent;scheme=https;package=com.amazon.mShop.android.shopping;`
+    + `#Intent;scheme=${androidScheme};package=com.amazon.mShop.android.shopping;`
     + `S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
 
   // Log without blocking anything.
