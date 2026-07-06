@@ -971,9 +971,12 @@ function initEmbed() {
     });
   }
   if (EMBED_FEATURE) {
-    // The admin pushes the authoritative featured list; update the Feature buttons to match.
     window.addEventListener('message', function (e) {
-      if (e && e.data && e.data.ficFeatureSet) { FEATURED = (e.data.ficFeatureSet || []).map(String); _featSynced = true; ficRefreshFeatBtns(); }
+      if (!e || !e.data) return;
+      // The admin pushes the authoritative featured list; update the Feature buttons to match.
+      if (e.data.ficFeatureSet) { FEATURED = (e.data.ficFeatureSet || []).map(String); _featSynced = true; ficRefreshFeatBtns(); }
+      // The admin's search box drives the grid.
+      if (typeof e.data.ficSearch === 'string') { try { updateSearch(e.data.ficSearch); } catch (_) {} }
     });
   }
   if (window.ResizeObserver) { try { new ResizeObserver(postEmbedHeight).observe(document.body); } catch (e) {} }
@@ -1004,7 +1007,7 @@ var FEATURED = [];
 var _featSynced = false;       // true once the admin has pushed the authoritative list
 // DEAL FINDER: when a search comes up empty, offer a deep Amazon search instead of a dead
 // "no results". LIVE for everyone; ?finder=0 disables it (debug / compare to the old empty state).
-var FINDER_ON = !/[?&]finder=0/.test(location.search);
+var FINDER_ON = !/[?&]finder=0/.test(location.search) && !EMBED_FEATURE;   // no customer "watch it for me" prompt in the admin Featured grid
 var _siteFinderQ = '';
 function _fesc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
 function _fq(q) { q = String(q || ''); return _fesc(q.length > 46 ? q.slice(0, 46) + '…' : q); }   // safe, capped query for headings
