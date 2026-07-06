@@ -34,7 +34,9 @@ exports.handler = async function (event) {
       .filter(id => id && !seen[id] && (seen[id] = true)).slice(0, 6);
     updates.push(['pinned_deals', JSON.stringify(clean)]);
   }
-  if (body.gamePrize != null) updates.push(['game_prize', String(body.gamePrize).slice(0, 120)]);
+  if (body.gamePrize != null) updates.push(['game_prize', String(body.gamePrize).slice(0, 120)]);   // 1st place
+  if (body.gamePrize2 != null) updates.push(['game_prize_2', String(body.gamePrize2).slice(0, 120)]); // 2nd place
+  if (body.gamePrize3 != null) updates.push(['game_prize_3', String(body.gamePrize3).slice(0, 120)]); // 3rd place
   if (body.gamePrizeSub != null) updates.push(['game_prize_sub', String(body.gamePrizeSub).slice(0, 160)]);
   if (body.gamePeriodStart != null && /^\d{4}-\d{2}-\d{2}$/.test(String(body.gamePeriodStart))) updates.push(['game_period_start', String(body.gamePeriodStart)]);
   if (body.gamePeriodEnd != null && /^\d{4}-\d{2}-\d{2}$/.test(String(body.gamePeriodEnd))) updates.push(['game_period_end', String(body.gamePeriodEnd)]);

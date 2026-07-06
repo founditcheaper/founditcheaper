@@ -329,10 +329,18 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
 
       <div class="settings-card" style="margin-bottom:16px">
         <div class="settings-title">🎁 Prize & Competition Dates</div>
-        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Shown on the Daily Dice Roll page. Update it anytime — changes go live immediately.</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Shown on the Daily Dice Roll page. Update it anytime — changes go live immediately. The top 3 scorers each win their matching prize. Leave 2nd/3rd blank to award a single winner only.</div>
         <div class="field-group" style="margin-bottom:10px">
-          <label class="field-label">Prize</label>
+          <label class="field-label">🥇 1st place prize</label>
           <input type="text" id="gamePrizeInput" class="field-input" placeholder="$25 Amazon Gift Card" maxlength="120">
+        </div>
+        <div class="field-group" style="margin-bottom:10px">
+          <label class="field-label">🥈 2nd place prize <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+          <input type="text" id="gamePrize2Input" class="field-input" placeholder="$15 Amazon Gift Card" maxlength="120">
+        </div>
+        <div class="field-group" style="margin-bottom:10px">
+          <label class="field-label">🥉 3rd place prize <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+          <input type="text" id="gamePrize3Input" class="field-input" placeholder="$10 Amazon Gift Card" maxlength="120">
         </div>
         <div class="field-group" style="margin-bottom:12px">
           <label class="field-label">Details / deadline line</label>
@@ -1841,6 +1849,8 @@ async function loadSettings() {
     if (m.pinned_deals != null) { try { var _pa = JSON.parse(m.pinned_deals || '[]'); if (Array.isArray(_pa)) _pinned = _pa.map(String); } catch (e3) {} }
     renderPinPanel();
     if (m.game_prize != null && document.getElementById('gamePrizeInput')) document.getElementById('gamePrizeInput').value = m.game_prize;
+    if (m.game_prize_2 != null && document.getElementById('gamePrize2Input')) document.getElementById('gamePrize2Input').value = m.game_prize_2;
+    if (m.game_prize_3 != null && document.getElementById('gamePrize3Input')) document.getElementById('gamePrize3Input').value = m.game_prize_3;
     if (m.game_prize_sub != null && document.getElementById('gamePrizeSubInput')) document.getElementById('gamePrizeSubInput').value = m.game_prize_sub;
     if (m.game_period_start != null && document.getElementById('gameStartInput')) document.getElementById('gameStartInput').value = m.game_period_start;
     if (m.game_period_end != null && document.getElementById('gameEndInput')) document.getElementById('gameEndInput').value = m.game_period_end;
@@ -1880,6 +1890,8 @@ function setGamePreset(days) {
 }
 async function saveGameSettings() {
   var prize = (document.getElementById('gamePrizeInput').value || '').trim();
+  var prize2 = (document.getElementById('gamePrize2Input').value || '').trim();
+  var prize3 = (document.getElementById('gamePrize3Input').value || '').trim();
   var sub = (document.getElementById('gamePrizeSubInput').value || '').trim();
   var start = document.getElementById('gameStartInput').value;
   var end = document.getElementById('gameEndInput').value;
@@ -1890,7 +1902,7 @@ async function saveGameSettings() {
   try {
     var res = await fetch('/.netlify/functions/save-settings', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: sessionPass, gamePrize: prize, gamePrizeSub: sub, gamePeriodStart: start, gamePeriodEnd: end }),
+      body: JSON.stringify({ password: sessionPass, gamePrize: prize, gamePrize2: prize2, gamePrize3: prize3, gamePrizeSub: sub, gamePeriodStart: start, gamePeriodEnd: end }),
     });
     var d = await res.json();
     if (res.ok && d.ok) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Saved — live on the game page'; }

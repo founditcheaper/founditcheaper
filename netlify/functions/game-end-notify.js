@@ -74,44 +74,61 @@ exports.handler = async function () {
   players.sort(function (a, b) { return (b.total_score || 0) - (a.total_score || 0); });
 
   const range = start === end ? start : (start + ' to ' + end);
-  const prize = settings.game_prize || '';
-  const winner = players[0];
-  const winnerEmail = (winner && String(winner.email || '').trim()) || '';
+  const prizes = [settings.game_prize || '', settings.game_prize_2 || '', settings.game_prize_3 || ''];
+  const placeName = ['1st', '2nd', '3rd'];
 
-  // Give the winner a one-time claim token so their "Yes, send me my gift card" button
-  // works. Store it on their row (reuse one if it's somehow already set).
-  let claimToken = (winner && winner.claim_token) || '';
-  if (winner && winnerEmail && !claimToken) {
-    claimToken = crypto.randomBytes(16).toString('hex');
-    await fetch(`${sbUrl}/rest/v1/game_scores?id=eq.${encodeURIComponent(winner.id)}`, {
-      method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' },
-      body: JSON.stringify({ claim_token: claimToken }),
-    }).catch(function () { claimToken = ''; });
-  }
+  // The top 3 finishers by TOTAL score (base + referral bonus), each with a real score.
+  // Fewer than 3 players (or fewer with a score) just yields a shorter podium.
+  const winners = players.slice(0, 3).filter(function (p) { return (p.total_score || 0) > 0; });
 
-  const subject = winner
-    ? `Dice game ended (${range}) — winner: ${winner.username} (${winner.total_score} pts)`
-    : `Dice game ended (${range}) — no players`;
-
-  let html = `<h2 style="margin:0 0 8px">Dice game ended</h2><p style="margin:0 0 12px"><strong>Competition:</strong> ${esc(range)}${prize ? ` &middot; <strong>Prize:</strong> ${esc(prize)}` : ''}</p>`;
-  if (winner) {
-    html += `<p style="font-size:15px;margin:0 0 12px">🏆 <strong>Winner: ${esc(winner.username)}</strong> <span style="color:#888">#${esc(winner.player_tag || '?')}</span> — <strong>${winner.total_score} pts</strong><br><span style="color:#555">${esc(winner.email || '(no email on file)')}</span></p>`;
-    html += winnerEmail
-      ? `<p style="font-size:13px;color:#0a7d2c;margin:0 0 12px">We emailed the winner a "Yes, send me my gift card" button. You'll get a second email the moment they click it — that confirms a real person is on the other end before you send the gift card.</p>`
-      : `<p style="font-size:13px;color:#b00;margin:0 0 12px">This winner has no email on file, so we could not send them a claim link. Reach out via their standings info.</p>`;
-    html += `<p style="margin:0 0 4px"><strong>Top players:</strong></p><ol style="margin:0 0 12px;padding-left:20px">`;
-    players.slice(0, 10).forEach(function (p) { html += `<li>${esc(p.username)} <span style="color:#888">#${esc(p.player_tag || '?')}</span> — ${p.total_score} pts — <span style="color:#555">${esc(p.email || '')}</span></li>`; });
-    html += `</ol>`;
-  } else {
-    html += `<p>No one played this round.</p>`;
-  }
-  html += `<p style="color:#888;font-size:12px">Full standings + emails are in the admin panel → Dice Game.</p>`;
-
-  // 6) Send — first to Erik (required), then to the winner (best-effort).
   const transporter = nodemailer.createTransport({
     host: SMTP_HOST, port: SMTP_PORT, secure: true,
     auth: { user: FROM, pass: process.env.PRIVATE_EMAIL_PASS },
   });
+
+  // Give each winner a one-time claim token AND stamp their place, so the claim page can
+  // reveal the right prize and mark the right person confirmed. Reuse an existing token.
+  for (let i = 0; i < winners.length; i++) {
+    const w = winners[i];
+    let token = w.claim_token || '';
+    if (!token) token = crypto.randomBytes(16).toString('hex');
+    w._token = token;
+    await fetch(`${sbUrl}/rest/v1/game_scores?id=eq.${encodeURIComponent(w.id)}`, {
+      method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' },
+      body: JSON.stringify({ claim_token: token, win_place: i + 1 }),
+    }).catch(function () { w._token = ''; });
+  }
+
+  const winner = winners[0];
+  const subject = winner
+    ? `Dice game ended (${range}) — winner: ${winner.username} (${winner.total_score} pts)`
+    : `Dice game ended (${range}) — no players`;
+
+  // 6) Erik's summary email: the podium (place + prize + email) + full standings.
+  let html = `<h2 style="margin:0 0 8px">Dice game ended</h2><p style="margin:0 0 12px"><strong>Competition:</strong> ${esc(range)}</p>`;
+  if (winners.length) {
+    html += `<p style="margin:0 0 6px"><strong>Winners (top ${winners.length}):</strong></p><ol style="margin:0 0 12px;padding-left:20px">`;
+    winners.forEach(function (w, i) {
+      const pr = prizes[i];
+      const em = String(w.email || '').trim();
+      html += `<li style="margin-bottom:6px">${placeName[i]} place — <strong>${esc(w.username)}</strong> <span style="color:#888">#${esc(w.player_tag || '?')}</span> — <strong>${w.total_score} pts</strong>` +
+        (pr ? ` — prize: <strong>${esc(pr)}</strong>` : ` — <span style="color:#b00">no prize set for this place</span>`) +
+        `<br><span style="color:#555">${esc(em || '(no email on file)')}</span></li>`;
+    });
+    html += `</ol>`;
+    const anyEmailed = winners.some(function (w) { return String(w.email || '').trim() && w._token; });
+    html += anyEmailed
+      ? `<p style="font-size:13px;color:#0a7d2c;margin:0 0 12px">Each winner with an email on file got a "confirm it is you" button. You'll get a separate email the moment each one clicks it, before you send anything.</p>`
+      : `<p style="font-size:13px;color:#b00;margin:0 0 12px">No winner has an email on file, so we could not send claim links. Reach out via their standings info.</p>`;
+    html += `<p style="margin:0 0 4px"><strong>Full standings:</strong></p><ol style="margin:0 0 12px;padding-left:20px">`;
+    players.slice(0, 10).forEach(function (p) { html += `<li>${esc(p.username)} <span style="color:#888">#${esc(p.player_tag || '?')}</span> — ${p.total_score} pts — <span style="color:#555">${esc(p.email || '')}</span></li>`; });
+    html += `</ol>`;
+  } else {
+    html += `<p>No one scored this round.</p>`;
+  }
+  html += `<p style="color:#888;font-size:12px">Full standings + emails are in the admin panel → Games → Dice Game.</p>`;
+
+  // Send to Erik (required).
   try {
     await transporter.sendMail({ from: `founditcheaper <${FROM}>`, to: TO, subject: subject, html: html });
   } catch (e) {
@@ -119,29 +136,30 @@ exports.handler = async function () {
     return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'send failed: ' + String(e.message).slice(0, 160) }) };
   }
 
-  // Tell the winner they won and give them the confirm button.
-  if (winnerEmail && claimToken) {
+  // Email each winner their confirm button (best-effort). Wording is place-agnostic and
+  // deliverability-safe (no gift card / prize / won / free / $ amounts). The exact place
+  // and prize are revealed on the confirmation page, which isn't spam-filtered.
+  for (let i = 0; i < winners.length; i++) {
+    const w = winners[i];
+    const wEmail = String(w.email || '').trim();
+    if (!wEmail || !w._token) continue;
     try {
-      const claimUrl = 'https://founditcheaper.net/claim-prize/' + claimToken;
-      // Deliverability first: the winner has to actually SEE this, so we keep it plain and
-      // avoid the words spam filters hate (gift card, prize, won, free, $ amounts). We lead
-      // with the game they played, ask them to confirm, and offer a plain reply as a backup.
-      // The actual reward is revealed on the confirmation page (not email-filtered).
+      const claimUrl = 'https://founditcheaper.net/claim-prize/' + w._token;
       const wHtml =
         '<div style="font-family:Arial,Helvetica,sans-serif;color:#111;max-width:520px;font-size:15px;line-height:1.55">' +
-          '<p style="margin:0 0 12px">Hey, you had the top score in the founditcheaper dice game this round.</p>' +
+          '<p style="margin:0 0 12px">Hey, you finished as one of the top players in the founditcheaper dice game this round.</p>' +
           '<p style="margin:0 0 14px">Before we sort out the details, confirm it is really you:</p>' +
           '<p style="margin:0 0 16px"><a href="' + claimUrl + '" style="background:#f5c842;color:#0a1a2f;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:6px;display:inline-block">Confirm it is me</a></p>' +
           '<p style="margin:0 0 14px;color:#333">Or just reply to this email with a yes, and we will take it from there.</p>' +
           '<p style="font-size:13px;color:#555;margin:0 0 4px">Why the step: emails get missed sometimes, and not every address is a real person. This is how we know someone real is on the other end before we send anything out.</p>' +
           '<p style="font-size:12px;color:#999;margin:12px 0 0">If this was not you, you can ignore this email.</p>' +
         '</div>';
-      const wText = 'You had the top score in the founditcheaper dice game this round. '
+      const wText = 'You finished as one of the top players in the founditcheaper dice game this round. '
         + 'Confirm it is really you here: ' + claimUrl + '. Or reply to this email with a yes. '
         + 'We ask because emails get missed and not every address is a real person, so this tells us '
         + 'someone real is on the other end. If this was not you, ignore this email.';
       await transporter.sendMail({
-        from: `founditcheaper <${FROM}>`, to: winnerEmail,
+        from: `founditcheaper <${FROM}>`, to: wEmail,
         subject: 'Your founditcheaper dice game result',
         html: wHtml,
         text: wText,
@@ -157,6 +175,6 @@ exports.handler = async function () {
     });
   } catch (e) { console.error('[game-end-notify] marker write failed:', e.message); }
 
-  console.log(`[game-end-notify] emailed winner for ${range}`);
-  return { statusCode: 200, body: JSON.stringify({ ok: true, notified: start, winner: winner ? winner.username : null }) };
+  console.log(`[game-end-notify] emailed ${winners.length} winner(s) for ${range}`);
+  return { statusCode: 200, body: JSON.stringify({ ok: true, notified: start, winners: winners.map(function (w) { return w.username; }) }) };
 };

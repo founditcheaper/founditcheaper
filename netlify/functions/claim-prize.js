@@ -45,17 +45,21 @@ exports.handler = async function (event) {
 
   try {
     // Find the winner row for this token.
-    const gr = await fetch(`${sbUrl}/rest/v1/game_scores?claim_token=eq.${encodeURIComponent(token)}&select=id,username,player_tag,email,week_score,week_start,claimed_at`, { headers: H });
+    const gr = await fetch(`${sbUrl}/rest/v1/game_scores?claim_token=eq.${encodeURIComponent(token)}&select=id,username,player_tag,email,week_score,week_start,claimed_at,win_place`, { headers: H });
     const rows = await gr.json().catch(function () { return []; });
     const win = Array.isArray(rows) && rows[0];
     if (!win) return { statusCode: 200, headers: HTML, body: page('Link not found', 'We could not find that claim. If you won and want your gift card, reply to the email we sent you.') };
 
     const already = !!win.claimed_at;
 
-    // Read the prize label (nice to show Erik + the winner).
+    // Which place did they finish? Read the matching prize (1st/2nd/3rd). Rows from before
+    // the podium change (or a single-winner game) have no win_place and default to 1st.
+    const place = ([1, 2, 3].indexOf(Number(win.win_place)) !== -1) ? Number(win.win_place) : 1;
+    const prizeKey = place === 2 ? 'game_prize_2' : place === 3 ? 'game_prize_3' : 'game_prize';
+    const placeLabel = place === 2 ? '2nd place' : place === 3 ? '3rd place' : '1st place';
     let prize = '';
     try {
-      const sr = await fetch(`${sbUrl}/rest/v1/settings?key=eq.game_prize&select=value`, { headers: H });
+      const sr = await fetch(`${sbUrl}/rest/v1/settings?key=eq.${prizeKey}&select=value`, { headers: H });
       const srows = await sr.json().catch(function () { return []; });
       if (Array.isArray(srows) && srows[0]) prize = srows[0].value || '';
     } catch (e) { /* prize is optional */ }
@@ -72,28 +76,29 @@ exports.handler = async function (event) {
           const range = win.week_start || '';
           const html =
             '<div style="font-family:Arial,Helvetica,sans-serif;color:#111;max-width:520px">' +
-              '<h2 style="margin:0 0 10px">Dice winner confirmed</h2>' +
-              '<p style="font-size:15px;margin:0 0 6px">A real person clicked to confirm their win. You can send the gift card.</p>' +
-              '<p style="font-size:15px;margin:0 0 4px"><strong>' + esc(win.username || 'Winner') + '</strong> <span style="color:#888">#' + esc(win.player_tag || '?') + '</span> — ' + (win.week_score != null ? esc(win.week_score) + ' pts' : '') + '</p>' +
-              '<p style="font-size:15px;margin:0 0 4px">Send the gift card to: <strong>' + esc(win.email || '(no email on file)') + '</strong></p>' +
-              (prize ? '<p style="font-size:14px;color:#333;margin:0 0 4px">Prize: ' + esc(prize) + '</p>' : '') +
+              '<h2 style="margin:0 0 10px">Dice ' + placeLabel + ' winner confirmed</h2>' +
+              '<p style="font-size:15px;margin:0 0 6px">A real person clicked to confirm their win. You can send the reward.</p>' +
+              '<p style="font-size:15px;margin:0 0 4px">' + placeLabel + ' — <strong>' + esc(win.username || 'Winner') + '</strong> <span style="color:#888">#' + esc(win.player_tag || '?') + '</span> — ' + (win.week_score != null ? esc(win.week_score) + ' pts' : '') + '</p>' +
+              '<p style="font-size:15px;margin:0 0 4px">Send the reward to: <strong>' + esc(win.email || '(no email on file)') + '</strong></p>' +
+              (prize ? '<p style="font-size:14px;color:#333;margin:0 0 4px">Prize (' + placeLabel + '): ' + esc(prize) + '</p>' : '') +
               (range ? '<p style="font-size:12px;color:#888;margin:8px 0 0">Competition: ' + esc(range) + '</p>' : '') +
               '<p style="font-size:12px;color:#888;margin:8px 0 0">They confirmed by clicking the button in their winner email, so someone real is on the other end.</p>' +
             '</div>';
           const transporter = nodemailer.createTransport({ host: SMTP_HOST, port: SMTP_PORT, secure: true, auth: { user: FROM, pass: process.env.PRIVATE_EMAIL_PASS } });
           await transporter.sendMail({
             from: `founditcheaper <${FROM}>`, to: OWNER_TO,
-            subject: 'Dice winner confirmed — send the gift card' + (win.username ? ' (' + win.username + ')' : ''),
+            subject: 'Dice ' + placeLabel + ' winner confirmed — send the reward' + (win.username ? ' (' + win.username + ')' : ''),
             html,
           });
         } catch (e) { console.error('[claim-prize] owner email failed:', e.message); }
       }
     }
 
-    const prizeLine = prize ? (' your <strong>' + esc(prize) + '</strong>') : ' your gift card';
+    const placeIntro = 'You finished <strong>' + placeLabel + '</strong> in the dice game this round. ';
+    const prizeLine = prize ? (' your <strong>' + esc(prize) + '</strong>') : ' your reward';
     const msg = already
-      ? 'You already confirmed this one. We have your details and will send' + prizeLine + ' to ' + esc(win.email || 'your email') + '. Nothing else to do.'
-      : 'Confirmed. We will send' + prizeLine + ' to <strong>' + esc(win.email || 'your email') + '</strong>. Give it a little time. A real human sends these out.';
+      ? placeIntro + 'You already confirmed this one. We have your details and will send' + prizeLine + ' to ' + esc(win.email || 'your email') + '. Nothing else to do.'
+      : placeIntro + 'Confirmed. We will send' + prizeLine + ' to <strong>' + esc(win.email || 'your email') + '</strong>. Give it a little time. A real human sends these out.';
     return { statusCode: 200, headers: HTML, body: page('You are confirmed', msg) };
   } catch (e) {
     return { statusCode: 500, headers: HTML, body: page('Something went wrong', 'Try again in a bit, or reply to the email we sent you.') };

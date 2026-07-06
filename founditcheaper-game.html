@@ -331,6 +331,7 @@
   <div class="prize-banner">
     <div class="prize-eyebrow">🎁 This Round's Prize</div>
     <div class="prize-text" id="prizeText">$25 Amazon Gift Card</div>
+    <div class="prize-ladder" id="prizeLadder" style="font-size:12px;color:var(--text-soft);font-weight:600;line-height:1.7;margin-bottom:4px"></div>
     <div class="prize-sub" id="prizeSub">Highest score by the end of the round wins · One roll per hour</div>
     <div class="week-range" id="weekRange"></div>
   </div>
@@ -1143,11 +1144,23 @@ renderDie(document.getElementById('die2'), 2);
 // Prize + competition period are editable from the admin panel (settings table).
 async function loadGameSettings() {
   try {
-    var res = await _sb.from('settings').select('key,value').in('key', ['game_prize', 'game_prize_sub', 'game_period_start', 'game_period_end', 'game_ended']);
+    var res = await _sb.from('settings').select('key,value').in('key', ['game_prize', 'game_prize_2', 'game_prize_3', 'game_prize_sub', 'game_period_start', 'game_period_end', 'game_ended']);
     if (res && res.data) {
       var m = {}; res.data.forEach(function (r) { m[r.key] = r.value; });
       _gameEnded = (m.game_ended === '1' || m.game_ended === 'true');
-      if (m.game_prize) document.getElementById('prizeText').textContent = m.game_prize;
+      var hasLadder = !!(m.game_prize && (m.game_prize_2 || m.game_prize_3));
+      if (m.game_prize) document.getElementById('prizeText').textContent = (hasLadder ? '🥇 ' : '') + m.game_prize;
+      // Prize ladder: list 2nd/3rd place prizes under the 1st when they're set.
+      var pl = document.getElementById('prizeLadder');
+      if (pl) {
+        pl.innerHTML = '';
+        if (hasLadder) {
+          var eb = document.querySelector('.prize-eyebrow'); if (eb) eb.textContent = "🎁 This Round's Prizes";
+          function addPrizeRow(medal, label, val) { var d = document.createElement('div'); d.textContent = medal + ' ' + label + ': ' + val; pl.appendChild(d); }
+          if (m.game_prize_2) addPrizeRow('🥈', '2nd place', m.game_prize_2);
+          if (m.game_prize_3) addPrizeRow('🥉', '3rd place', m.game_prize_3);
+        }
+      }
       if (m.game_prize_sub) document.getElementById('prizeSub').textContent = m.game_prize_sub;
       if (m.game_period_start && m.game_period_end) {
         _gameStart = m.game_period_start; _gameEnd = m.game_period_end;   // raw YYYY-MM-DD for the live check
