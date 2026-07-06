@@ -23,16 +23,20 @@ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function 
 // any failure is swallowed so it never blocks saving the request. The off link is the
 // SAME per-item token the match emails use, so "turn it off from that email" works from
 // the very first message. No affiliate/Amazon link here (email compliance).
-async function sendConfirmation(to, label, stopUrl, targetPrice) {
+async function sendConfirmation(to, label, stopUrl, targetPrice, img) {
   try {
     if (!process.env.PRIVATE_EMAIL_PASS) return false;
     if (!to || !to.includes('@')) return false;
     const priceLine = targetPrice
       ? '<p style="font-size:14px;color:#333;margin:0 0 12px">We will email you when it is at or under $' + Math.round(targetPrice) + '.</p>'
       : '<p style="font-size:14px;color:#333;margin:0 0 12px">We will email you when it drops to a good price.</p>';
+    const imgTag = (img && /^https?:\/\//i.test(img))
+      ? '<img src="' + esc(img) + '" alt="" width="150" style="display:block;width:150px;max-width:150px;height:auto;border-radius:8px;border:1px solid #eee;margin:0 0 14px">'
+      : '';
     const html =
       '<div style="font-family:Arial,Helvetica,sans-serif;color:#111;max-width:520px">' +
         '<p style="font-size:15px;margin:0 0 6px">Your alert is on.</p>' +
+        imgTag +
         '<p style="font-size:15px;margin:0 0 4px">We are watching for <strong>' + esc(label) + '</strong> as deals come in.</p>' +
         priceLine +
         '<p style="font-size:13px;color:#555;margin:0 0 16px">You can turn this alert off at any time:</p>' +
@@ -103,6 +107,52 @@ async function identifyFromImage(dataUrl) {
   } catch (e) { return null; }
 }
 
+// Amazon app share links (a.co / amzn.to) carry no ASIN in the URL, so extractAsin fails and
+// the email falls back to "the item you linked". Follow the short link (HEAD, follow redirects
+// — no page download) to the full URL and read the ASIN out of it. a.co is Amazon's own link
+// shortener, so this is just resolving a redirect, not scraping a product page.
+async function resolveAsin(url) {
+  let asin = extractAsin(url);
+  if (asin) return asin;
+  if (/\b(?:a\.co|amzn\.to|amzn\.com)\//i.test(url)) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 4500);
+      const r = await fetch(url, { method: 'HEAD', redirect: 'follow', signal: ctrl.signal,
+        headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)' } });
+      clearTimeout(t);
+      asin = extractAsin(r.url || '');
+    } catch (e) { /* ignore — falls back to the generic label */ }
+  }
+  return asin;
+}
+
+// Get the real product name + image for an ASIN, compliantly: FIRST our own deals table (free,
+// instant, covers items already on the site), THEN the sanctioned Amazon Creators API via the
+// fetch-product function. No Amazon page scraping. Best-effort; returns null if both miss.
+async function enrichFromAsin(asin) {
+  const sbUrl = process.env.SUPABASE_URL, sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (sbUrl && sbKey) {
+    try {
+      const r = await fetch(`${sbUrl}/rest/v1/deals?url=ilike.*${encodeURIComponent(asin)}*&select=name,img&limit=1`,
+        { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } });
+      const j = await r.json();
+      if (Array.isArray(j) && j[0] && j[0].name) return { name: j[0].name, img: j[0].img || null };
+    } catch (e) { /* fall through to the API */ }
+  }
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 5000);
+    const r = await fetch(SITE + '/.netlify/functions/fetch-product', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ asin }), signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    if (r.ok) { const j = await r.json(); if (j && j.name) return { name: j.name, img: j.img || null }; }
+  } catch (e) { /* ignore — generic label */ }
+  return null;
+}
+
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
   let body;
@@ -139,11 +189,23 @@ exports.handler = async function (event) {
     }
   } else if (isUrl(query)) {
     if (isWalmart(query)) { type = 'link'; store = 'Walmart'; }
-    else { asin = extractAsin(query); type = asin ? 'asin' : 'link'; store = 'Amazon'; }
+    else { asin = await resolveAsin(query); type = asin ? 'asin' : 'link'; store = 'Amazon'; }
   } else {
     keywords = toKeywords(query);
     if (!keywords.length) {
       return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Add a few more words describing the item' }) };
+    }
+  }
+
+  // For an Amazon ASIN, pull the real product name + image so the confirmation shows the actual
+  // item (and a picture) instead of "the item you linked". Best-effort; never blocks the save.
+  let enrichedImg = null;
+  if (asin) {
+    const info = await enrichFromAsin(asin);
+    if (info && info.name) {
+      queryText = info.name;                                     // store + show the real name
+      if (!keywords.length) keywords = toKeywords(info.name);    // and match on it too
+      enrichedImg = info.img || null;
     }
   }
 
@@ -188,9 +250,10 @@ exports.handler = async function (event) {
   }
 
   // Confirm the alert + give them the off switch (best-effort; never blocks the save).
-  const label = (type === 'asin' || type === 'link') ? 'the item you linked' : (queryText || 'your item');
+  // Show the resolved product name when we have it; otherwise the generic line.
+  const label = (queryText && !isUrl(queryText)) ? queryText : 'the item you linked';
   const stopUrl = SITE + '/stop-alert/' + alertToken;
-  const confirmed = await sendConfirmation(email, label, stopUrl, targetPrice);
+  const confirmed = await sendConfirmation(email, label, stopUrl, targetPrice, enrichedImg);
 
   return { statusCode: 200, body: JSON.stringify({ ok: true, confirmed: confirmed }) };
 };
