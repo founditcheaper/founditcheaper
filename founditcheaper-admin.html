@@ -225,6 +225,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
     <!-- TABS -->
     <div class="tabs">
       <button class="tab active" id="tabbtn-promocodes" onclick="_pcSource='';switchTab('promocodes')">📤 Uploaded Deals</button>
+      <button class="tab" id="tabbtn-finder" onclick="switchTab('finder')">🔎 Deal Finder</button>
       <button class="tab" id="tabbtn-games" onclick="switchTab('games')">🎮 Games</button>
       <button class="tab" id="tabbtn-picks" onclick="switchTab('picks')">📋 Today's Top Deal Picks</button>
       <button class="tab" id="tabbtn-autopicker" onclick="switchTab('autopicker')">🤖 Auto-Fill &amp; Schedule</button>
@@ -472,6 +473,17 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       </div>
     </div>
 
+    <!-- TAB: DEAL FINDER (demo) — search your catalog + Amazon on demand, import, share -->
+    <div class="tab-content" id="tab-finder">
+      <div class="section-title" style="margin-bottom:4px">🔎 Deal Finder <span style="font-size:12px;color:var(--muted);font-weight:400">— demo</span></div>
+      <div class="section-sub" style="margin-bottom:16px">Type a product someone asked for. It searches your live deals AND Amazon on the spot. Add one to the site and copy its share link. If nothing turns up, you'll see the "watch it for me" catch a customer would get.</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input class="field-input" id="finderQuery" placeholder="e.g. dewalt cordless drill kit" onkeydown="if(event.key==='Enter')runFinder()" style="flex:1">
+        <button class="btn btn-primary" id="finderBtn" onclick="runFinder()" style="flex-shrink:0">Search</button>
+      </div>
+      <div id="finderResults"></div>
+    </div>
+
     <!-- TAB: PROMO CODE DEALS (All Deals grid) -->
     <div class="tab-content active" id="tab-promocodes">
       <div class="section-header">
@@ -713,11 +725,12 @@ function applyTabVisibility() {
   _setTabVis('autopicker', _picksEnabled && !vaOnly);   // Auto-Fill & Schedule
   _setTabVis('games', !vaOnly);
   _setTabVis('hidden', !vaOnly);                         // Hidden Features (owner-only)
+  _setTabVis('finder', !vaOnly);                         // Deal Finder demo (owner-only)
   // If the currently-open tab just got hidden, fall back to Uploaded Deals.
   var active = document.querySelector('.tab-content.active');
   if (active) {
     var aid = active.id.replace('tab-', '');
-    if ((aid === 'picks' && !_picksEnabled) || (aid === 'autopicker' && (!_picksEnabled || vaOnly)) || ((aid === 'games' || aid === 'hidden') && vaOnly)) switchTab('promocodes');
+    if ((aid === 'picks' && !_picksEnabled) || (aid === 'autopicker' && (!_picksEnabled || vaOnly)) || ((aid === 'games' || aid === 'hidden' || aid === 'finder') && vaOnly)) switchTab('promocodes');
   }
 }
 function setPicksEnabled(on) {
@@ -1030,6 +1043,105 @@ async function savePins() {
     var res = await fetch('/.netlify/functions/save-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, pinnedDeals: _pinned }) });
     var d = await res.json();
     showToast(d.ok ? (_pinned.length ? 'Featured deals saved (' + _pinned.length + ')' : 'Featured deals cleared') : 'Save failed' + (d.error ? ': ' + d.error : ''));
+  } catch (e) { showToast('Network error'); }
+}
+
+// ── DEAL FINDER (demo) — search catalog + Amazon on demand, import, share ──────
+var _finderAmazon = [];
+async function runFinder() {
+  var q = (document.getElementById('finderQuery').value || '').trim();
+  var out = document.getElementById('finderResults');
+  if (q.length < 2) { out.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:10px">Type a product to search.</div>'; return; }
+  var btn = document.getElementById('finderBtn'); btn.disabled = true; btn.textContent = 'Searching…';
+  out.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:14px">Searching your deals and Amazon…</div>';
+  var terms = q.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean).slice(0, 6);
+  var onSite = [], amazon = [];
+  // 1) your live catalog (all terms present, in order-ish, via ilike)
+  try {
+    var pat = '*' + terms.join('*') + '*';
+    var r = await fetch(_ADMIN_SB_URL + '/rest/v1/deals?review_status=eq.live&name=ilike.' + encodeURIComponent(pat) + '&select=id,name,price,was,off,img,store,code,url&limit=10', { headers: { apikey: _ADMIN_SB_KEY, Authorization: 'Bearer ' + _ADMIN_SB_KEY } });
+    var rows = await r.json(); if (Array.isArray(rows)) onSite = rows;
+  } catch (e) {}
+  // 2) live Amazon keyword search (products not on the site yet)
+  try {
+    var ar = await fetch('/.netlify/functions/search-products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keywords: q }) });
+    var ad = await ar.json(); if (ad && Array.isArray(ad.items)) amazon = ad.items;
+  } catch (e) {}
+  var have = {}; onSite.forEach(function (d) { var a = _asinFromUrl(d.url || ''); if (a) have[a] = 1; });
+  amazon = amazon.filter(function (x) { return x.asin && !have[x.asin]; });   // drop ones already on site
+  btn.disabled = false; btn.textContent = 'Search';
+  renderFinder(q, onSite, amazon);
+}
+function _finderCard(d, source, idx) {
+  var img = d.img ? '<img src="' + d.img + '" style="width:54px;height:54px;object-fit:contain;background:#fff;border-radius:6px;flex-shrink:0" onerror="this.style.display=\'none\'">' : '';
+  var price = Math.round(Number(d.price) || 0), was = d.was ? Math.round(Number(d.was)) : 0, off = Number(d.off) || 0;
+  var priceLine = '<span style="color:#4ade80;font-weight:800">$' + price + '</span>' + (was > price ? ' <span style="color:var(--muted);text-decoration:line-through">$' + was + '</span>' : '') + (off ? ' <span style="color:#f87171;font-weight:700"> ' + off + '% off</span>' : '');
+  var badge, action;
+  if (source === 'site') {
+    badge = '<span style="font-size:10px;font-weight:800;color:#4ade80;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.4);padding:1px 7px;border-radius:4px">● On your site</span>';
+    action = '<button class="abtn" style="width:auto;padding:8px 12px" onclick="finderCopy(\'' + d.id + '\', this)">🔗 Copy share link</button>';
+  } else {
+    badge = '<span style="font-size:10px;font-weight:800;color:#f5c842;background:rgba(245,200,66,0.12);border:1px solid rgba(245,200,66,0.4);padding:1px 7px;border-radius:4px">Amazon · not on site yet</span>';
+    action = '<button class="abtn abtn-gold" style="width:auto;padding:8px 12px" onclick="finderAdd(' + idx + ', this)">+ Add to site &amp; get link</button>';
+  }
+  return '<div class="pc-card" style="border:1px solid var(--border)"><div class="pc-main">' + img +
+    '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(d.name || '') + '</div>' +
+    '<div style="font-size:12px;margin-top:2px">' + priceLine + '</div><div style="margin-top:4px">' + badge + '</div></div></div>' +
+    '<div class="pc-actions">' + action + '</div></div>';
+}
+function renderFinder(q, onSite, amazon) {
+  var out = document.getElementById('finderResults');
+  _finderAmazon = amazon;
+  if (!onSite.length && !amazon.length) {
+    out.innerHTML = '<div class="settings-card" style="border-color:rgba(245,200,66,0.35)">' +
+      '<div class="settings-title">No live deal found for "' + _esc(q) + '"</div>' +
+      '<div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">This is the moment a customer would normally give up and leave. Instead they see the catch below — it drops into your Deal Alert system, and the second you add the product, they get the link automatically.</div>' +
+      '<div style="background:rgba(255,255,255,0.04);border:1px dashed var(--border);border-radius:10px;padding:14px">' +
+        '<div style="font-size:14px;color:#fff;font-weight:700;margin-bottom:6px">Didn\'t find that one. Want me to hunt it down?</div>' +
+        '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Drop your email and I\'ll send you the link the moment I\'ve got it.</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+          '<input class="field-input" id="finderEmail" type="email" placeholder="you@email.com" style="flex:1;min-width:170px">' +
+          '<span style="font-size:12px;color:var(--muted)">under $</span><input class="field-input no-spin" id="finderTarget" type="number" placeholder="any" style="width:78px">' +
+          '<button class="btn btn-primary" onclick="finderNotify(this)">Notify me</button>' +
+        '</div></div></div>';
+    var nb = out.querySelector('.btn-primary'); if (nb) nb.setAttribute('data-q', q);
+    return;
+  }
+  var html = '';
+  if (onSite.length) html += '<div style="font-size:12px;color:var(--muted);margin:0 0 8px;font-weight:700">On your site (' + onSite.length + ') — copy the link</div>' + onSite.map(function (d) { return _finderCard(d, 'site'); }).join('');
+  if (amazon.length) html += '<div style="font-size:12px;color:var(--muted);margin:14px 0 8px;font-weight:700">On Amazon, not on your site yet (' + amazon.length + ') — add to import + share</div>' + amazon.map(function (d, i) { return _finderCard(d, 'amazon', i); }).join('');
+  out.innerHTML = html;
+}
+function finderCopy(id, btn) {
+  navigator.clipboard.writeText('https://founditcheaper.net/?deal=' + id).then(function () { var o = btn.textContent; btn.textContent = '✓ Copied'; setTimeout(function () { btn.textContent = o; }, 1500); });
+}
+async function finderAdd(i, btn) {
+  var p = _finderAmazon[i]; if (!p) return;
+  btn.disabled = true; var orig = btn.textContent; btn.textContent = 'Adding…';
+  try {
+    var res = await fetch('/.netlify/functions/add-manual-deal', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass, store: 'Amazon', name: p.name, url: 'https://www.amazon.com/dp/' + p.asin, img: p.img, price: p.price, was: p.was }),
+    });
+    var d = await res.json();
+    if (d.ok && d.id) {
+      var url = 'https://founditcheaper.net/?deal=' + d.id;
+      btn.outerHTML = '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="color:#4ade80;font-size:12px;font-weight:700">✓ Live</span><button class="abtn" style="width:auto;padding:8px 12px" onclick="navigator.clipboard.writeText(\'' + url + '\');this.textContent=\'✓ Copied\'">🔗 Copy link</button></div>';
+    } else { btn.disabled = false; btn.textContent = orig; showToast('Add failed' + (d.error ? ': ' + d.error : '')); }
+  } catch (e) { btn.disabled = false; btn.textContent = orig; showToast('Network error'); }
+}
+async function finderNotify(btn) {
+  var q = btn.getAttribute('data-q') || '';
+  var email = (document.getElementById('finderEmail').value || '').trim();
+  var tp = document.getElementById('finderTarget').value;
+  if (!email || email.indexOf('@') < 0) { showToast('Enter an email'); return; }
+  try {
+    var res = await fetch('/.netlify/functions/save-deal-request', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, query: q, targetPrice: tp ? Number(tp) : null }),
+    });
+    var d = await res.json();
+    showToast(d.ok ? ('Saved — they get the link when it is found' + (d.confirmed ? ' (confirmation sent)' : '')) : ('Failed' + (d.error ? ': ' + d.error : '')));
   } catch (e) { showToast('Network error'); }
 }
 async function approveDealById(id) {
