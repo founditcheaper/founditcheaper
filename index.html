@@ -975,11 +975,9 @@ var HIDE_BANNER = false;
 // pinned_deals: ordered deal ids (strings) the admin pins to the very top of All Deals
 // (paid placements). Applied only on the pristine landing view — see applyPins().
 var PINNED = [];
-// DEAL FINDER (hidden test flag): when a search comes up empty, offer a deep Amazon search
-// instead of a dead "no results". Gated by ?finder=1 (persisted) so only we see it for now.
-var FINDER_ON = /[?&]finder=1/.test(location.search) || (function () { try { return localStorage.getItem('fic_finder') === '1'; } catch (e) { return false; } })();
-if (/[?&]finder=1/.test(location.search)) { try { localStorage.setItem('fic_finder', '1'); } catch (e) {} }
-if (/[?&]finder=0/.test(location.search)) { try { localStorage.removeItem('fic_finder'); } catch (e) {} FINDER_ON = false; }
+// DEAL FINDER: when a search comes up empty, offer a deep Amazon search instead of a dead
+// "no results". LIVE for everyone; ?finder=0 disables it (debug / compare to the old empty state).
+var FINDER_ON = !/[?&]finder=0/.test(location.search);
 var _siteFinderQ = '';
 function _fesc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
 function _fq(q) { q = String(q || ''); return _fesc(q.length > 46 ? q.slice(0, 46) + '…' : q); }   // safe, capped query for headings
@@ -1408,7 +1406,9 @@ function getFiltered() {
     if (state.promoOnly && !p.code) return false;
     if (state.store !== 'all' && p.store !== state.store) return false;
     if (state.category !== 'all' && p.category !== state.category) return false;
-    if (state.dateAdded !== 'all' && p.addedDay !== state.dateAdded) return false;
+    // A search looks across ALL days (ignore the day filter) — so it only comes up empty on a
+    // genuine miss, not just because the item is from an earlier day than today's default.
+    if (state.dateAdded !== 'all' && !state.search && p.addedDay !== state.dateAdded) return false;
     if (state.search) {
       var q = state.search.toLowerCase();
       var hay = (p.name + ' ' + p.brandName + ' ' + p.category + ' ' + p.store).toLowerCase();
