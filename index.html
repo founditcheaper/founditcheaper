@@ -972,6 +972,13 @@ var HIDE_BANNER = false;
 // pinned_deals: ordered deal ids (strings) the admin pins to the very top of All Deals
 // (paid placements). Applied only on the pristine landing view — see applyPins().
 var PINNED = [];
+// DEAL FINDER (hidden test flag): when a search comes up empty, offer a deep Amazon search
+// instead of a dead "no results". Gated by ?finder=1 (persisted) so only we see it for now.
+var FINDER_ON = /[?&]finder=1/.test(location.search) || (function () { try { return localStorage.getItem('fic_finder') === '1'; } catch (e) { return false; } })();
+if (/[?&]finder=1/.test(location.search)) { try { localStorage.setItem('fic_finder', '1'); } catch (e) {} }
+if (/[?&]finder=0/.test(location.search)) { try { localStorage.removeItem('fic_finder'); } catch (e) {} FINDER_ON = false; }
+var _siteFinderQ = '';
+function _fesc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
 
 // ── ALL DEALS DATA (populated from Supabase) ─────────────────────────
 var allProducts = [];
@@ -1533,9 +1540,16 @@ function resetAndRender() {
   var noRes = document.getElementById('noResults');
   var count = document.getElementById('resultsCount');
   if (filtered.length === 0) {
-    noRes.innerHTML = allProducts.length === 0
-      ? '<p>No deals yet. Check back soon. 🔍</p>'
-      : '<p>No deals match your filters.</p>';
+    // Hidden test: on an empty SEARCH (not just a filter combo), offer a deep Amazon search
+    // instead of a dead end. Everyone else still sees the normal message.
+    if (FINDER_ON && state.search && allProducts.length > 0) {
+      _siteFinderQ = state.search;
+      noRes.innerHTML = _finderPromptHtml(state.search);
+    } else {
+      noRes.innerHTML = allProducts.length === 0
+        ? '<p>No deals yet. Check back soon. 🔍</p>'
+        : '<p>No deals match your filters.</p>';
+    }
     noRes.classList.add('visible'); count.textContent = 'No results';
     window.scrollTo(0, savedScroll); return;
   }
@@ -1545,6 +1559,62 @@ function resetAndRender() {
   window.scrollTo(0, savedScroll);
 }
 
+
+// ── DEAL FINDER (customer-facing, hidden behind ?finder=1) ────────────────────
+// Tier 2: empty search → offer a deep Amazon search. Tier 3: that's empty too → capture.
+function _finderPromptHtml(q) {
+  return '<div style="text-align:center;padding:26px 16px;max-width:520px;margin:0 auto">'
+    + '<div style="font-size:34px;margin-bottom:8px">🔍</div>'
+    + '<div style="font-size:16px;color:#fff;font-weight:800;margin-bottom:6px">We don\'t have &ldquo;' + _fesc(q) + '&rdquo; on our shelves</div>'
+    + '<div style="font-size:13px;color:#8aa0b4;line-height:1.6;margin-bottom:18px">Want us to do a deep search across Amazon for it? Takes a couple seconds.</div>'
+    + '<button onclick="siteFinderSearch()" style="background:#f5c842;color:#0a1f33;font-weight:800;border:none;border-radius:9px;padding:13px 24px;font-size:15px;cursor:pointer">🔎 Search Amazon for this</button>'
+    + '</div>';
+}
+async function siteFinderSearch() {
+  var q = _siteFinderQ, box = document.getElementById('noResults');
+  box.innerHTML = '<div style="text-align:center;padding:30px 16px;color:#8aa0b4"><div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:6px">Searching Amazon for &ldquo;' + _fesc(q) + '&rdquo;…</div><div style="font-size:13px">Hang tight — doing a deep search.</div></div>';
+  var items = [];
+  try {
+    var r = await fetch('/.netlify/functions/search-products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keywords: q }) });
+    var d = await r.json(); if (d && Array.isArray(d.items)) items = d.items;
+  } catch (e) {}
+  if (!items.length) { box.innerHTML = _finderCatchHtml(q); return; }
+  var cards = items.slice(0, 8).map(_finderResultCard).join('');
+  box.innerHTML = '<div style="max-width:660px;margin:0 auto;padding:6px 0">'
+    + '<div style="text-align:center;font-size:15px;color:#fff;font-weight:800;margin-bottom:4px">Here\'s what we found for &ldquo;' + _fesc(q) + '&rdquo;</div>'
+    + '<div style="text-align:center;font-size:12px;color:#8aa0b4;margin-bottom:18px">A deep Amazon search. Some have discounts, some don\'t — but here they are.</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' + cards + '</div></div>';
+}
+function _finderResultCard(p) {
+  var price = Math.round(Number(p.price) || 0), was = p.was ? Math.round(Number(p.was)) : 0, off = Number(p.off) || 0;
+  var img = p.img ? '<img src="' + p.img + '" alt="" style="width:100%;height:130px;object-fit:contain;background:#fff;border-radius:8px" onerror="this.style.opacity=0">' : '';
+  return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px">'
+    + img
+    + '<div style="font-size:12px;color:#fff;font-weight:600;line-height:1.35;height:2.7em;overflow:hidden">' + _fesc(p.name) + '</div>'
+    + '<div style="font-size:14px"><span style="color:#4ade80;font-weight:800">$' + price + '</span>' + (was > price ? ' <span style="color:#8aa0b4;text-decoration:line-through;font-size:12px">$' + was + '</span>' : '') + (off ? ' <span style="color:#f5c842;font-weight:700;font-size:12px">' + off + '% off</span>' : '') + '</div>'
+    + '<a href="/deal/' + p.asin + '" target="_blank" rel="noopener" style="margin-top:auto;text-align:center;background:#f5c842;color:#0a1f33;font-weight:800;text-decoration:none;border-radius:8px;padding:9px;font-size:13px">View on Amazon →</a>'
+    + '</div>';
+}
+function _finderCatchHtml(q) {
+  return '<div style="text-align:center;padding:26px 16px;max-width:520px;margin:0 auto">'
+    + '<div style="font-size:16px;color:#fff;font-weight:800;margin-bottom:6px">Couldn\'t find &ldquo;' + _fesc(q) + '&rdquo; on sale right now</div>'
+    + '<div style="font-size:13px;color:#8aa0b4;line-height:1.6;margin-bottom:16px">Drop your email and we\'ll send you the link the moment we find it.</div>'
+    + '<div style="display:flex;gap:8px;max-width:400px;margin:0 auto">'
+    + '<input id="finderCatchEmail" type="email" placeholder="you@email.com" style="flex:1;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#fff;font-size:14px">'
+    + '<button onclick="siteFinderNotify()" style="background:#f5c842;color:#0a1f33;font-weight:800;border:none;border-radius:8px;padding:12px 18px;font-size:14px;cursor:pointer;white-space:nowrap">Notify me</button>'
+    + '</div><div id="finderCatchMsg" style="font-size:12px;color:#8aa0b4;margin-top:10px"></div></div>';
+}
+async function siteFinderNotify() {
+  var email = (document.getElementById('finderCatchEmail').value || '').trim(), msg = document.getElementById('finderCatchMsg');
+  if (!email || email.indexOf('@') < 0) { msg.style.color = '#f87171'; msg.textContent = 'Enter a valid email.'; return; }
+  msg.style.color = '#8aa0b4'; msg.textContent = 'Saving…';
+  try {
+    var r = await fetch('/.netlify/functions/save-deal-request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email, query: _siteFinderQ }) });
+    var d = await r.json();
+    if (d.ok) { msg.style.color = '#4ade80'; msg.textContent = "You're in. We'll email you the link the moment we find it."; }
+    else { msg.style.color = '#f87171'; msg.textContent = 'Something went wrong — try again.'; }
+  } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error — try again.'; }
+}
 
 // Live game state for the in-grid dice card (the prize + whether a game is running now).
 // `settings` is publicly readable, so we use the same query the game page does.
