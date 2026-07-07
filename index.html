@@ -2247,15 +2247,21 @@ function _afterLoad() {
     else _openShared();
   }
 
+  // Only the columns the grid/cards/filters/sort actually use — NOT select('*'). This roughly
+  // halves egress (the big `images` gallery column is loaded lazily when a deal is opened, see
+  // openDrawer) and stops shipping internal/PII columns (submitter_email, flag_reason, etc.) to
+  // every visitor.
+  var _DEAL_COLS = 'id,name,store,category,brand,brand_name,price,was,off,rating,reviews,img,url,first_seen,created_at,active_date,code,verified_low,ends_at';
+
   // Separate queries — no JS deduplication needed
-  var picksPromise = _sb.from('deals').select('*').eq('is_top_pick', true)
+  var picksPromise = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', true)
                        .order('active_date', { ascending: false }).order('rank');
   // Grid page fetch. Supabase caps each query at 1000 rows, so we page through the
   // rest below (id is a stable tiebreaker). review_status='live' hides moderation-held
   // deals (pending/flagged); if that column doesn't exist yet, the caller retries
   // without the filter so nothing breaks before the SQL is run.
   function _gridPage(from, useReview) {
-    var q = _sb.from('deals').select('*').eq('is_top_pick', false);
+    var q = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', false);
     if (useReview) q = q.eq('review_status', 'live');
     return q.order('active_date', { ascending: false }).order('rank').order('id').range(from, from + 999);
   }
@@ -2287,8 +2293,8 @@ function _afterLoad() {
                    url: r.url,
                    code: r.code || null, rating: r.rating, reviews: r.reviews,
                    category: r.category || '',
-                   found: formatFound(r.created_at, r.active_date),
-                   images: (function() { try { return JSON.parse(r.images || '[]'); } catch(e) { return []; } })() };
+                   found: formatFound(r.created_at, r.active_date) };
+                   // images (gallery) loaded lazily in openDrawer, not in bulk
         });
         var best = {};
         raw.forEach(function(p) {
@@ -2353,7 +2359,7 @@ function _afterLoad() {
           verifiedLow: !!d.verified_low,   // at/near its 30-day low (set by the price-tracking job)
           endsAt: d.ends_at || null,       // seller-set expiry — deal is hidden once this passes
           _jit: Math.random(),   // stable per-load jitter so the Top Value sort interleaves stores
-          images: (function() { try { return JSON.parse(d.images || '[]'); } catch(e) { return []; } })(),
+          // images (gallery) intentionally NOT loaded in bulk — openDrawer fetches them on demand.
         };
       });
       // Dedup color/size variants: keep one per base name. Highest discount wins,
@@ -2608,46 +2614,51 @@ async function openDrawer(productId) {
   document.body.style.overflow = 'hidden';
   hideDealLoading();
 
-  // Show thumbnails: first slot is always the main deal image; extra slots from stored/API images.
-  // This guarantees clicking thumb[0] always restores the original view.
+  // Thumbnails: first slot is always the main deal image; the rest come from the gallery.
+  // The `images` gallery column is NOT in the bulk grid load (it's ~half of each row), so fetch
+  // it for THIS one deal on open. Fall back to the Amazon API only if there's no stored gallery.
   var _mainSrc    = imgSrc;
-  var _storedImgs = Array.isArray(p.images) ? p.images.filter(Boolean) : [];
-  var _thumbImgs  = _buildThumbImgs(_mainSrc, _storedImgs);
-
-  var _needImages = _thumbImgs.length < 2;
   var _needRating = !p.rating;
 
-  if (!_needImages) {
-    _populateDrawerThumbs(_thumbImgs);
-  }
-
-  if ((_needImages || _needRating) && p.store === 'Amazon') {
+  function _amazonEnrich(needImages) {
+    if (!(needImages || _needRating) || p.store !== 'Amazon') return;
     var _asinMatch = (p.url || '').match(/\/dp\/([A-Z0-9]{10})/i);
-    if (_asinMatch) {
-      fetch('/.netlify/functions/fetch-product', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ asin: _asinMatch[1], productId: p.id })
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (_needImages) {
-          var _apiImgs = (data.images || []).filter(Boolean);
-          _populateDrawerThumbs(_buildThumbImgs(_mainSrc, _apiImgs));
-          if (_apiImgs.length >= 2) p.images = _apiImgs;
+    if (!_asinMatch) return;
+    fetch('/.netlify/functions/fetch-product', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ asin: _asinMatch[1], productId: p.id })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (needImages) {
+        var _apiImgs = (data.images || []).filter(Boolean);
+        _populateDrawerThumbs(_buildThumbImgs(_mainSrc, _apiImgs));
+        if (_apiImgs.length >= 2) p.images = _apiImgs;
+      }
+      if (data.rating && data.reviews) {
+        p.rating  = data.rating;
+        p.reviews = data.reviews;
+        var starsEl = document.getElementById('drawerStarsArea');
+        if (starsEl && !starsEl.hasChildNodes()) {
+          starsEl.className = 'drawer-stars';
+          starsEl.innerHTML = '<span class="stars">' + starsHtml(data.rating) + '</span> ' + parseFloat(data.rating).toFixed(1) + ' (' + Number(data.reviews).toLocaleString() + ' reviews)';
         }
-        if (data.rating && data.reviews) {
-          p.rating  = data.rating;
-          p.reviews = data.reviews;
-          var starsEl = document.getElementById('drawerStarsArea');
-          if (starsEl && !starsEl.hasChildNodes()) {
-            starsEl.className = 'drawer-stars';
-            starsEl.innerHTML = '<span class="stars">' + starsHtml(data.rating) + '</span> ' + parseFloat(data.rating).toFixed(1) + ' (' + Number(data.reviews).toLocaleString() + ' reviews)';
-          }
-        }
-      })
-      .catch(function() {});
-    }
+      }
+    })
+    .catch(function() {});
+  }
+  function _showThumbs(storedImgs) {
+    var thumbs = _buildThumbImgs(_mainSrc, (storedImgs || []).filter(Boolean));
+    var have = thumbs.length >= 2;
+    if (have) _populateDrawerThumbs(thumbs);
+    _amazonEnrich(!have);
+  }
+  if (Array.isArray(p.images)) {
+    _showThumbs(p.images);                         // already have the gallery (e.g. a shared-link fetch)
+  } else {
+    _sb.from('deals').select('images').eq('id', p.id).limit(1)
+      .then(function(r) { var imgs = []; try { imgs = JSON.parse((r.data && r.data[0] && r.data[0].images) || '[]'); } catch (e) {} p.images = imgs; _showThumbs(imgs); })
+      .catch(function() { _showThumbs([]); });
   }
 }
 
