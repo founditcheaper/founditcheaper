@@ -2150,7 +2150,9 @@ async function loadGameResults() {
         html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px">'
           + '<span style="width:24px;font-weight:800;color:' + (i === 0 ? '#f5c842' : 'var(--muted)') + '">' + (i + 1) + '</span>'
           + '<span style="flex:1;color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(p.username) + ' <span style="color:var(--muted);font-size:11px">#' + _esc(p.player_tag || '?') + ' · ' + _esc(p.email) + '</span></span>'
-          + '<span style="font-weight:800;color:#4ade80">' + _sc(p) + '</span></div>';
+          + '<span style="text-align:right;white-space:nowrap"><span style="font-weight:800;color:#4ade80">' + _sc(p) + '</span>'
+          + (p.referral_bonus ? '<span style="color:var(--muted);font-size:10px;margin-left:5px">(' + (p.week_score || 0) + ' + ' + p.referral_bonus + ' ref)</span>' : '')
+          + '</span></div>';
       });
       html += '</div>';   // end collapsible player list
       html += '</div>';   // end game card
