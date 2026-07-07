@@ -327,6 +327,14 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
 
       <div id="gameStatusBanner" style="margin-bottom:16px"></div>
 
+      <div id="notifyCountBox" style="display:flex;align-items:center;gap:10px;background:rgba(74,158,212,0.1);border:1px solid rgba(74,158,212,0.35);border-radius:10px;padding:12px 14px;margin-bottom:16px">
+        <div style="font-size:22px">🔔</div>
+        <div>
+          <div style="font-size:15px;font-weight:800;color:#fff" id="notifyCountNum">— people waiting to be notified</div>
+          <div style="font-size:11px;color:var(--muted)" id="notifyCountSub">They'll get an email when the next game goes live.</div>
+        </div>
+      </div>
+
       <div class="settings-card" style="margin-bottom:16px">
         <div class="settings-title">🎁 Prize & Competition Dates</div>
         <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Shown on the Daily Dice Roll page. Update it anytime — changes go live immediately. The top 3 scorers each win their matching prize. Leave 2nd/3rd blank to award a single winner only.</div>
@@ -2109,6 +2117,19 @@ function toggleLeaderboard(id, btn) {
   el.style.display = open ? 'block' : 'none';
   var caret = btn.querySelector('.lb-caret'); if (caret) caret.textContent = open ? '▾' : '▸';
 }
+// Show how many people are on the "notify me when it's live" waiting list.
+function renderNotifyCount(payload) {
+  var num = document.getElementById('notifyCountNum');
+  var sub = document.getElementById('notifyCountSub');
+  if (!num) return;
+  var active = (payload && Number(payload.notify_active)) || 0;
+  var total = (payload && Number(payload.notify_total)) || 0;
+  num.innerHTML = '<span style="color:#60b8f5">' + active + '</span> ' + (active === 1 ? 'person' : 'people') + ' waiting to be notified';
+  if (sub) {
+    var optedOut = Math.max(0, total - active);
+    sub.textContent = "They'll get an email when the next game goes live." + (optedOut ? ' (' + optedOut + ' opted out)' : '');
+  }
+}
 async function loadGameResults() {
   var el = document.getElementById('gameResults'); if (!el) return;
   el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Loading…</div>';
@@ -2116,6 +2137,7 @@ async function loadGameResults() {
     // Read via the secure function (service key) — emails are hidden from public access.
     var res = await fetch('/.netlify/functions/game-results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass }) });
     var payload = await res.json();
+    renderNotifyCount(payload);
     var rows = payload && payload.rows;
     if (!Array.isArray(rows) || !rows.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No dice game plays yet.</div>'; return; }
     var byWeek = {};

@@ -36,7 +36,18 @@ exports.handler = async function (event) {
       row.total_score = (Number(row.week_score) || 0) + b;
       return row;
     });
-    return { statusCode: 200, body: JSON.stringify({ ok: true, rows: out }) };
+
+    // How many people are on the "notify me when it's live" list (active = waiting).
+    let notifyActive = 0, notifyTotal = 0;
+    try {
+      const parseCount = function (cr) { const m = String(cr || '').split('/')[1]; const n = parseInt(m, 10); return isNaN(n) ? 0 : n; };
+      const ca = await fetch(`${sbUrl}/rest/v1/game_notify?select=id&active=eq.true`, { headers: { ...H, Prefer: 'count=exact', Range: '0-0' } });
+      notifyActive = parseCount(ca.headers.get('content-range'));
+      const ct = await fetch(`${sbUrl}/rest/v1/game_notify?select=id`, { headers: { ...H, Prefer: 'count=exact', Range: '0-0' } });
+      notifyTotal = parseCount(ct.headers.get('content-range'));
+    } catch (e) { /* table may not exist yet → counts stay 0 */ }
+
+    return { statusCode: 200, body: JSON.stringify({ ok: true, rows: out, notify_active: notifyActive, notify_total: notifyTotal }) };
   } catch (e) {
     return { statusCode: 500, body: JSON.stringify({ error: 'game-results failed', detail: String(e).slice(0, 160) }) };
   }
