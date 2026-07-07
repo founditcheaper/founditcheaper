@@ -498,7 +498,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <button class="btn btn-ghost" style="padding:6px 12px" onclick="moveFeaturedToDay(true)">Copy</button>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:12px">
-        <input class="field-input" id="featureSearch" placeholder="🔍  Search, or paste a founditcheaper deal link…" oninput="featureSearchInput(this.value)" style="flex:1">
+        <input class="field-input" id="featureSearch" placeholder="🔍  Search by name or code, or paste an Amazon or founditcheaper link…" oninput="featureSearchInput(this.value)" style="flex:1">
         <button class="btn btn-ghost" onclick="clearFeatureSearch()" style="flex-shrink:0">Clear</button>
       </div>
       <div style="border:1px solid rgba(255,255,255,0.1);border-radius:12px;overflow:hidden">
@@ -584,7 +584,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
           <button id="syncCodesBtn" class="btn btn-ghost" onclick="syncCodes()" title="Pull the latest sheet deals onto the site now">🔄 Sync Spreadsheet Now</button>
         </div>
       </div>
-      <input class="field-input" id="pcSearch" placeholder="Search uploaded deals by name or code..." style="margin-bottom:12px" oninput="renderPromoCodeDeals()">
+      <input class="field-input" id="pcSearch" placeholder="Search by name, code, or Amazon link..." style="margin-bottom:12px" oninput="renderPromoCodeDeals()">
       <!-- Deal filters (mirror the live site) — find the good ones to Feature at the top. -->
       <div style="display:flex;gap:10px;flex-wrap:nowrap;overflow-x:auto;align-items:center;margin-bottom:12px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.03);white-space:nowrap">
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><span style="font-size:12px;color:var(--muted)">Min % off</span>
@@ -793,8 +793,10 @@ function _postFeatureSearch(v) {
   var payload;
   var m = s.match(/[?&]deal=(\d+)/);                        // a founditcheaper share link ?deal=<id>
   var a = s.match(/\/deal\/([A-Za-z0-9]{10})(?:[\/?#]|$)/); // an on-site /deal/<ASIN> link
+  var az = s.match(/(?:\/dp\/|\/gp\/product\/|\/gp\/aw\/d\/|\/product\/|[?&]asin=)([A-Z0-9]{10})/i); // a raw Amazon product link
   if (m) payload = { ficShowDeal: m[1] };
   else if (a) payload = { ficShowDeal: a[1] };
+  else if (az) payload = { ficShowDeal: az[1].toUpperCase() };
   else payload = { ficSearch: s };
   try { f.contentWindow.postMessage(payload, '*'); } catch (e) {}
 }
@@ -892,12 +894,16 @@ async function loadPromoCodeDeals() {
 }
 function renderPromoCodeDeals() {
   var list = document.getElementById('pcList'); if (!list) return;
-  var q = (document.getElementById('pcSearch').value || '').toLowerCase();
+  var _qRaw = (document.getElementById('pcSearch').value || '');
+  var q = _qRaw.toLowerCase();
+  // Pasted Amazon link (or a bare ASIN) → match the deal by its ASIN instead of by text.
+  var _qAsin = (_qRaw.match(/(?:\/dp\/|\/gp\/product\/|\/gp\/aw\/d\/|\/product\/|[?&]asin=)([A-Z0-9]{10})/i) || _qRaw.match(/\b(B0[A-Z0-9]{8})\b/i) || [])[1];
+  if (_qAsin) _qAsin = _qAsin.toUpperCase();
   function _statusOf(d) { var s = d.review_status; return (s === 'pending' || s === 'flagged') ? s : 'live'; }
   // Faceted filters (day / source / store / status). Each chip's count reflects the OTHER
   // active filters but NOT its own dimension, so e.g. picking the "Jul 5" day makes the
   // source + store chips read out how many products each source/store brought in that day.
-  function fSearch(d) { return !q || (d.name||'').toLowerCase().indexOf(q) >= 0 || (d.code||'').toLowerCase().indexOf(q) >= 0; }
+  function fSearch(d) { if (!q) return true; if (_qAsin) return String(d.url||'').toUpperCase().indexOf(_qAsin) >= 0; return (d.name||'').toLowerCase().indexOf(q) >= 0 || (d.code||'').toLowerCase().indexOf(q) >= 0; }
   function fSource(d) {
     if (!_pcSource) return true;
     if (_pcSource === '__api__')   return !d.uploaded_by;                                              // automated store/API syncs (no uploader)
