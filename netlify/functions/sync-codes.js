@@ -118,7 +118,10 @@ function parseSheet(text) {
     if (!asin || !code) continue;
     const discount = iPrice >= 0 ? parseFloat(String(r[iPrice]).replace(/[^0-9.]/g, '')) : 0;
     const expires = iExp >= 0 ? (r[iExp] || '').trim() : '';
-    out[asin] = { asin, code: code.toUpperCase(), discount: discount > 0 ? discount : 0, expires };
+    // Keep only the first token of the code — never a comma/space-joined list.
+    const code1 = code.split(/[,\s]/)[0].replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 24);
+    if (!code1) continue;
+    out[asin] = { asin, code: code1, discount: discount > 0 ? discount : 0, expires };
   }
   return Object.values(out);   // dedup by ASIN — last row wins
 }

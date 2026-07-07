@@ -87,6 +87,10 @@ exports.handler = async function (event) {
   catch { return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON' }) }; }
 
   const { password, action, amazon_link, promo_code, discount_price } = body;
+  // A promo code is a single alphanumeric token. Guard against a caller (e.g. an agent that
+  // scraped a whole page) sending a comma/space-joined LIST of codes — take just the first
+  // token, strip punctuation, cap length — so a giant code string can never reach the grid.
+  const cleanCode = s => String(s || '').split(/[,\s]/)[0].replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 24);
   // Owner (Erik) and the VA (Kuldeep) may both manage promo deals. Which one is
   // acting is derived from the password, so uploads get tagged reliably and can't
   // be spoofed by the client.
@@ -124,7 +128,7 @@ exports.handler = async function (event) {
       const res = await callGateway({
         action: 'append',
         amazon_link: String(amazon_link || ''),
-        promo_code: String(promo_code || ''),
+        promo_code: cleanCode(promo_code),
         discount_price: String(discount_price || ''),
       });
       // Insert into the grid right away so it appears instantly. Use the Amazon
@@ -151,7 +155,7 @@ exports.handler = async function (event) {
               rank: 900, name: name.slice(0, 250), store: 'Amazon', category: inferCategory(name),
               price, was: regular, off, rating: (prod && prod.rating) || 0, reviews: (prod && prod.reviews) || 0,
               img: (prod && prod.img) || '', images: null, url: `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`,
-              code: String(promo_code || ''), use_code_url: false, creator: false, brand: false,
+              code: cleanCode(promo_code), use_code_url: false, creator: false, brand: false,
               brand_name: (prod && prod.brandName) || null, active_date: today, is_top_pick: false,
               uploaded_by: uploader,
               review_status: 'pending',   // held & hidden until review-deals scans it (~10 min)
@@ -192,7 +196,7 @@ exports.handler = async function (event) {
       // recorded in the promo sheet so the two stay in sync.
       const asin = asinFromUrl(amazon_link);
       if (!asin) return { statusCode: 400, body: JSON.stringify({ error: 'No ASIN' }) };
-      const res = await callGateway({ action: 'append', amazon_link: String(amazon_link), promo_code: String(promo_code || ''), discount_price: String(discount_price || '') });
+      const res = await callGateway({ action: 'append', amazon_link: String(amazon_link), promo_code: cleanCode(promo_code), discount_price: String(discount_price || '') });
       return { statusCode: res.ok ? 200 : 502, body: JSON.stringify({ ...res, asin }) };
     }
 
@@ -206,7 +210,7 @@ exports.handler = async function (event) {
       // When sending a deal back to the grid, make sure it's in the sheet first,
       // so the promo sync keeps it instead of pruning it as "not in the sheet".
       if (action === 'demote' && amazon_link) {
-        await callGateway({ action: 'append', amazon_link: String(amazon_link), promo_code: String(promo_code || ''), discount_price: String(discount_price || '') }).catch(() => {});
+        await callGateway({ action: 'append', amazon_link: String(amazon_link), promo_code: cleanCode(promo_code), discount_price: String(discount_price || '') }).catch(() => {});
       }
       // Flip the existing row in place — no delete/insert, so no duplicate row.
       const from = action === 'promote' ? 'false' : 'true';
@@ -227,7 +231,7 @@ exports.handler = async function (event) {
       const sb = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
       const patch = {};
       if (body.name != null) patch.name = String(body.name).slice(0, 250);
-      if (body.code != null) patch.code = String(body.code);
+      if (body.code != null) patch.code = cleanCode(body.code) || null;
       const price = parseFloat(String(body.price ?? '').replace(/[^0-9.]/g, ''));
       const was = parseFloat(String(body.was ?? '').replace(/[^0-9.]/g, ''));
       if (price > 0) patch.price = price;
