@@ -157,6 +157,7 @@ exports.handler = async function (event) {
               img: (prod && prod.img) || '', images: null, url: `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`,
               code: cleanCode(promo_code), use_code_url: false, creator: false, brand: false,
               brand_name: (prod && prod.brandName) || null, active_date: today, is_top_pick: false,
+              price_checked_at: (prod && prod.apiPrice > 0) ? new Date().toISOString() : null,   // stamp only when a real API price was pulled
               uploaded_by: uploader,
               review_status: 'pending',   // held & hidden until review-deals scans it (~10 min)
             };

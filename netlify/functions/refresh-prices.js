@@ -1,19 +1,13 @@
-// Keeps promo-code Amazon deal prices inside Amazon's 24-hour freshness window.
+// Keeps Amazon deal prices inside Amazon's 24-hour freshness window.
 //
-// Why this exists: the auto-pulled grid (sync-deals) wipes + re-inserts every ~12h, so those
-// prices are always fresh. But promo-code Amazon deals (sync-codes) persist up to 5 days, and
-// their displayed regular price is the Amazon API price captured when the deal was added. Amazon's
-// license only lets us show an API price for up to 24h before we re-pull it. So this job re-pulls
-// the live Creators API price for the STALEST coded Amazon deals each run and re-stamps
-// price_checked_at.
+// The site shows a stored Amazon price for up to 24h, then hides it ("See price on Amazon")
+// until we re-pull it. With thousands of promo-code deals live, a one-at-a-time refresh can't
+// keep up, so this job re-pulls the STALEST Amazon deals in BATCHES — the Creators API accepts
+// up to 10 ASINs per getItems call, so one call refreshes 10 deals (~10x throughput). It re-stamps
+// price_checked_at on each so the front end keeps showing a live price.
 //
-// Belt-and-suspenders: the frontend hides the price (and shows "See price on Amazon") for any
-// Amazon deal whose price_checked_at is older than 24h, so even if a refresh is missed, a stale
-// price is never displayed.
-//
-// Small + time-capped: oldest-first, a handful per run. Triggered on a schedule (netlify.toml)
-// and on demand via ?key=ADMIN_PASSWORD. Only Amazon deals are touched (Amazon's rule); Walmart /
-// Home Depot are governed by their own agreements.
+// Time-capped, stalest-first. Triggered on a schedule (netlify.toml) and on demand via
+// ?key=ADMIN_PASSWORD. Only Amazon deals (Amazon's rule); Walmart / Home Depot use their own feeds.
 
 const TOKEN_ENDPOINT = 'https://api.amazon.com/auth/o2/token';
 const ITEMS_ENDPOINT = 'https://creatorsapi.amazon/catalog/v1/getItems';
@@ -21,13 +15,13 @@ const MARKETPLACE    = 'www.amazon.com';
 const AFFILIATE_TAG  = 'founditchea09-20';
 
 const STALE_AFTER_MS = 12 * 3600 * 1000;  // re-pull once a price is >12h old — keeps everything under 24h with margin
-const BATCH          = 25;                 // stalest N per run
-const TIME_CAP_MS    = 22000;              // stay inside the 26s function limit
-const API_SPACING    = 1200;               // ~1 req/sec — respect the Creators API rate limit
+const CHUNK          = 10;                 // ASINs per getItems call (the API max)
+const QUERY_LIMIT    = 500;                // stalest N pulled from the DB per run
+const TIME_CAP_MS    = 23000;              // stay inside the 26s function limit
+const API_SPACING    = 1000;               // pause between getItems calls — respect the rate limit
 
 const RESOURCES = [
   'images.primary.large',
-  'itemInfo.title',
   'offersV2.listings.price',
   'customerReviews.starRating',
   'customerReviews.count',
@@ -62,27 +56,33 @@ async function getToken() {
   return _token;
 }
 
-async function fetchPrice(asin, token) {
+// Fetch up to 10 ASINs in one call. Returns { ASIN: { price, img, rating, reviews } }.
+async function fetchPrices(asins, token) {
   const res = await fetch(ITEMS_ENDPOINT, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'x-marketplace': MARKETPLACE },
     body: JSON.stringify({
-      itemIds: [asin], itemIdType: 'ASIN', resources: RESOURCES,
+      itemIds: asins, itemIdType: 'ASIN', resources: RESOURCES,
       partnerTag: AFFILIATE_TAG, partnerType: 'Associates', marketplace: MARKETPLACE,
     }),
   });
   const data = await res.json();
-  const item = data.itemsResult?.items?.[0];
-  if (!item) return null;
-  const listing = item.offersV2?.listings?.[0];
-  const price = Number(listing?.price?.money?.amount ?? listing?.price?.amount) || 0;
-  if (!price) return null;
-  return {
-    price,
-    img:     item.images?.primary?.large?.url || '',
-    rating:  item.customerReviews?.starRating?.value || 0,
-    reviews: item.customerReviews?.count || 0,
-  };
+  const items = data.itemsResult?.items || [];
+  const out = {};
+  for (const item of items) {
+    const asin = String(item.asin || '').toUpperCase();
+    if (!asin) continue;
+    const listing = item.offersV2?.listings?.[0];
+    const price = Number(listing?.price?.money?.amount ?? listing?.price?.amount) || 0;
+    if (!price) continue;
+    out[asin] = {
+      price,
+      img:     item.images?.primary?.large?.url || '',
+      rating:  item.customerReviews?.starRating?.value || 0,
+      reviews: item.customerReviews?.count || 0,
+    };
+  }
+  return out;
 }
 
 exports.handler = async function (event) {
@@ -103,12 +103,12 @@ exports.handler = async function (event) {
   const H = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
   const cutoff = new Date(Date.now() - STALE_AFTER_MS).toISOString();
 
-  // Stalest coded Amazon deals first: price_checked_at null OR older than the cutoff.
+  // Stalest Amazon deals first: price_checked_at null OR older than the cutoff.
   let rows = [];
   try {
-    const q = `${sbUrl}/rest/v1/deals?store=eq.Amazon&code=not.is.null&is_top_pick=eq.false`
+    const q = `${sbUrl}/rest/v1/deals?store=eq.Amazon`
       + `&or=(price_checked_at.is.null,price_checked_at.lt.${encodeURIComponent(cutoff)})`
-      + `&order=price_checked_at.asc.nullsfirst&limit=${BATCH}&select=id,url,price,was,code`;
+      + `&order=price_checked_at.asc.nullsfirst&limit=${QUERY_LIMIT}&select=id,url,price,was,code`;
     const r = await fetch(q, { headers: H });
     rows = await r.json();
     if (!Array.isArray(rows)) rows = [];
@@ -124,37 +124,48 @@ exports.handler = async function (event) {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const start = Date.now();
   const nowIso = new Date().toISOString();
-  let refreshed = 0, skipped = 0, capped = false;
+  let refreshed = 0, skipped = 0, capped = false, chunks = 0;
 
-  for (const d of rows) {
+  // Group deals into chunks of up to 10 ASINs (skip rows with no ASIN).
+  const withAsin = rows.map(d => ({ d, asin: extractAsin(d.url) })).filter(x => x.asin);
+  skipped += rows.length - withAsin.length;
+
+  for (let i = 0; i < withAsin.length; i += CHUNK) {
     if (Date.now() - start > TIME_CAP_MS) { capped = true; break; }
-    const asin = extractAsin(d.url);
-    if (!asin) { skipped++; continue; }
-    let prod = null;
-    try { prod = await fetchPrice(asin, token); } catch (e) { prod = null; }
+    const group = withAsin.slice(i, i + CHUNK);
+    let priceMap = {};
+    try { priceMap = await fetchPrices(group.map(g => g.asin), token); } catch (e) { priceMap = {}; }
+    chunks++;
     await sleep(API_SPACING);
-    // On a miss, leave price_checked_at stale -> the frontend hides the price and the 5-day
-    // expiry eventually removes the deal. Never stamp a price we couldn't verify.
-    if (!prod) { skipped++; continue; }
 
-    // Coded deal: `was` is Amazon's regular price (refreshed from the API); `price` is the
-    // after-code promo claim, which the API can't know, so we keep it (unless the shelf price
-    // has fallen to/below it, in which case the code no longer beats the price).
-    const was   = prod.price;
-    const price = (d.price > 0 && d.price < was) ? d.price : was;
-    const off   = was > price ? Math.round((1 - price / was) * 100) : 0;
+    for (const { d, asin } of group) {
+      const prod = priceMap[asin];
+      if (!prod) { skipped++; continue; }   // no live price -> leave stale; front end hides it, expiry cleans up
+      // Coded deal: `was` is Amazon's regular price (refreshed); `price` is the after-code promo
+      // claim (kept unless the shelf price fell to/below it). Plain deal: `price` is the current
+      // Amazon price; keep the existing `was` unless the markdown is gone.
+      let price, was, off;
+      if (d.code) {
+        was   = prod.price;
+        price = (d.price > 0 && d.price < was) ? d.price : was;
+      } else {
+        price = prod.price;
+        was   = (d.was > price) ? d.was : price;
+      }
+      off = was > price ? Math.round((1 - price / was) * 100) : 0;
 
-    const patch = { price, was, off, rating: prod.rating || 0, reviews: prod.reviews || 0, price_checked_at: nowIso };
-    if (prod.img) patch.img = prod.img;
-    try {
-      const up = await fetch(`${sbUrl}/rest/v1/deals?id=eq.${encodeURIComponent(d.id)}`, {
-        method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify(patch),
-      });
-      if (up.ok) refreshed++; else { skipped++; console.error('[refresh-prices] patch failed:', await up.text()); }
-    } catch (e) { skipped++; console.error('[refresh-prices] patch error:', e.message); }
+      const patch = { price, was, off, rating: prod.rating || 0, reviews: prod.reviews || 0, price_checked_at: nowIso };
+      if (prod.img) patch.img = prod.img;
+      try {
+        const up = await fetch(`${sbUrl}/rest/v1/deals?id=eq.${encodeURIComponent(d.id)}`, {
+          method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify(patch),
+        });
+        if (up.ok) refreshed++; else { skipped++; console.error('[refresh-prices] patch failed:', await up.text()); }
+      } catch (e) { skipped++; console.error('[refresh-prices] patch error:', e.message); }
+    }
   }
 
-  const result = { ok: true, refreshed, skipped, capped, batch: rows.length };
+  const result = { ok: true, refreshed, skipped, capped, chunks, pulled: rows.length };
   console.log('[refresh-prices]', JSON.stringify(result));
   return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(result) };
 };

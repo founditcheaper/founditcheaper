@@ -221,6 +221,7 @@ exports.handler = async function () {
       price: d.price, was: d.was, off: d.off, rating: d.rating || 0, reviews: d.reviews || 0,
       img: d.img, images: null, url: d.url, code: null, use_code_url: false,
       creator: d.brand, brand: d.brand, brand_name: d.brandName || null, active_date: today, is_top_pick: false,
+      price_checked_at: nowIso,   // grid prices are freshly pulled from the API this run
       first_seen: (asin && firstSeenByAsin[asin.toUpperCase()]) || nowIso,
     };
   });
