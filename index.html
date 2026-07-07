@@ -370,7 +370,7 @@
 
   .layout { padding: 20px 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
   .main { width: 100%; }
-  .filter-panel { background: transparent; border: none; border-radius: 0; overflow: visible; margin-bottom: 0; }
+  .filter-panel { background: transparent; border: none; border-radius: 0; overflow: visible; margin-bottom: 0; position: relative; }
   .filter-header { padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.07); background: rgba(245,200,66,0.07); display: flex; align-items: center; justify-content: space-between; }
   .filter-header h3 { font-size: 11px; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; color: var(--accent); }
   #filterBody { display: none; }
@@ -411,6 +411,12 @@
      and spans both columns so it reads as "options for that tab", pushing the tabs
      below it down. */
   .fdrop.fdrop-inline { grid-column: 1 / -1; margin-top: 2px; }
+  /* Desktop: an open dropdown floats as a card anchored right under its button (top/left set
+     inline by toggleDrop) instead of a full-width panel below the whole bar. */
+  .fdrop.fdrop-pop { position: absolute; z-index: 150; margin: 0; padding: 12px 14px; border-top: none;
+    background: var(--surface); border: 1px solid var(--border-gold); border-radius: 12px;
+    box-shadow: 0 14px 36px rgba(0,0,0,0.5); min-width: 230px; max-width: min(600px, 92vw);
+    max-height: 62vh; overflow: auto; }
   .active-filters { display: none; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 0 0; }
   .active-filters.shown { display: flex; }
   .af-count { font-size: 11px; font-weight: 800; color: var(--accent); }
@@ -2153,7 +2159,8 @@ function toggleDrop(id, btn, evt) {
   var home = document.getElementById('fdropHome');
   // Close everything and park every dropdown back in its home slot (below the bar).
   document.querySelectorAll('.filter-panel .fdrop').forEach(function(d) {
-    d.classList.remove('open'); d.classList.remove('fdrop-inline');
+    d.classList.remove('open'); d.classList.remove('fdrop-inline'); d.classList.remove('fdrop-pop');
+    d.style.top = ''; d.style.left = '';
     if (home && d.parentNode !== home) home.appendChild(d);
   });
   document.querySelectorAll('.fbar-btn').forEach(function(b) { b.classList.remove('showing'); });
@@ -2163,20 +2170,35 @@ function toggleDrop(id, btn, evt) {
   // down. On desktop the bar is one row, so the options stay in the home slot below it.
   var fbar = document.querySelector('.filter-panel .fbar');
   if (btn && fbar && getComputedStyle(fbar).display === 'grid') {
+    // Phone grid: inject the options right under the tapped tab's ROW so it spans both columns.
     var top = btn.getBoundingClientRect().top;
     var kids = Array.prototype.slice.call(fbar.children).filter(function(c) { return c.offsetParent !== null; });
     var rowKids = kids.filter(function(c) { return Math.abs(c.getBoundingClientRect().top - top) < 4; });
     var last = rowKids.length ? rowKids[rowKids.length - 1] : btn;
     last.insertAdjacentElement('afterend', target);
     target.classList.add('fdrop-inline');
+    target.classList.add('open');
+  } else if (btn) {
+    // Desktop: float the options as a card anchored right under the clicked button (not a
+    // full-width panel below the whole bar). Clamp so it never overflows the bar's right edge.
+    target.classList.add('fdrop-pop');
+    target.classList.add('open');   // visible so we can measure its width
+    var panel = document.querySelector('.filter-panel');
+    var pr = panel.getBoundingClientRect(), br = btn.getBoundingClientRect();
+    var left = br.left - pr.left;
+    if (left + target.offsetWidth > pr.width) left = Math.max(0, pr.width - target.offsetWidth);
+    target.style.left = left + 'px';
+    target.style.top = (br.bottom - pr.top + 6) + 'px';
+  } else {
+    target.classList.add('open');
   }
-  target.classList.add('open');
   if (btn) btn.classList.add('showing');
 }
 function collapseFilters() {
   var home = document.getElementById('fdropHome');
   document.querySelectorAll('.filter-panel .fdrop').forEach(function(d) {
-    d.classList.remove('open'); d.classList.remove('fdrop-inline');
+    d.classList.remove('open'); d.classList.remove('fdrop-inline'); d.classList.remove('fdrop-pop');
+    d.style.top = ''; d.style.left = '';
     if (home && d.parentNode !== home) home.appendChild(d);
   });
   document.querySelectorAll('.fbar-btn').forEach(function(b) { b.classList.remove('showing'); });
