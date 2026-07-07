@@ -395,6 +395,13 @@
   .fbar-btn:hover { border-color: var(--accent); }
   .fbar-btn.showing { border-color: var(--accent); background: rgba(245,200,66,0.1); }
   .fbar-btn.active { background: var(--accent); border-color: var(--accent); color: #0a1f33; }
+  /* Desktop only: filter chips grow to fill the full row width so the bar never trails off
+     with dead space on the right; "Clear all filters" tucks to the far right as a reset link.
+     Phones keep the 2-column grid defined in the max-width:639px block above. */
+  @media (min-width: 640px) {
+    .fbar-btn:not(.fbar-clear) { flex: 1 1 auto; }
+    .fbar-clear { margin-left: auto; }
+  }
   .fbar-chev { width: 13px; height: 13px; transition: transform .2s; }
   .fbar-btn.showing .fbar-chev { transform: rotate(180deg); }
   .fbar-clear { color: var(--text-soft); }
