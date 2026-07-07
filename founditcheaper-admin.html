@@ -490,7 +490,13 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <input type="date" id="featureDate" class="field-input" style="width:auto" onchange="setFeatureDate(this.value)">
         <span style="font-size:12px;color:var(--muted)">Shows at the top of the site only on this day. Defaults to today.</span>
       </div>
-      <div id="pinPanel2" class="pin-panel" style="border:1px solid rgba(245,200,66,0.3);border-radius:10px;padding:12px 14px;margin-bottom:14px;background:rgba(245,200,66,0.05)"></div>
+      <div id="pinPanel2" class="pin-panel" style="border:1px solid rgba(245,200,66,0.3);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:rgba(245,200,66,0.05)"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--muted)">Send this day's featured to another day:</span>
+        <input type="date" id="moveTargetDate" class="field-input" style="width:auto">
+        <button class="btn btn-ghost" style="padding:6px 12px" onclick="moveFeaturedToDay(false)">Move</button>
+        <button class="btn btn-ghost" style="padding:6px 12px" onclick="moveFeaturedToDay(true)">Copy</button>
+      </div>
       <div style="display:flex;gap:8px;margin-bottom:12px">
         <input class="field-input" id="featureSearch" placeholder="🔍  Search, or paste a founditcheaper deal link…" oninput="featureSearchInput(this.value)" style="flex:1">
         <button class="btn btn-ghost" onclick="clearFeatureSearch()" style="flex-shrink:0">Clear</button>
@@ -1085,6 +1091,23 @@ var _featureDate = _ctToday();
 var _pinned = [];   // the selected day's ordered deal ids (a reference into _pinnedByDay)
 function _useFeatureDate(d) { _featureDate = d; _pinned = _pinnedByDay[d] || (_pinnedByDay[d] = []); }
 function setFeatureDate(d) { if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return; _useFeatureDate(d); renderPinPanel(); if (typeof renderPromoCodeDeals === 'function') renderPromoCodeDeals(); syncFeatureFrame(); }
+// Send the currently-selected day's featured lineup to another day. Move clears the source
+// day; Copy leaves it. After it runs, the view switches to the target day.
+function moveFeaturedToDay(copy) {
+  var t = (document.getElementById('moveTargetDate') || {}).value || '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) { showToast('Pick a target date first'); return; }
+  if (t === _featureDate) { showToast('That is the same day'); return; }
+  if (!_pinned.length) { showToast('Nothing featured on ' + _featureDate + ' to send'); return; }
+  if (_pinnedByDay[t] && _pinnedByDay[t].length && !confirm(t + ' already has ' + _pinnedByDay[t].length + ' featured. Replace them?')) return;
+  var srcList = _pinned.slice();
+  _pinnedByDay[t] = srcList;
+  if (!copy) delete _pinnedByDay[_featureDate];
+  _useFeatureDate(t);
+  var fd = document.getElementById('featureDate'); if (fd) fd.value = t;
+  var mt = document.getElementById('moveTargetDate'); if (mt) mt.value = '';
+  savePins();
+  renderPinPanel(); syncFeatureFrame(); if (typeof renderPromoCodeDeals === 'function') renderPromoCodeDeals();
+}
 function _dealById(id) { id = String(id); for (var i = 0; i < _pcDeals.length; i++) if (String(_pcDeals[i].id) === id) return _pcDeals[i]; return null; }
 function renderPinPanel() {
   var els = document.querySelectorAll('.pin-panel'); if (!els.length) return;
