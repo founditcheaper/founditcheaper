@@ -90,6 +90,27 @@ exports.handler = async function (event) {
   const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!sbUrl || !sbKey) return { statusCode: 500, body: 'Configuration error (Supabase)' };
 
+  // TEMP diagnostic: ?diag=pricecheck returns what a batch getItems actually returns for the
+  // stalest 10 ASINs (requested vs returned asin, price present, errors). Read-only. Remove after.
+  const _qp = (event && event.queryStringParameters) || {};
+  if (_qp.diag === 'pricecheck') {
+    const H = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
+    const cutoff = new Date(Date.now() - STALE_AFTER_MS).toISOString();
+    const rr = await fetch(`${sbUrl}/rest/v1/deals?store=eq.Amazon&or=(price_checked_at.is.null,price_checked_at.lt.${encodeURIComponent(cutoff)})&order=price_checked_at.asc.nullsfirst&limit=10&select=url`, { headers: H });
+    const rows = await rr.json();
+    const asins = (Array.isArray(rows) ? rows : []).map(d => extractAsin(d.url)).filter(Boolean);
+    let token; try { token = await getToken(); } catch (e) { return { statusCode: 200, body: JSON.stringify({ diag: true, err: 'token ' + e.message }) }; }
+    const air = await fetch(ITEMS_ENDPOINT, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'x-marketplace': MARKETPLACE }, body: JSON.stringify({ itemIds: asins, itemIdType: 'ASIN', resources: RESOURCES, partnerTag: AFFILIATE_TAG, partnerType: 'Associates', marketplace: MARKETPLACE }) });
+    const data = await air.json();
+    const items = data.itemsResult?.items || [];
+    return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      diag: true, httpStatus: air.status, requested: asins, returnedCount: items.length,
+      returned: items.map(it => ({ asin: it.asin, hasPrice: !!(it.offersV2?.listings?.[0]?.price), keys: Object.keys(it).slice(0, 8) })),
+      errors: data.errors || data.itemsResult?.errors || null,
+      topLevelKeys: Object.keys(data),
+    }, null, 1) };
+  }
+
   // Manual trigger (admin) requires the admin password.
   const manual = !!(event && (event.httpMethod === 'POST' || (event.queryStringParameters && event.queryStringParameters.key)));
   if (manual) {
