@@ -349,7 +349,12 @@
     <div id="noGameNotice" style="display:none;text-align:center;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.4);border-radius:12px;padding:26px 16px;margin:0 0 4px">
       <div style="font-size:40px;margin-bottom:8px">🎲</div>
       <div style="font-size:18px;font-weight:800;color:var(--accent);margin-bottom:6px">No game running right now</div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.6">The next round hasn't started yet. Check back soon. In the meantime, browse the deals below.</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px">The next round hasn't started yet. Drop your email and we'll tell you the moment it's live.</div>
+      <div style="max-width:320px;margin:0 auto;display:flex;flex-direction:column;gap:8px">
+        <input type="email" id="notifyEmailInput" placeholder="your@email.com" style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);font-size:14px;font-family:'Inter',sans-serif;outline:none;box-sizing:border-box" onkeydown="if(event.key==='Enter')signupGameNotify()">
+        <button onclick="signupGameNotify()" style="width:100%;padding:12px;background:var(--accent);color:#0a1f33;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif">🔔 Notify me when it is live</button>
+        <div id="notifyMsg" style="font-size:11px;min-height:14px"></div>
+      </div>
     </div>
 
     <!-- EMAIL GATE (shown when not signed in) -->
@@ -814,8 +819,29 @@ function applyGameLiveState() {
     var pt = document.getElementById('prizeText'); if (pt) pt.textContent = 'No game running right now';
     var ps = document.getElementById('prizeSub'); if (ps) ps.textContent = 'Check back soon for the next round';
     var wr = document.getElementById('weekRange'); if (wr) wr.textContent = '';
+    // Prefill the notify signup with a known email (if they've played before).
+    var ni = document.getElementById('notifyEmailInput');
+    if (ni && !ni.value && player && player.email) ni.value = player.email;
   }
   return live;
+}
+
+// "Notify me when the next game is live" signup (shown in the no-game notice).
+async function signupGameNotify() {
+  var input = document.getElementById('notifyEmailInput');
+  var msg = document.getElementById('notifyMsg');
+  var email = input ? (input.value || '').trim() : '';
+  if (!email.includes('@')) { if (msg) { msg.style.color = 'var(--red)'; msg.textContent = 'Enter a valid email.'; } return; }
+  if (msg) { msg.style.color = 'var(--muted)'; msg.textContent = 'Signing up…'; }
+  try {
+    var res = await fetch('/.netlify/functions/game-notify-signup', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email }),
+    });
+    try { fetch('/.netlify/functions/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email, source: 'game-notify' }) }); } catch (e) {}
+    if (res.ok) { if (msg) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Done. We will email you when the next game starts.'; } if (input) input.value = ''; }
+    else { if (msg) { msg.style.color = 'var(--red)'; msg.textContent = 'Try again.'; } }
+  } catch (e) { if (msg) { msg.style.color = 'var(--red)'; msg.textContent = 'Network error.'; } }
 }
 
 function updateScoreDisplay() {

@@ -78,6 +78,13 @@
   schedule = "5 * * * *"
   timeout = 26
 
+# Dice game "notify me when it's live": when a game is live, email everyone on the
+# game_notify list once (per-subscriber dedup), so opt-ins get nudged to come play.
+# Runs every 15 min; self-gates and no-ops until PRIVATE_EMAIL_PASS is set.
+[functions."game-live-notify"]
+  schedule = "*/15 * * * *"
+  timeout = 26
+
 # Flappy Banana: email the winner + Erik when a competition ends. Runs hourly and
 # self-gates — emails only once per game, only after the end date has passed (or a
 # force-end). No-ops until PRIVATE_EMAIL_PASS (the deals@ mailbox password) is set.
@@ -115,6 +122,12 @@
 [[redirects]]
   from = "/stop-alert/*"
   to = "/.netlify/functions/stop-deal-alert?t=:splat"
+  status = 200
+
+# Dice-game "notify me when it's live" opt-out: pretty URL -> stop function (token as ?t=).
+[[redirects]]
+  from = "/stop-game-notify/*"
+  to = "/.netlify/functions/stop-game-notify?t=:splat"
   status = 200
 
 # Dice-game prize claim: pretty URL -> the claim function (winner's token as ?t=).
