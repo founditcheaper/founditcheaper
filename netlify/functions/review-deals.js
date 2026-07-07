@@ -72,15 +72,37 @@ exports.handler = async function () {
   let published = 0, flagged = 0, heldForApi = 0, flaggedLive = 0;
   const start = Date.now();
 
-  // A) Pending deals old enough to have "settled" — verify, then publish or flag.
+  // A) Pending deals old enough to have "settled" — publish or flag. Two passes, so a big
+  // batch of ready deals is never stuck behind the slow API checks.
   const cutoff = new Date(Date.now() - DELAY_MIN * 60000).toISOString();
+  let token = null, fastDone = 0, readySeen = 0;
+
+  // Pass 1 (fast, no Amazon API): deals that already have a title + image — the usual case
+  // for Promo-Agent / seller uploads. The poison filter is the banned-keyword check on the
+  // title, which needs no API call, so publish clean ones and flag junk immediately. This is
+  // what lets a large batch clear in a run or two instead of ~15/run. (Already-live deals are
+  // also continuously re-scanned for banned keywords in section B below, as a safety net.)
+  try {
+    const r = await fetch(`${sbUrl}/rest/v1/deals?review_status=eq.pending&created_at=lt.${encodeURIComponent(cutoff)}&img=not.is.null&name=not.is.null&select=id,name&order=created_at.asc&limit=400`, { headers: H });
+    const ready = await r.json();
+    if (Array.isArray(ready)) {
+      readySeen = ready.length;
+      for (const d of ready) {
+        if (Date.now() - start > TIME_CAP_MS) break;
+        if (BANNED.test(d.name || '')) { await patch(d.id, { review_status: 'flagged', flag_reason: 'deal-site placeholder title' }); flagged++; }
+        else { await patch(d.id, { review_status: 'live' }); published++; fastDone++; }
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  // Pass 2 (Amazon API verify): pending deals still MISSING an image — fetch the real title
+  // and image from the API to confirm they're genuine, using whatever time budget is left.
   let pending = [];
   try {
-    const r = await fetch(`${sbUrl}/rest/v1/deals?review_status=eq.pending&created_at=lt.${encodeURIComponent(cutoff)}&select=id,name,url,img&order=created_at.asc&limit=100`, { headers: H });
+    const r = await fetch(`${sbUrl}/rest/v1/deals?review_status=eq.pending&created_at=lt.${encodeURIComponent(cutoff)}&img=is.null&select=id,name,url,img&order=created_at.asc&limit=100`, { headers: H });
     pending = await r.json(); if (!Array.isArray(pending)) pending = [];
   } catch (e) { pending = []; }
 
-  let token = null;
   for (const d of pending) {
     if (Date.now() - start > TIME_CAP_MS) break;   // rest next run
     const asin = extractAsin(d.url);
@@ -128,7 +150,7 @@ exports.handler = async function () {
     if (del.ok) { const gone = await del.json().catch(() => []); expired = Array.isArray(gone) ? gone.length : 0; }
   } catch (e) { /* ignore — the ends_at column may not exist yet */ }
 
-  const result = { ok: true, published, flagged, flaggedLive, heldForApi, expired, pendingSeen: pending.length };
+  const result = { ok: true, published, fastDone, flagged, flaggedLive, heldForApi, expired, readySeen, apiSeen: pending.length };
   console.log('[review-deals]', JSON.stringify(result));
   return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(result) };
 };
