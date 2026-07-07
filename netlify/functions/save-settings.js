@@ -26,13 +26,27 @@ exports.handler = async function (event) {
   if (body.hideTopPicks != null) updates.push(['hide_top_picks', body.hideTopPicks ? '1' : '0']);
   // Site display: hide the "We found X deals" bar so the page opens straight to All Deals.
   if (body.hideDealsBanner != null) updates.push(['hide_deals_banner', body.hideDealsBanner ? '1' : '0']);
-  // Paid placements: ordered deal ids pinned to the top of All Deals (max 6, deduped).
+  // Featured placements, ordered deal ids pinned to the top of All Deals (max 10, deduped).
   if (body.pinnedDeals != null) {
     const arr = Array.isArray(body.pinnedDeals) ? body.pinnedDeals : [];
     const seen = {};
     const clean = arr.map(x => String(x).replace(/[^0-9]/g, ''))
-      .filter(id => id && !seen[id] && (seen[id] = true)).slice(0, 6);
+      .filter(id => id && !seen[id] && (seen[id] = true)).slice(0, 10);
     updates.push(['pinned_deals', JSON.stringify(clean)]);
+  }
+  // Date-scoped featured: { "YYYY-MM-DD": [ids] } — each day's featured show only on that
+  // day's view of the grid. Validate date keys, clean/dedup ids, cap 10 per day, drop empties.
+  if (body.featuredByDay != null && typeof body.featuredByDay === 'object' && !Array.isArray(body.featuredByDay)) {
+    const clean = {};
+    for (const k of Object.keys(body.featuredByDay)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) continue;
+      const arr = Array.isArray(body.featuredByDay[k]) ? body.featuredByDay[k] : [];
+      const seen = {};
+      const ids = arr.map(x => String(x).replace(/[^0-9]/g, ''))
+        .filter(id => id && !seen[id] && (seen[id] = true)).slice(0, 10);
+      if (ids.length) clean[k] = ids;
+    }
+    updates.push(['featured_by_day', JSON.stringify(clean)]);
   }
   if (body.gamePrize != null) updates.push(['game_prize', String(body.gamePrize).slice(0, 120)]);   // 1st place
   if (body.gamePrize2 != null) updates.push(['game_prize_2', String(body.gamePrize2).slice(0, 120)]); // 2nd place

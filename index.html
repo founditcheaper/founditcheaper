@@ -1015,7 +1015,8 @@ var HIDE_PICKS = false;
 var HIDE_BANNER = false;
 // pinned_deals: ordered deal ids (strings) the admin pins to the very top of All Deals
 // (paid placements). Applied only on the pristine landing view — see applyPins().
-var PINNED = [];
+var PINNED = [];               // legacy flat list (pre-date-scoping); used only if featured_by_day is absent
+var PINNED_BY_DAY = null;      // { "YYYY-MM-DD": [ids] } — featured deals shown ONLY on that day's view
 var PIN_MAX = 10;              // how many featured/pinned deals show at the very top
 // top_value_order: the server-picked set of deals that rotate at the top of the Top Value
 // sort each day (8-day no-repeat, set by promote-top-picks). Floated to the top on the
@@ -1454,12 +1455,23 @@ function applyDailyTop(list) {
   var rest = list.filter(function (d) { return !seen[String(d.id)]; });
   return top.concat(rest);
 }
+// Which featured deals apply to the day currently being viewed. With date-scoped featuring
+// (featured_by_day), only the viewed day's set shows; on "Any time" nothing is pinned. Falls
+// back to the legacy flat PINNED list if the site hasn't been switched to date-scoping yet.
+function _featuredForDay() {
+  if (PINNED_BY_DAY) {
+    var day = state.dateAdded;
+    return (day && day !== 'all' && Array.isArray(PINNED_BY_DAY[day])) ? PINNED_BY_DAY[day] : [];
+  }
+  return PINNED;
+}
 function applyPins(list) {
-  if (!PINNED.length || !isDefaultView()) return list;
+  var ids = _featuredForDay();
+  if (!ids.length || !isDefaultView()) return list;
   var allById = {};
   (allProducts || []).forEach(function (d) { allById[String(d.id)] = d; });
   var seen = {}, pinned = [];
-  PINNED.slice(0, PIN_MAX).forEach(function (id) {
+  ids.slice(0, PIN_MAX).forEach(function (id) {
     id = String(id);
     if (allById[id] && !seen[id]) { seen[id] = true; pinned.push(allById[id]); }
   });
@@ -2268,11 +2280,11 @@ function _afterLoad() {
   var allPromise = _gridPage(0, true);
   // Front-page display toggle (admin: hide_top_picks) — fetched in parallel, resolved
   // before the carousel renders so we either draw it or skip straight to the grid.
-  var settingsPromise = _sb.from('settings').select('key,value').in('key', ['hide_top_picks', 'hide_deals_banner', 'pinned_deals', 'top_value_order']);
+  var settingsPromise = _sb.from('settings').select('key,value').in('key', ['hide_top_picks', 'hide_deals_banner', 'pinned_deals', 'featured_by_day', 'top_value_order']);
 
   // ── PHASE 1: carousel renders as soon as picks arrive ─────────────────
   try {
-    try { var _sres = await settingsPromise; if (_sres && _sres.data) _sres.data.forEach(function (r) { if (r.key === 'hide_top_picks' && r.value === '1') HIDE_PICKS = true; if (r.key === 'hide_deals_banner' && r.value === '1') HIDE_BANNER = true; if (r.key === 'pinned_deals') { try { var _pa = JSON.parse(r.value || '[]'); if (Array.isArray(_pa)) PINNED = _pa.map(String); } catch (e2) {} } if (r.key === 'top_value_order') { try { var _tv = JSON.parse(r.value || '[]'); if (Array.isArray(_tv)) DAILY_TOP = _tv.map(String); } catch (e4) {} } }); } catch (e) {}
+    try { var _sres = await settingsPromise; if (_sres && _sres.data) _sres.data.forEach(function (r) { if (r.key === 'hide_top_picks' && r.value === '1') HIDE_PICKS = true; if (r.key === 'hide_deals_banner' && r.value === '1') HIDE_BANNER = true; if (r.key === 'pinned_deals') { try { var _pa = JSON.parse(r.value || '[]'); if (Array.isArray(_pa)) PINNED = _pa.map(String); } catch (e2) {} } if (r.key === 'featured_by_day') { try { var _fb = JSON.parse(r.value || '{}'); if (_fb && typeof _fb === 'object' && !Array.isArray(_fb)) { PINNED_BY_DAY = {}; Object.keys(_fb).forEach(function (k) { if (Array.isArray(_fb[k])) PINNED_BY_DAY[k] = _fb[k].map(String); }); } } catch (e5) {} } if (r.key === 'top_value_order') { try { var _tv = JSON.parse(r.value || '[]'); if (Array.isArray(_tv)) DAILY_TOP = _tv.map(String); } catch (e4) {} } }); } catch (e) {}
     var picksRes = await picksPromise;
     if (picksRes.data && picksRes.data.length > 0) {
       // Group rows by active_date (query is already sorted newest-first by date then rank)

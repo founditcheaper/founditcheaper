@@ -484,7 +484,12 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
     <!-- TAB: FEATURED — the live All Deals grid with a Feature button on each card -->
     <div class="tab-content" id="tab-finder">
       <div class="section-title" style="margin-bottom:4px">⭐ Featured deals</div>
-      <div class="section-sub" style="margin-bottom:14px">This is your live deals grid, exactly like the site. Scroll through, hit <b>Feature</b> on the ones you want up top, and drag the order below. Up to 10 spots.</div>
+      <div class="section-sub" style="margin-bottom:14px">This is your live deals grid, exactly like the site. Scroll through, hit <b>Feature</b> on the ones you want up top, and drag the order below. Featured deals are per-day — they show at the top only on the day you pick below.</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        <label style="font-size:13px;color:#f5c842;font-weight:700;flex-shrink:0">📅 Featuring for day:</label>
+        <input type="date" id="featureDate" class="field-input" style="width:auto" onchange="setFeatureDate(this.value)">
+        <span style="font-size:12px;color:var(--muted)">Shows at the top of the site only on this day. Defaults to today.</span>
+      </div>
       <div id="pinPanel2" class="pin-panel" style="border:1px solid rgba(245,200,66,0.3);border-radius:10px;padding:12px 14px;margin-bottom:14px;background:rgba(245,200,66,0.05)"></div>
       <div style="display:flex;gap:8px;margin-bottom:12px">
         <input class="field-input" id="featureSearch" placeholder="🔍  Search, or paste a founditcheaper deal link…" oninput="featureSearchInput(this.value)" style="flex:1">
@@ -761,6 +766,7 @@ function switchTab(id) {
 // ── FEATURED tab: host the live All Deals grid (embed=feature) with a Feature button per card ──
 var _featFrameLoaded = false;
 function openFeatured() {
+  var fd = document.getElementById('featureDate'); if (fd && !fd.value) fd.value = _featureDate;
   renderPinPanel();
   var f = document.getElementById('featureFrame'); if (!f) return;
   if (!_featFrameLoaded) {
@@ -1071,12 +1077,19 @@ function pcClearFilters() {
 }
 
 // ── FEATURED (paid placements): pin up to 6 deals to the top of the site's All Deals ──
-var _pinned = [];   // ordered deal ids (strings); spot 1 first
+// Featured deals are DATE-SCOPED: each day has its own lineup, shown only on that day's view
+// of the site. _pinnedByDay = { "YYYY-MM-DD": [ids] }; _pinned points at the SELECTED day's list.
+var _pinnedByDay = {};
+function _ctToday() { try { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); } catch (e) { return new Date().toISOString().slice(0, 10); } }
+var _featureDate = _ctToday();
+var _pinned = [];   // the selected day's ordered deal ids (a reference into _pinnedByDay)
+function _useFeatureDate(d) { _featureDate = d; _pinned = _pinnedByDay[d] || (_pinnedByDay[d] = []); }
+function setFeatureDate(d) { if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return; _useFeatureDate(d); renderPinPanel(); if (typeof renderPromoCodeDeals === 'function') renderPromoCodeDeals(); syncFeatureFrame(); }
 function _dealById(id) { id = String(id); for (var i = 0; i < _pcDeals.length; i++) if (String(_pcDeals[i].id) === id) return _pcDeals[i]; return null; }
 function renderPinPanel() {
   var els = document.querySelectorAll('.pin-panel'); if (!els.length) return;
-  var head = '<div style="font-weight:800;color:#f5c842;font-size:13px;margin-bottom:2px">📌 Featured at the top of All Deals</div>'
-    + '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">These sit at the very top of the site in this order. Everything else shows naturally. Use <b>Feature</b> on any deal to add one (up to 10).</div>';
+  var head = '<div style="font-weight:800;color:#f5c842;font-size:13px;margin-bottom:2px">📌 Featured for ' + _featureDate + '</div>'
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">These show at the very top of the site ONLY on ' + _featureDate + ', in this order. Change the date above to feature for a different day. Up to 10.</div>';
   var body;
   if (!_pinned.length) { body = '<div style="font-size:12px;color:var(--muted)">Nothing featured — the site shows all deals in their natural order.</div>'; els.forEach(function (el) { el.innerHTML = head + body; }); return; }
   var rows = _pinned.map(function (id, i) {
@@ -1116,10 +1129,12 @@ function moveFeatured(i, dir) {
   savePins(); renderPinPanel(); syncFeatureFrame();
 }
 async function savePins() {
+  _pinnedByDay[_featureDate] = _pinned;
+  Object.keys(_pinnedByDay).forEach(function (k) { if (!_pinnedByDay[k] || !_pinnedByDay[k].length) delete _pinnedByDay[k]; });
   try {
-    var res = await fetch('/.netlify/functions/save-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, pinnedDeals: _pinned }) });
+    var res = await fetch('/.netlify/functions/save-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, featuredByDay: _pinnedByDay }) });
     var d = await res.json();
-    showToast(d.ok ? (_pinned.length ? 'Featured deals saved (' + _pinned.length + ')' : 'Featured deals cleared') : 'Save failed' + (d.error ? ': ' + d.error : ''));
+    showToast(d.ok ? (_pinned.length ? 'Featured saved for ' + _featureDate + ' (' + _pinned.length + ')' : 'Cleared featured for ' + _featureDate) : 'Save failed' + (d.error ? ': ' + d.error : ''));
   } catch (e) { showToast('Network error'); }
 }
 
@@ -1915,7 +1930,19 @@ async function loadSettings() {
     applyTabVisibility();
     if (_pcDeals && _pcDeals.length) renderPromoCodeDeals();   // reflect the flag on already-rendered cards
     if (document.getElementById('bannerEnabled')) document.getElementById('bannerEnabled').checked = (m.hide_deals_banner !== '1');   // ON = bar shown
-    if (m.pinned_deals != null) { try { var _pa = JSON.parse(m.pinned_deals || '[]'); if (Array.isArray(_pa)) _pinned = _pa.map(String); } catch (e3) {} }
+    // Featured deals are date-scoped. Load featured_by_day; if only the legacy flat list exists,
+    // migrate it into today's bucket so nothing is lost.
+    try {
+      if (m.featured_by_day != null) {
+        var _fb = JSON.parse(m.featured_by_day || '{}');
+        if (_fb && typeof _fb === 'object' && !Array.isArray(_fb)) { _pinnedByDay = {}; Object.keys(_fb).forEach(function (k) { if (Array.isArray(_fb[k])) _pinnedByDay[k] = _fb[k].map(String); }); }
+      } else if (m.pinned_deals != null) {
+        var _pa = JSON.parse(m.pinned_deals || '[]');
+        if (Array.isArray(_pa) && _pa.length) _pinnedByDay[_featureDate] = _pa.map(String);
+      }
+    } catch (e3) {}
+    _useFeatureDate(_featureDate);
+    var _fdEl = document.getElementById('featureDate'); if (_fdEl && !_fdEl.value) _fdEl.value = _featureDate;
     renderPinPanel();
     if (m.game_prize != null && document.getElementById('gamePrizeInput')) document.getElementById('gamePrizeInput').value = m.game_prize;
     if (m.game_prize_2 != null && document.getElementById('gamePrize2Input')) document.getElementById('gamePrize2Input').value = m.game_prize_2;
