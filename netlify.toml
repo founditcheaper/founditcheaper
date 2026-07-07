@@ -39,6 +39,14 @@
   schedule = "*/15 * * * *"
   timeout = 26
 
+# Keeps promo-code Amazon deal prices inside Amazon's 24h freshness window: re-pulls the live
+# Creators API price for the stalest coded Amazon deals (older than 12h) each run, oldest-first,
+# time-capped. Offset 5 min from sync-codes to avoid overlapping Amazon API bursts. The frontend
+# hides any Amazon price older than 24h as a backstop, so a missed refresh never shows a stale price.
+[functions."refresh-prices"]
+  schedule = "5,20,35,50 * * * *"
+  timeout = 26
+
 # Daily Top Deal Picks refresh. Runs every 15 min but the function self-gates:
 # it fires ONCE per day at/after the admin-configured run time (Central), reading
 # `settings.pick_run_time` (default 2:30 AM) so the time is editable without a

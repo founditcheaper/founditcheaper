@@ -1134,6 +1134,42 @@ function _addedDayOf(d) {
   if (d.created_at) return _dayKeyOf(d.created_at);
   return null;
 }
+// ── Price freshness (Amazon compliance) ───────────────────────────────────
+// Amazon lets us display an API-pulled price for up to 24h. price_checked_at marks
+// when we last pulled it (set on insert + by the refresh-prices job); we fall back to
+// created_at/first_seen for rows from before that column existed. If an Amazon deal's
+// price is older than 24h (a refresh miss), we hide the number and link out to Amazon
+// for the live price, so a stale price is never shown. Non-Amazon stores aren't under
+// Amazon's rule.
+var PRICE_MAX_AGE_MS = 24 * 3600 * 1000;
+function priceCheckedLabel(ts) {
+  if (!ts) return null;
+  var d = new Date(ts); if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+function _priceStale(p) {
+  if (!p || p.store !== 'Amazon') return false;
+  var t = p.priceCheckedAt, n = t ? new Date(t).getTime() : NaN;
+  return isNaN(n) || (Date.now() - n) > PRICE_MAX_AGE_MS;
+}
+function _dealOutLink(p) {
+  var asin = (p.store === 'Amazon') ? amazonAsin(p.url) : null;
+  return asin ? ('/deal/' + asin) : (p.url || '#');
+}
+// Card price block: the normal price row + a "Price checked" stamp, OR a link-out when stale.
+function _cardPriceBlock(p) {
+  if (_priceStale(p)) {
+    return '<div class="price-row" style="margin-top:auto"><a href="' + _dealOutLink(p) + '" target="_blank" rel="noopener nofollow sponsored" onclick="event.stopPropagation()" style="font-size:13px;font-weight:800;color:#f5c842;text-decoration:none">See price on Amazon →</a></div>';
+  }
+  var lbl = priceCheckedLabel(p.priceCheckedAt);
+  return '<div class="price-row" style="margin-top:auto"><span class="current-price">$' + money(p.price) + '</span><span class="was-price">$' + money(p.was) + '</span></div>'
+    + (lbl ? '<div style="font-size:10px;color:var(--muted);margin-top:3px">Price checked ' + lbl + '</div>' : '');
+}
+// Discount badge — suppressed when the price is stale (a % off is a price claim too).
+function _offBadge(p, posStyle) {
+  return _priceStale(p) ? '' : '<span class="off-badge" style="' + posStyle + '">' + p.off + '% OFF</span>';
+}
 function amazonAsin(url) {
   var m = (url || '').match(/\/dp\/([A-Z0-9]{10})/i) || (url || '').match(/\b(B0[A-Z0-9]{8})\b/i);
   return m ? m[1].toUpperCase() : null;
@@ -1582,7 +1618,7 @@ function topPickCardHtml(p, rank) {
   html += '<img class="product-img" src="' + p.img + '" alt="' + p.name + '" onerror="this.style.opacity=\'0\'">';
   html += '<div style="position:absolute;top:8px;left:8px;min-width:28px;height:28px;border-radius:7px;background:' + rankBg[rank] + ';border:2px solid ' + rankColors[rank] + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:' + rankColors[rank] + ';padding:0 7px;font-family:Barlow Condensed,sans-serif">#' + rank + '</div>';
   html += '<span class="store-badge ' + s + '" style="position:absolute;top:8px;right:8px">' + sName + '</span>';
-  html += '<span class="off-badge" style="position:absolute;bottom:8px;left:8px">' + p.off + '% OFF</span>';
+  html += _offBadge(p, 'position:absolute;bottom:8px;left:8px');
   if (p.code) html += '<span style="position:absolute;bottom:8px;right:8px;background:rgba(245,200,66,0.9);color:#0a1f33;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.5px">PROMO</span>';
   html += '</div>';
   html += '<div class="product-body">';
@@ -1590,7 +1626,7 @@ function topPickCardHtml(p, rank) {
   html += '<div class="product-name">' + p.name + '</div>';
   if (p.rating && p.reviews) { html += '<div class="product-stars"><span class="stars-display">' + starsHtml(p.rating) + '</span><span class="rating-num">' + p.rating + ' (' + p.reviews.toLocaleString() + ')</span></div>'; }
   html += (p.code ? '<div class="code-row"><span class="code-label">CODE</span><span class="code-value">' + p.code + '</span></div>' : '');
-  html += '<div class="price-row" style="margin-top:auto"><span class="current-price">$' + money(p.price) + '</span><span class="was-price">$' + money(p.was) + '</span></div>';
+  html += _cardPriceBlock(p);
   html += '</div></div>';
   return html;
 }
@@ -1611,7 +1647,7 @@ function cardHtml(p) {
   html += '<img class="product-img" src="' + p.img + '" alt="' + p.name + '" onerror="this.style.opacity=\'0\'">';
   html += '<span class="store-badge ' + s.cls + '" style="position:absolute;top:8px;left:8px">' + sName + '</span>';
   if (p.code) html += '<span style="position:absolute;top:8px;right:8px;background:rgba(245,200,66,0.9);color:#0a1f33;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.5px">PROMO</span>';
-  html += '<span class="off-badge" style="position:absolute;bottom:8px;right:8px">' + p.off + '% OFF</span>';
+  html += _offBadge(p, 'position:absolute;bottom:8px;right:8px');
   html += '</div>';
 
   html += '<div class="product-body">';
@@ -1619,7 +1655,7 @@ function cardHtml(p) {
   html += '<div class="product-name">' + p.name + '</div>';
   if (p.rating && p.reviews) { html += '<div class="product-stars"><span class="stars-display">★</span><span class="rating-num">' + parseFloat(p.rating).toFixed(1) + ' (' + Number(p.reviews).toLocaleString() + ')</span></div>'; }
   html += (p.code ? '<div class="code-row"><span class="code-label">CODE</span><span class="code-value">' + p.code + '</span></div>' : '');
-  html += '<div class="price-row" style="margin-top:auto"><span class="current-price">$' + money(p.price) + '</span><span class="was-price">$' + money(p.was) + '</span></div>';
+  html += _cardPriceBlock(p);
   if (EMBED_FEATURE) html += ficFeatBtn(p);   // admin Featured tab: per-card Feature button
   html += '</div></div>';
   return html;
@@ -2274,7 +2310,7 @@ function _afterLoad() {
   // halves egress (the big `images` gallery column is loaded lazily when a deal is opened, see
   // openDrawer) and stops shipping internal/PII columns (submitter_email, flag_reason, etc.) to
   // every visitor.
-  var _DEAL_COLS = 'id,name,store,category,brand,brand_name,price,was,off,rating,reviews,img,url,first_seen,created_at,active_date,code,verified_low,ends_at';
+  var _DEAL_COLS = 'id,name,store,category,brand,brand_name,price,was,off,rating,reviews,img,url,first_seen,created_at,active_date,code,verified_low,ends_at,price_checked_at';
 
   // Separate queries — no JS deduplication needed
   var picksPromise = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', true)
@@ -2316,6 +2352,7 @@ function _afterLoad() {
                    url: r.url,
                    code: r.code || null, rating: r.rating, reviews: r.reviews,
                    category: r.category || '',
+                   priceCheckedAt: r.price_checked_at || r.created_at || r.first_seen,
                    found: formatFound(r.created_at, r.active_date) };
                    // images (gallery) loaded lazily in openDrawer, not in bulk
         });
@@ -2378,6 +2415,7 @@ function _afterLoad() {
           off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
           rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
           found: formatFound(d.first_seen || d.created_at, d.active_date), addedDay: _addedDayOf(d), code: d.code || null,
+          priceCheckedAt: d.price_checked_at || d.created_at || d.first_seen,
           _ts: (function(){ var t = d.first_seen || d.created_at || d.active_date; var n = t ? new Date(t).getTime() : 0; return isNaN(n) ? 0 : n; })(),  // for the "newest" sort
           verifiedLow: !!d.verified_low,   // at/near its 30-day low (set by the price-tracking job)
           endsAt: d.ends_at || null,       // seller-set expiry — deal is hidden once this passes
@@ -2540,6 +2578,7 @@ async function openDrawer(productId) {
           off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
           rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
           found: formatFound(d.first_seen || d.created_at, d.active_date), addedDay: _addedDayOf(d), code: d.code || null,
+          priceCheckedAt: d.price_checked_at || d.created_at || d.first_seen,
           verifiedLow: !!d.verified_low,
           endsAt: d.ends_at || null,       // seller-set expiry — deal is hidden once this passes
           images: (function() { try { return JSON.parse(d.images || '[]'); } catch(e) { return []; } })(),
@@ -2581,9 +2620,15 @@ async function openDrawer(productId) {
     html += '<div id="drawerStarsArea"></div>';
   }
 
-  // Price
-  html += '<div class="drawer-price-row"><span class="drawer-price">$' + money(p.price) + '</span><span class="drawer-was">$' + money(p.was) + '</span><span class="drawer-off">' + p.off + '% OFF</span></div>';
+  // Price — hidden and linked out when an Amazon price is stale (>24h), per Amazon's rule
+  if (_priceStale(p)) {
+    html += '<div class="drawer-price-row"><a href="' + _dealOutLink(p) + '" target="_blank" rel="noopener nofollow sponsored" class="drawer-price" style="color:#f5c842;text-decoration:none">See price on Amazon →</a></div>';
+  } else {
+    html += '<div class="drawer-price-row"><span class="drawer-price">$' + money(p.price) + '</span><span class="drawer-was">$' + money(p.was) + '</span><span class="drawer-off">' + p.off + '% OFF</span></div>';
+  }
   if (p.found) html += '<div class="drawer-found">🕐 Found · ' + p.found + '</div>';
+  var _chk = _priceStale(p) ? null : priceCheckedLabel(p.priceCheckedAt);
+  if (_chk) html += '<div class="drawer-found">✓ Price checked · ' + _chk + '</div>';
 
   // Code box
   if (p.code) {

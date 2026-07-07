@@ -342,6 +342,7 @@ exports.handler = async function (event) {
       brand:        false,
       brand_name:   prod.brandName || null,
       active_date:  today,
+      price_checked_at: new Date().toISOString(),   // API price just pulled — fresh per Amazon's 24h rule
       is_top_pick:  false,
     };
     try {
