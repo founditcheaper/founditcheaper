@@ -56,18 +56,26 @@ async function getToken() {
   return _token;
 }
 
-// Fetch up to 10 ASINs in one call. Returns { ASIN: { price, img, rating, reviews } }.
+// Fetch up to 10 ASINs in one call. Returns { ok, prices: { ASIN: { price, img, rating, reviews } } }.
+// ok=false means the call itself failed (don't trust "missing" as "no price"); ok=true means the
+// API answered, so any requested ASIN NOT in `prices` genuinely has no current price/offer.
 async function fetchPrices(asins, token) {
-  const res = await fetch(ITEMS_ENDPOINT, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'x-marketplace': MARKETPLACE },
-    body: JSON.stringify({
-      itemIds: asins, itemIdType: 'ASIN', resources: RESOURCES,
-      partnerTag: AFFILIATE_TAG, partnerType: 'Associates', marketplace: MARKETPLACE,
-    }),
-  });
-  const data = await res.json();
-  const items = data.itemsResult?.items || [];
+  let res;
+  try {
+    res = await fetch(ITEMS_ENDPOINT, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'x-marketplace': MARKETPLACE },
+      body: JSON.stringify({
+        itemIds: asins, itemIdType: 'ASIN', resources: RESOURCES,
+        partnerTag: AFFILIATE_TAG, partnerType: 'Associates', marketplace: MARKETPLACE,
+      }),
+    });
+  } catch (e) { return { ok: false, prices: {} }; }
+  if (!res.ok) return { ok: false, prices: {} };
+  let data;
+  try { data = await res.json(); } catch (e) { return { ok: false, prices: {} }; }
+  if (!data.itemsResult) return { ok: false, prices: {} };   // couldn't reach the catalog — treat as a miss, not "no price"
+  const items = data.itemsResult.items || [];
   const out = {};
   for (const item of items) {
     const asin = String(item.asin || '').toUpperCase();
@@ -82,34 +90,13 @@ async function fetchPrices(asins, token) {
       reviews: item.customerReviews?.count || 0,
     };
   }
-  return out;
+  return { ok: true, prices: out };
 }
 
 exports.handler = async function (event) {
   const sbUrl = process.env.SUPABASE_URL;
   const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!sbUrl || !sbKey) return { statusCode: 500, body: 'Configuration error (Supabase)' };
-
-  // TEMP diagnostic: ?diag=pricecheck returns what a batch getItems actually returns for the
-  // stalest 10 ASINs (requested vs returned asin, price present, errors). Read-only. Remove after.
-  const _qp = (event && event.queryStringParameters) || {};
-  if (_qp.diag === 'pricecheck') {
-    const H = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
-    const cutoff = new Date(Date.now() - STALE_AFTER_MS).toISOString();
-    const rr = await fetch(`${sbUrl}/rest/v1/deals?store=eq.Amazon&or=(price_checked_at.is.null,price_checked_at.lt.${encodeURIComponent(cutoff)})&order=price_checked_at.asc.nullsfirst&limit=10&select=url`, { headers: H });
-    const rows = await rr.json();
-    const asins = (Array.isArray(rows) ? rows : []).map(d => extractAsin(d.url)).filter(Boolean);
-    let token; try { token = await getToken(); } catch (e) { return { statusCode: 200, body: JSON.stringify({ diag: true, err: 'token ' + e.message }) }; }
-    const air = await fetch(ITEMS_ENDPOINT, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'x-marketplace': MARKETPLACE }, body: JSON.stringify({ itemIds: asins, itemIdType: 'ASIN', resources: RESOURCES, partnerTag: AFFILIATE_TAG, partnerType: 'Associates', marketplace: MARKETPLACE }) });
-    const data = await air.json();
-    const items = data.itemsResult?.items || [];
-    return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-      diag: true, httpStatus: air.status, requested: asins, returnedCount: items.length,
-      returned: items.map(it => ({ asin: it.asin, hasPrice: !!(it.offersV2?.listings?.[0]?.price), keys: Object.keys(it).slice(0, 8) })),
-      errors: data.errors || data.itemsResult?.errors || null,
-      topLevelKeys: Object.keys(data),
-    }, null, 1) };
-  }
 
   // Manual trigger (admin) requires the admin password.
   const manual = !!(event && (event.httpMethod === 'POST' || (event.queryStringParameters && event.queryStringParameters.key)));
@@ -145,23 +132,35 @@ exports.handler = async function (event) {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const start = Date.now();
   const nowIso = new Date().toISOString();
-  let refreshed = 0, skipped = 0, capped = false, chunks = 0;
+  let refreshed = 0, unavailable = 0, skipped = 0, capped = false, chunks = 0;
 
   // Group deals into chunks of up to 10 ASINs (skip rows with no ASIN).
   const withAsin = rows.map(d => ({ d, asin: extractAsin(d.url) })).filter(x => x.asin);
   skipped += rows.length - withAsin.length;
 
+  const patchDeal = (id, obj) => fetch(`${sbUrl}/rest/v1/deals?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify(obj),
+  });
+
   for (let i = 0; i < withAsin.length; i += CHUNK) {
     if (Date.now() - start > TIME_CAP_MS) { capped = true; break; }
     const group = withAsin.slice(i, i + CHUNK);
-    let priceMap = {};
-    try { priceMap = await fetchPrices(group.map(g => g.asin), token); } catch (e) { priceMap = {}; }
+    const res = await fetchPrices(group.map(g => g.asin), token);
     chunks++;
     await sleep(API_SPACING);
+    if (!res.ok) { skipped += group.length; continue; }   // call failed -> retry next run, don't flag anything
 
     for (const { d, asin } of group) {
-      const prod = priceMap[asin];
-      if (!prod) { skipped++; continue; }   // no live price -> leave stale; front end hides it, expiry cleans up
+      const prod = res.prices[asin];
+      if (!prod) {
+        // The API answered but this item has no current price (offer gone / not accessible). Stamp
+        // it so it leaves the front of the retry queue (otherwise dead deals get retried every run
+        // and starve the good ones), and flag it so the page shows a clean link-out, not a stale
+        // price. It's re-checked ~every 12h in case the offer comes back.
+        try { if ((await patchDeal(d.id, { price_checked_at: nowIso, price_unavailable: true })).ok) unavailable++; else skipped++; }
+        catch (e) { skipped++; }
+        continue;
+      }
       // Coded deal: `was` is Amazon's regular price (refreshed); `price` is the after-code promo
       // claim (kept unless the shelf price fell to/below it). Plain deal: `price` is the current
       // Amazon price; keep the existing `was` unless the markdown is gone.
@@ -175,18 +174,16 @@ exports.handler = async function (event) {
       }
       off = was > price ? Math.round((1 - price / was) * 100) : 0;
 
-      const patch = { price, was, off, rating: prod.rating || 0, reviews: prod.reviews || 0, price_checked_at: nowIso };
+      const patch = { price, was, off, rating: prod.rating || 0, reviews: prod.reviews || 0, price_checked_at: nowIso, price_unavailable: false };
       if (prod.img) patch.img = prod.img;
       try {
-        const up = await fetch(`${sbUrl}/rest/v1/deals?id=eq.${encodeURIComponent(d.id)}`, {
-          method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify(patch),
-        });
+        const up = await patchDeal(d.id, patch);
         if (up.ok) refreshed++; else { skipped++; console.error('[refresh-prices] patch failed:', await up.text()); }
       } catch (e) { skipped++; console.error('[refresh-prices] patch error:', e.message); }
     }
   }
 
-  const result = { ok: true, refreshed, skipped, capped, chunks, pulled: rows.length };
+  const result = { ok: true, refreshed, unavailable, skipped, capped, chunks, pulled: rows.length };
   console.log('[refresh-prices]', JSON.stringify(result));
   return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(result) };
 };

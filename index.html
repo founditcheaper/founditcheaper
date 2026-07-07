@@ -1163,6 +1163,7 @@ function priceCheckedLabel(ts) {
 }
 function _priceStale(p) {
   if (!p || p.store !== 'Amazon') return false;
+  if (p.priceUnavailable) return true;   // API has no current price for it -> link out, don't show a stale one
   var t = p.priceCheckedAt, n = t ? new Date(t).getTime() : NaN;
   return isNaN(n) || (Date.now() - n) > PRICE_MAX_AGE_MS;
 }
@@ -2339,7 +2340,7 @@ function _afterLoad() {
   // halves egress (the big `images` gallery column is loaded lazily when a deal is opened, see
   // openDrawer) and stops shipping internal/PII columns (submitter_email, flag_reason, etc.) to
   // every visitor.
-  var _DEAL_COLS = 'id,name,store,category,brand,brand_name,price,was,off,rating,reviews,img,url,first_seen,created_at,active_date,code,verified_low,ends_at,price_checked_at';
+  var _DEAL_COLS = 'id,name,store,category,brand,brand_name,price,was,off,rating,reviews,img,url,first_seen,created_at,active_date,code,verified_low,ends_at,price_checked_at,price_unavailable';
 
   // Separate queries — no JS deduplication needed
   var picksPromise = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', true)
@@ -2381,7 +2382,7 @@ function _afterLoad() {
                    url: r.url,
                    code: r.code || null, rating: r.rating, reviews: r.reviews,
                    category: r.category || '',
-                   priceCheckedAt: r.price_checked_at || r.created_at || r.first_seen,
+                   priceCheckedAt: r.price_checked_at || r.created_at || r.first_seen, priceUnavailable: !!r.price_unavailable,
                    found: formatFound(r.created_at, r.active_date) };
                    // images (gallery) loaded lazily in openDrawer, not in bulk
         });
@@ -2444,7 +2445,7 @@ function _afterLoad() {
           off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
           rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
           found: formatFound(d.first_seen || d.created_at, d.active_date), addedDay: _addedDayOf(d), code: d.code || null,
-          priceCheckedAt: d.price_checked_at || d.created_at || d.first_seen,
+          priceCheckedAt: d.price_checked_at || d.created_at || d.first_seen, priceUnavailable: !!d.price_unavailable,
           _ts: (function(){ var t = d.first_seen || d.created_at || d.active_date; var n = t ? new Date(t).getTime() : 0; return isNaN(n) ? 0 : n; })(),  // for the "newest" sort
           verifiedLow: !!d.verified_low,   // at/near its 30-day low (set by the price-tracking job)
           endsAt: d.ends_at || null,       // seller-set expiry — deal is hidden once this passes
@@ -2607,7 +2608,7 @@ async function openDrawer(productId) {
           off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
           rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
           found: formatFound(d.first_seen || d.created_at, d.active_date), addedDay: _addedDayOf(d), code: d.code || null,
-          priceCheckedAt: d.price_checked_at || d.created_at || d.first_seen,
+          priceCheckedAt: d.price_checked_at || d.created_at || d.first_seen, priceUnavailable: !!d.price_unavailable,
           verifiedLow: !!d.verified_low,
           endsAt: d.ends_at || null,       // seller-set expiry — deal is hidden once this passes
           images: (function() { try { return JSON.parse(d.images || '[]'); } catch(e) { return []; } })(),
