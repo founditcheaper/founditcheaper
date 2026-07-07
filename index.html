@@ -855,6 +855,12 @@
   <div class="section-divider-line"></div>
 </div>
 
+<!-- Crawlable/AI snapshot of the top deals, baked into the raw HTML at build time (see build.js).
+     Titles, categories, brands, images, and on-site links only — NEVER Amazon prices (Associates
+     rule: no cached prices). This is the no-JS fallback; the JS below removes it once the live,
+     interactive grid renders, so shoppers only ever see the real grid. -->
+<!--SEO_DEALS-->
+
 <!-- FILTERS + GRID -->
 <div class="layout">
   <div class="main">
@@ -2395,6 +2401,8 @@ function _afterLoad() {
   await loadGameCardInfo();
   if (EMBED_GRID) { state.sort = 'random'; }   // game-page feed: shuffled each visit so repeat players see fresh deals
   else { applyDefaultDate(); }                  // main site: open on the most recent day that has deals
+  // The interactive grid is ready — drop the static crawl/AI snapshot so shoppers see only it.
+  var _seo = document.getElementById('seoDeals'); if (_seo && _seo.parentNode) _seo.parentNode.removeChild(_seo);
   resetAndRender();
   fadeIntroOut();   // grid is on screen now — drop the first-paint splash
   // A wide desktop's first screen can be short enough that nothing triggers the next page.

@@ -248,6 +248,14 @@ exports.handler = async function (event) {
     }
   } catch (e) { console.error('[promote-top-picks] grid-top rotation failed:', e.message); }
 
+  // Once a day, trigger a Netlify rebuild so the crawlable/AI deal snapshot baked into
+  // index.html (see build.js) refreshes with the current top deals. No-op unless the
+  // NETLIFY_BUILD_HOOK env var is set (create a build hook in Netlify → add it as that var).
+  if (process.env.NETLIFY_BUILD_HOOK) {
+    try { await fetch(process.env.NETLIFY_BUILD_HOOK, { method: 'POST' }); }
+    catch (e) { console.error('[promote-top-picks] build hook ping failed:', e.message); }
+  }
+
   console.log(`[promote-top-picks] ✓ Top Picks: ${promoted} · grid Top-Value rotated: ${gridTopCount}`);
   return {
     statusCode: 200,
