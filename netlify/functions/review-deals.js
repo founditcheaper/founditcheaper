@@ -83,7 +83,9 @@ exports.handler = async function () {
   // what lets a large batch clear in a run or two instead of ~15/run. (Already-live deals are
   // also continuously re-scanned for banned keywords in section B below, as a safety net.)
   try {
-    const r = await fetch(`${sbUrl}/rest/v1/deals?review_status=eq.pending&created_at=lt.${encodeURIComponent(cutoff)}&img=not.is.null&name=not.is.null&select=id,name&order=created_at.asc&limit=400`, { headers: H });
+    // img must be a REAL url (like http*), not null and not an empty string — an empty-string
+    // image is NOT null, so a plain `img=not.is.null` would wrongly fast-publish imageless deals.
+    const r = await fetch(`${sbUrl}/rest/v1/deals?review_status=eq.pending&created_at=lt.${encodeURIComponent(cutoff)}&img=like.http*&name=not.is.null&select=id,name&order=created_at.asc&limit=400`, { headers: H });
     const ready = await r.json();
     if (Array.isArray(ready)) {
       readySeen = ready.length;
@@ -99,7 +101,7 @@ exports.handler = async function () {
   // and image from the API to confirm they're genuine, using whatever time budget is left.
   let pending = [];
   try {
-    const r = await fetch(`${sbUrl}/rest/v1/deals?review_status=eq.pending&created_at=lt.${encodeURIComponent(cutoff)}&img=is.null&select=id,name,url,img&order=created_at.asc&limit=100`, { headers: H });
+    const r = await fetch(`${sbUrl}/rest/v1/deals?review_status=eq.pending&created_at=lt.${encodeURIComponent(cutoff)}&or=(img.is.null,img.not.like.http*)&select=id,name,url,img&order=created_at.asc&limit=100`, { headers: H });
     pending = await r.json(); if (!Array.isArray(pending)) pending = [];
   } catch (e) { pending = []; }
 
