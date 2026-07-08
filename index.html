@@ -2691,6 +2691,16 @@ async function openDrawer(productId) {
   var _chk = _priceStale(p) ? null : priceCheckedLabel(p.priceCheckedAt);
   if (_chk) html += '<div class="drawer-found">✓ Price checked · ' + _chk + '</div>';
 
+  // Store CTA — built once and placed HIGH so a phone user sees it without scrolling past the
+  // help sections: right after the price when there's no code, or right after the code box below.
+  // On a real Android browser an Amazon deal launches the app straight from this tap via an
+  // intent:// link (a sendBeacon still logs the click); everything else uses the /deal/ link.
+  var _dAsin = (p.store === 'Amazon') ? amazonAsin(p.url) : null;
+  var viewBtnHtml = (_dAsin && isDirectAndroid())
+    ? '<a class="drawer-view-btn" href="' + amazonIntentUrl(_dAsin) + '" rel="noopener" onclick="try{navigator.sendBeacon(\'/deal/' + _dAsin + '\')}catch(e){}">View Deal on ' + sName + ' →</a>'
+    : '<a class="drawer-view-btn" href="' + affiliateUrl(p.url, p.store) + '" target="_blank" rel="noopener">View Deal on ' + sName + ' →</a>';
+  if (!p.code) html += viewBtnHtml;   // no promo code → store button goes right after the price
+
   // Code box
   if (p.code) {
     html += '<div class="drawer-code-box">';
@@ -2699,6 +2709,8 @@ async function openDrawer(productId) {
     html += '<button class="drawer-copy-code" id="drawerCopyBtn" onclick="drawerCopyCode(\'' + p.code + '\')">Copy Code</button>';
     html += '<div class="drawer-code-note">Paste at checkout · Copy the code above to use on ' + sName + '</div>';
     html += '</div>';
+
+    html += viewBtnHtml;   // promo deal → store button right after the code (copy-then-view), above the help sections
 
     // How to use this code (collapsible step-by-step)
     html += '<div class="drawer-why-wrap">';
@@ -2726,16 +2738,7 @@ async function openDrawer(productId) {
     html += '</div></div>';
   }
 
-  // Buttons. On a real Android browser, an Amazon deal launches the app straight from THIS
-  // tap (one gesture) via an intent:// link, skipping the interstitial's second tap. A
-  // sendBeacon still logs the click (survives the app hand-off). Everything else — iOS,
-  // desktop, Android in-app webviews, and non-Amazon — keeps the /deal/ (or stored) link.
-  var _dAsin = (p.store === 'Amazon') ? amazonAsin(p.url) : null;
-  if (_dAsin && isDirectAndroid()) {
-    html += '<a class="drawer-view-btn" href="' + amazonIntentUrl(_dAsin) + '" rel="noopener" onclick="try{navigator.sendBeacon(\'/deal/' + _dAsin + '\')}catch(e){}">View Deal on ' + sName + ' →</a>';
-  } else {
-    html += '<a class="drawer-view-btn" href="' + affiliateUrl(p.url, p.store) + '" target="_blank" rel="noopener">View Deal on ' + sName + ' →</a>';
-  }
+  // Secondary action (the primary "View Deal" button is placed higher, near the price/code).
   html += '<button class="drawer-share-btn" onclick="drawerShareDeal(this)">🔗 Share Deal</button>';
   html += '<div style="font-size:10px;color:var(--muted);text-align:center;line-height:1.5;margin-top:12px">founditcheaper earns from qualifying purchases, including as an Amazon Associate, at no extra cost to you. Prices &amp; codes can change. <a href="founditcheaper-legal.html" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:underline">Full disclosure</a></div>';
 
