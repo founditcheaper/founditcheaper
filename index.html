@@ -2580,13 +2580,13 @@ function _afterLoad() {
   .drawer-found { font-size:11px; color:var(--muted); margin-bottom:16px; }
 
   /* Code box */
-  .drawer-code-box { background:rgba(245,200,66,0.08); border:1px dashed rgba(245,200,66,0.45); border-radius:10px; padding:16px; margin-bottom:14px; }
-  .drawer-code-label { font-size:10px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:10px; text-align:center; }
-  .drawer-code-value { font-size:28px; font-weight:900; color:var(--accent); letter-spacing:4px; text-align:center; margin-bottom:12px; }
-  .drawer-copy-code { display:block; width:100%; padding:12px; background:var(--accent); color:#0a1f33; border:none; border-radius:8px; font-size:14px; font-weight:800; cursor:pointer; font-family:'Inter',sans-serif; transition:opacity .15s; }
+  .drawer-code-box { background:rgba(245,200,66,0.08); border:1px dashed rgba(245,200,66,0.45); border-radius:10px; padding:11px 14px; margin-bottom:10px; }
+  .drawer-code-label { font-size:10px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:4px; text-align:center; }
+  .drawer-code-value { font-size:22px; font-weight:900; color:var(--accent); letter-spacing:3px; text-align:center; margin-bottom:7px; }
+  .drawer-copy-code { display:block; width:100%; padding:9px; background:var(--accent); color:#0a1f33; border:none; border-radius:8px; font-size:14px; font-weight:800; cursor:pointer; font-family:'Inter',sans-serif; transition:opacity .15s; }
   .drawer-copy-code:hover { opacity:.88; }
   .drawer-copy-code.copied { background:var(--green); }
-  .drawer-code-note { font-size:11px; color:var(--muted); text-align:center; margin-top:8px; }
+  .drawer-code-note { font-size:11px; color:var(--muted); text-align:center; margin-top:5px; }
 
   /* Why not working */
   .drawer-why-wrap { border:1px solid rgba(255,255,255,0.1); border-radius:10px; overflow:hidden; margin-bottom:14px; }
@@ -2699,7 +2699,8 @@ async function openDrawer(productId) {
   var viewBtnHtml = (_dAsin && isDirectAndroid())
     ? '<a class="drawer-view-btn" href="' + amazonIntentUrl(_dAsin) + '" rel="noopener" onclick="try{navigator.sendBeacon(\'/deal/' + _dAsin + '\')}catch(e){}">View Deal on ' + sName + ' →</a>'
     : '<a class="drawer-view-btn" href="' + affiliateUrl(p.url, p.store) + '" target="_blank" rel="noopener">View Deal on ' + sName + ' →</a>';
-  if (!p.code) html += viewBtnHtml;   // no promo code → store button goes right after the price
+  var shareBtnHtml = '<button class="drawer-share-btn" onclick="drawerShareDeal(this)">🔗 Share Deal</button>';
+  if (!p.code) html += viewBtnHtml + shareBtnHtml;   // no promo code → store + share right after the price
 
   // Code box
   if (p.code) {
@@ -2710,7 +2711,7 @@ async function openDrawer(productId) {
     html += '<div class="drawer-code-note">Paste at checkout · Copy the code above to use on ' + sName + '</div>';
     html += '</div>';
 
-    html += viewBtnHtml;   // promo deal → store button right after the code (copy-then-view), above the help sections
+    html += viewBtnHtml + shareBtnHtml;   // promo deal → store + share right after the code, above the help sections
 
     // How to use this code (collapsible step-by-step)
     html += '<div class="drawer-why-wrap">';
@@ -2738,8 +2739,6 @@ async function openDrawer(productId) {
     html += '</div></div>';
   }
 
-  // Secondary action (the primary "View Deal" button is placed higher, near the price/code).
-  html += '<button class="drawer-share-btn" onclick="drawerShareDeal(this)">🔗 Share Deal</button>';
   html += '<div style="font-size:10px;color:var(--muted);text-align:center;line-height:1.5;margin-top:12px">founditcheaper earns from qualifying purchases, including as an Amazon Associate, at no extra cost to you. Prices &amp; codes can change. <a href="founditcheaper-legal.html" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:underline">Full disclosure</a></div>';
 
   document.getElementById('drawerContent').innerHTML = html;
