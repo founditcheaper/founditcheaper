@@ -14,7 +14,7 @@
 
 const crypto = require('crypto');
 
-const GAME_COL = { dice: 'notify_dice', flappy: 'notify_flappy' };
+const GAME_COL = { dice: 'notify_dice', flappy: 'notify_flappy', snake: 'notify_snake' };
 
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
@@ -48,7 +48,7 @@ exports.handler = async function (event) {
       return { statusCode: 200, body: JSON.stringify({ ok: true, already: true, game }) };
     }
     const token = crypto.randomBytes(16).toString('hex');
-    const row = { email, token, active: true, notify_dice: false, notify_flappy: false };
+    const row = { email, token, active: true, notify_dice: false, notify_flappy: false, notify_snake: false };
     row[col] = true;
     const r = await fetch(`${sbUrl}/rest/v1/game_notify`, {
       method: 'POST', headers: { ...H, Prefer: 'resolution=ignore-duplicates,return=minimal' },

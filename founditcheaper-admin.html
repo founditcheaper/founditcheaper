@@ -313,6 +313,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-primary" id="gamechoice-dice" onclick="openGame('dice')" style="flex:1;min-width:150px">🎲 Dice Game <span style="color:#0a1f33;font-weight:800;font-size:11px">● LIVE</span></button>
           <button class="btn btn-ghost" id="gamechoice-flappy" onclick="openGame('flappy')" style="flex:1;min-width:150px">🍌 Flappy Banana</button>
+          <button class="btn btn-ghost" id="gamechoice-snake" onclick="openGame('snake')" style="flex:1;min-width:150px">🐍 Hungry Banana</button>
         </div>
       </div>
 
@@ -465,6 +466,79 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
           <div id="flappyResults"></div>
         </div>
       </div><!-- /games-sub-flappy -->
+
+      <!-- HUNGRY BANANA (snake) -->
+      <div id="games-sub-snake" style="display:none">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Hungry Banana <span style="font-size:12px;color:var(--muted);font-weight:600">— not in the menu yet</span></div>
+            <div class="section-sub">Eat bananas, don't bite yourself. Highest score in the round wins. No cooldown, players play as many times as they want and only their best run counts. Every score is verified by replaying the player's own inputs, so a score cannot be faked.</div>
+          </div>
+        </div>
+
+        <div id="snakeStatusBanner" style="margin-bottom:16px"></div>
+
+        <div class="settings-card" style="margin-bottom:16px">
+          <div class="settings-title">🎁 Prize & Competition Dates</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Shown on the Hungry Banana page. Update it anytime. The top 3 scorers each win their matching prize. Leave 2nd/3rd blank to award a single winner only.</div>
+          <div class="field-group" style="margin-bottom:10px">
+            <label class="field-label">🥇 1st place prize <span style="color:#f5c842;font-weight:400">(required)</span></label>
+            <input type="text" id="snakePrizeInput" class="field-input" placeholder="$25 Amazon Gift Card" maxlength="120">
+          </div>
+          <div class="field-group" style="margin-bottom:10px">
+            <label class="field-label">🥈 2nd place prize <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+            <input type="text" id="snakePrize2Input" class="field-input" placeholder="$15 Amazon Gift Card" maxlength="120">
+          </div>
+          <div class="field-group" style="margin-bottom:10px">
+            <label class="field-label">🥉 3rd place prize <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+            <input type="text" id="snakePrize3Input" class="field-input" placeholder="$10 Amazon Gift Card" maxlength="120">
+          </div>
+          <div class="field-group" style="margin-bottom:12px">
+            <label class="field-label">Details / deadline line</label>
+            <input type="text" id="snakePrizeSubInput" class="field-input" placeholder="Highest score by the end of the round wins. Play as many times as you want." maxlength="160">
+          </div>
+          <div class="field-group" style="margin-bottom:8px">
+            <label class="field-label">Competition dates — starting a new period resets the leaderboard</label>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+              <div><div style="font-size:10px;color:var(--muted);margin-bottom:3px">Start</div><input type="date" id="snakeStartInput" class="field-input" style="max-width:170px"></div>
+              <div><div style="font-size:10px;color:var(--muted);margin-bottom:3px">End (last day to score)</div><input type="date" id="snakeEndInput" class="field-input" style="max-width:170px"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+            <span style="font-size:11px;color:var(--muted)">Quick set (starts today):</span>
+            <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setSnakePreset(1)">1 day</button>
+            <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setSnakePreset(2)">2 days</button>
+            <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setSnakePreset(3)">3 days</button>
+            <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setSnakePreset(7)">1 week</button>
+          </div>
+          <button class="btn btn-primary" id="saveSnakeBtn" onclick="saveSnakeSettings()">Start New Game</button>
+          <span id="saveSnakeMsg" style="font-size:12px;margin-left:10px"></span>
+          <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:14px;padding-top:14px">
+            <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:8px"><strong>Force End</strong> stops the game now, before the end date. The page shows no game running and no one can play; scores are kept. <strong>Clear ALL Scores</strong> wipes every player's score for a true restart.</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+              <button class="btn btn-ghost" id="forceEndSnakeBtn" style="border-color:rgba(255,120,120,0.5);color:#ff9a9a" onclick="forceEndSnake()">⏹ Force End Game Now</button>
+              <button class="btn btn-ghost" id="resetSnakeBtn" style="border-color:rgba(255,120,120,0.5);color:#ff9a9a" onclick="clearAllSnakeScores()">🗑️ Clear ALL Scores (restart)</button>
+            </div>
+            <span id="forceEndSnakeMsg" style="font-size:12px;display:block;margin-top:8px"></span>
+            <span id="resetSnakeMsg" style="font-size:12px;display:block;margin-top:4px"></span>
+          </div>
+        </div>
+
+        <div class="settings-card" style="margin-bottom:16px">
+          <div class="settings-title">🧪 Test Game (Demo)</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">
+            Opens a full sandbox. Play as many times as you want. Nothing is saved and the real leaderboard is never touched.
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="window.open('founditcheaper-snake.html?demo=1','_blank')">🧪 Open Demo Game</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-bottom:14px">
+          <button class="btn btn-ghost" style="flex:1;min-width:0" onclick="loadSnakeResults()">↻ Refresh Results</button>
+        </div>
+        <div id="snakeResults"></div>
+      </div><!-- /games-sub-snake -->
     </div><!-- /tab-games -->
 
     <!-- TAB: HIDDEN FEATURES (site display toggles) -->
@@ -838,18 +912,20 @@ window.addEventListener('message', function (e) {
   setInterval(maybeMore, 1200);
 })();
 
-// Games tab: swap between the dice-game and flappy-banana admin panels.
+// Games tab: swap between the per-game admin panels.
 var _openGameKey = 'dice';
+var _GAME_KEYS = ['dice', 'flappy', 'snake'];
 function openGame(key) {
+  if (_GAME_KEYS.indexOf(key) === -1) key = 'dice';
   _openGameKey = key;
-  var dice = document.getElementById('games-sub-dice');
-  var flappy = document.getElementById('games-sub-flappy');
-  if (dice) dice.style.display = (key === 'dice') ? 'block' : 'none';
-  if (flappy) flappy.style.display = (key === 'flappy') ? 'block' : 'none';
-  var db = document.getElementById('gamechoice-dice'), fb = document.getElementById('gamechoice-flappy');
-  if (db) { db.classList.toggle('btn-primary', key === 'dice'); db.classList.toggle('btn-ghost', key !== 'dice'); }
-  if (fb) { fb.classList.toggle('btn-primary', key === 'flappy'); fb.classList.toggle('btn-ghost', key !== 'flappy'); }
+  _GAME_KEYS.forEach(function (k) {
+    var panel = document.getElementById('games-sub-' + k);
+    if (panel) panel.style.display = (k === key) ? 'block' : 'none';
+    var btn = document.getElementById('gamechoice-' + k);
+    if (btn) { btn.classList.toggle('btn-primary', k === key); btn.classList.toggle('btn-ghost', k !== key); }
+  });
   if (key === 'dice') loadGameResults();
+  if (key === 'snake') loadSnakeResults();
   var flc = document.getElementById('flappyLiveControls');
   if (key === 'flappy' && flc && flc.style.display !== 'none') loadFlappyResults();
 }
@@ -2000,6 +2076,14 @@ async function loadSettings() {
     if (m.flappy_period_end != null && document.getElementById('flappyEndInput')) document.getElementById('flappyEndInput').value = m.flappy_period_end;
     _flappyCfg = { start: m.flappy_period_start || '', end: m.flappy_period_end || '', ended: String(m.flappy_ended || '0') === '1' };
     renderFlappyStatus();
+    if (m.snake_prize != null && document.getElementById('snakePrizeInput')) document.getElementById('snakePrizeInput').value = m.snake_prize;
+    if (m.snake_prize_2 != null && document.getElementById('snakePrize2Input')) document.getElementById('snakePrize2Input').value = m.snake_prize_2;
+    if (m.snake_prize_3 != null && document.getElementById('snakePrize3Input')) document.getElementById('snakePrize3Input').value = m.snake_prize_3;
+    if (m.snake_prize_sub != null && document.getElementById('snakePrizeSubInput')) document.getElementById('snakePrizeSubInput').value = m.snake_prize_sub;
+    if (m.snake_period_start != null && document.getElementById('snakeStartInput')) document.getElementById('snakeStartInput').value = m.snake_period_start;
+    if (m.snake_period_end != null && document.getElementById('snakeEndInput')) document.getElementById('snakeEndInput').value = m.snake_period_end;
+    _snakeCfg = { start: m.snake_period_start || '', end: m.snake_period_end || '', ended: String(m.snake_ended || '0') === '1' };
+    renderSnakeStatus();
   } catch (e) { /* settings table may not exist yet */ }
 }
 async function clearAllScores() {
@@ -2307,6 +2391,132 @@ async function loadFlappyResults() {
       });
       html += '</div>';   // end collapsible player list
       html += '</div>';   // end game card
+    });
+    el.innerHTML = html;
+  } catch (e) { el.innerHTML = '<div style="color:#f87171;font-size:13px;padding:20px;text-align:center">Could not load results.</div>'; }
+}
+
+// ══ HUNGRY BANANA (snake) ═══════════════════════════════════════════════
+var _snakeCfg = { start: '', end: '', ended: false };
+function renderSnakeStatus() {
+  var el = document.getElementById('snakeStatusBanner'); if (!el) return;
+  var c = _snakeCfg || {}, today = _todayCT();
+  function box(bg, bd, col, html) { return '<div style="background:' + bg + ';border:1px solid ' + bd + ';border-radius:10px;padding:12px 14px;font-size:14px;font-weight:700;color:' + col + '">' + html + '</div>'; }
+  if (!c.start || !c.end) { el.innerHTML = box('rgba(255,255,255,0.05)', 'rgba(255,255,255,0.15)', 'var(--muted)', 'No game configured — set competition dates below to start one.'); return; }
+  var range = (c.start === c.end) ? _fmtDay(c.start) : (_fmtDay(c.start) + ' – ' + _fmtDay(c.end));
+  if (c.ended) {
+    el.innerHTML = box('rgba(255,255,255,0.05)', 'rgba(255,255,255,0.15)', 'var(--muted)', '⏹ Game force-ended (' + range + '). No game running — set new dates below to start one.');
+  } else if (today < c.start) {
+    el.innerHTML = box('rgba(96,165,250,0.12)', 'rgba(96,165,250,0.4)', '#93c5fd', '⏳ Game scheduled — ' + range + '. Not started yet.');
+  } else if (today <= c.end) {
+    var nx = new Date(c.end + 'T12:00:00'); nx.setDate(nx.getDate() + 1);
+    el.innerHTML = box('rgba(74,222,128,0.12)', 'rgba(74,222,128,0.45)', '#4ade80', '🟢 Game LIVE — ' + range + '. Ends ' + nx.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at 12:00 AM CT.');
+  } else {
+    el.innerHTML = box('rgba(245,200,66,0.1)', 'rgba(245,200,66,0.4)', '#f5c842', '⚫ Game ended — ' + range + '. Winner is below; no game currently running.');
+  }
+}
+function setSnakePreset(days) {
+  var today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  var s = new Date(today + 'T12:00:00'); var e = new Date(s); e.setDate(s.getDate() + (days - 1));
+  document.getElementById('snakeStartInput').value = today;
+  document.getElementById('snakeEndInput').value = e.toLocaleDateString('en-CA');
+}
+async function saveSnakeSettings() {
+  var prize = (document.getElementById('snakePrizeInput').value || '').trim();
+  var prize2 = (document.getElementById('snakePrize2Input').value || '').trim();
+  var prize3 = (document.getElementById('snakePrize3Input').value || '').trim();
+  var sub = (document.getElementById('snakePrizeSubInput').value || '').trim();
+  var start = document.getElementById('snakeStartInput').value;
+  var end = document.getElementById('snakeEndInput').value;
+  var msg = document.getElementById('saveSnakeMsg');
+  var btn = document.getElementById('saveSnakeBtn');
+  if (!prize) { msg.style.color = '#f87171'; msg.textContent = 'Enter a 1st place prize (required). 2nd and 3rd are optional.'; return; }
+  if (start && end && end < start) { msg.style.color = '#f87171'; msg.textContent = 'End date must be on or after the start date.'; return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    var res = await fetch('/.netlify/functions/save-settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass, snakePrize: prize, snakePrize2: prize2, snakePrize3: prize3, snakePrizeSub: sub, snakePeriodStart: start, snakePeriodEnd: end }),
+    });
+    var d = await res.json();
+    if (res.ok && d.ok) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Saved — live on the game page'; _snakeCfg = { start: start, end: end, ended: false }; renderSnakeStatus(); }
+    else { msg.style.color = '#f87171'; msg.textContent = 'Failed' + (d.error ? ': ' + d.error : ''); }
+  } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error'; }
+  btn.disabled = false; btn.textContent = 'Start New Game';
+}
+async function forceEndSnake() {
+  if (!confirm('Force end Hungry Banana now? The game page will show no game running and no one can play. Scores are kept. You can start a new game anytime by setting Competition dates and saving.')) return;
+  var msg = document.getElementById('forceEndSnakeMsg');
+  var btn = document.getElementById('forceEndSnakeBtn');
+  btn.disabled = true; btn.textContent = 'Ending…';
+  try {
+    var res = await fetch('/.netlify/functions/save-settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass, snakeEnded: true }),
+    });
+    var d = await res.json();
+    if (res.ok && d.ok) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Game ended — live on the game page'; _snakeCfg.ended = true; renderSnakeStatus(); }
+    else { msg.style.color = '#f87171'; msg.textContent = 'Failed' + (d.error ? ': ' + d.error : ''); }
+  } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error'; }
+  btn.disabled = false; btn.textContent = '⏹ Force End Game Now';
+}
+async function clearAllSnakeScores() {
+  var msg = document.getElementById('resetSnakeMsg');
+  var btn = document.getElementById('resetSnakeBtn');
+  if (!confirm('Clear ALL Hungry Banana scores?\n\nThis permanently deletes every player\'s score and cannot be undone.\n\nContinue?')) return;
+  if (!confirm('Last check — this wipes the live leaderboard for everyone. Are you sure?')) return;
+  btn.disabled = true; var orig = btn.textContent; btn.textContent = 'Clearing…';
+  msg.style.color = 'var(--muted)'; msg.textContent = '';
+  try {
+    var res = await fetch('/.netlify/functions/reset-snake', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass, scope: 'all' }),
+    });
+    var d = await res.json();
+    if (res.ok && d.ok) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Cleared ' + d.deleted + ' score(s) — leaderboard is now empty'; loadSnakeResults(); }
+    else { msg.style.color = '#f87171'; msg.textContent = 'Failed' + (d.error ? ': ' + d.error : ''); }
+  } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error'; }
+  btn.disabled = false; btn.textContent = orig;
+}
+async function loadSnakeResults() {
+  var el = document.getElementById('snakeResults'); if (!el) return;
+  el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Loading…</div>';
+  try {
+    var res = await fetch('/.netlify/functions/snake-results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass }) });
+    var payload = await res.json();
+    var rows = payload && payload.rows;
+    if (!Array.isArray(rows) || !rows.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">No Hungry Banana plays yet.</div>'; return; }
+    var byPeriod = {};
+    rows.forEach(function (r) { (byPeriod[r.period_start] = byPeriod[r.period_start] || []).push(r); });
+    var periods = Object.keys(byPeriod).filter(function (w) { return w >= '2020-01-01'; }).sort().reverse();
+    var today = _todayCT();
+    var html = '';
+    periods.forEach(function (wk) {
+      var group = byPeriod[wk];
+      var players = group.slice().sort(function (a, b) { return b.best_score - a.best_score; });
+      var winner = players[0];
+      var pEnd = null;
+      for (var gi = 0; gi < group.length; gi++) { if (group[gi].period_end) { pEnd = group[gi].period_end; break; } }
+      if (!pEnd && _snakeCfg && wk === _snakeCfg.start) pEnd = _snakeCfg.end;
+      if (!pEnd) pEnd = wk;
+      var forceEnded = !!(_snakeCfg && wk === _snakeCfg.start && _snakeCfg.ended);
+      var inProgress = !forceEnded && today >= wk && today <= pEnd;
+      var badge = inProgress
+        ? '<span style="font-size:11px;font-weight:800;color:#4ade80;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.4);padding:2px 8px;border-radius:4px;white-space:nowrap">● IN PROGRESS</span>'
+        : '<span style="font-size:11px;font-weight:800;color:#f5c842;background:rgba(245,200,66,0.12);border:1px solid rgba(245,200,66,0.35);padding:2px 8px;border-radius:4px;white-space:nowrap">✓ FINAL</span>';
+      html += '<div style="border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:14px;margin-bottom:14px">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap"><div style="font-size:15px;font-weight:800;color:#fff">' + _weekRangeLabel(wk, pEnd) + '</div>' + badge + '</div>';
+      html += '<div style="background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.3);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:#fff">🏆 <strong>' + (inProgress ? 'Leading: ' : 'Winner: ') + _esc(winner.username) + ' <span style="color:var(--muted);font-weight:600">#' + _esc(winner.player_tag || '?') + '</span></strong> — <span style="color:#f5c842;font-weight:800">' + winner.best_score + ' bananas</span>' + (winner.claimed_at ? ' <span style="color:#4ade80;font-weight:800;font-size:11px">✓ CONFIRMED</span>' : '') + '<br><span style="color:var(--muted);font-size:12px">' + _esc(winner.email) + '</span> <button type="button" data-email="' + _esc(winner.email) + '" onclick="copyEmail(this)" style="font-size:11px;font-weight:800;color:#0a1f33;background:var(--accent);border:none;border-radius:5px;padding:3px 9px;margin-left:4px;cursor:pointer;vertical-align:middle">Copy email</button></div>';
+      var _lbId = 'snlb' + String(wk).replace(/[^0-9]/g, '');
+      html += '<button type="button" onclick="toggleLeaderboard(\'' + _lbId + '\', this)" style="width:100%;text-align:left;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;padding:8px 10px;cursor:pointer"><span class="lb-caret">▸</span> All players (' + players.length + ')</button>';
+      html += '<div id="' + _lbId + '" style="display:none;margin-top:6px">';
+      players.forEach(function (p, i) {
+        html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px">'
+          + '<span style="width:24px;font-weight:800;color:' + (i === 0 ? '#f5c842' : 'var(--muted)') + '">' + (i + 1) + '</span>'
+          + '<span style="flex:1;color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(p.username) + ' <span style="color:var(--muted);font-size:11px">#' + _esc(p.player_tag || '?') + ' · ' + _esc(p.email) + '</span></span>'
+          + '<span style="font-weight:800;color:#4ade80">' + p.best_score + '</span></div>';
+      });
+      html += '</div></div>';
     });
     el.innerHTML = html;
   } catch (e) { el.innerHTML = '<div style="color:#f87171;font-size:13px;padding:20px;text-align:center">Could not load results.</div>'; }

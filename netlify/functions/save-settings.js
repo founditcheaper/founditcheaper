@@ -67,6 +67,16 @@ exports.handler = async function (event) {
   if (body.flappyEnded != null) updates.push(['flappy_ended', body.flappyEnded ? '1' : '0']);
   else if (body.flappyPeriodStart != null || body.flappyPeriodEnd != null) updates.push(['flappy_ended', '0']);
 
+  // ── Hungry Banana (snake). Same pattern; 1st is required, 2nd/3rd optional. ──
+  if (body.snakePrize != null) updates.push(['snake_prize', String(body.snakePrize).slice(0, 120)]);
+  if (body.snakePrize2 != null) updates.push(['snake_prize_2', String(body.snakePrize2).slice(0, 120)]);
+  if (body.snakePrize3 != null) updates.push(['snake_prize_3', String(body.snakePrize3).slice(0, 120)]);
+  if (body.snakePrizeSub != null) updates.push(['snake_prize_sub', String(body.snakePrizeSub).slice(0, 160)]);
+  if (body.snakePeriodStart != null && /^\d{4}-\d{2}-\d{2}$/.test(String(body.snakePeriodStart))) updates.push(['snake_period_start', String(body.snakePeriodStart)]);
+  if (body.snakePeriodEnd != null && /^\d{4}-\d{2}-\d{2}$/.test(String(body.snakePeriodEnd))) updates.push(['snake_period_end', String(body.snakePeriodEnd)]);
+  if (body.snakeEnded != null) updates.push(['snake_ended', body.snakeEnded ? '1' : '0']);
+  else if (body.snakePeriodStart != null || body.snakePeriodEnd != null) updates.push(['snake_ended', '0']);
+
   if (!updates.length) return { statusCode: 400, body: JSON.stringify({ error: 'Nothing to save' }) };
 
   try {

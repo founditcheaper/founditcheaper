@@ -26,6 +26,16 @@ function todayCT() { return new Date().toLocaleDateString('en-CA', { timeZone: '
 // Everything that differs between the two games lives here.
 const GAMES = [
   {
+    key: 'snake',
+    markerCol: 'last_snake_period', optInCol: 'notify_snake',
+    startKey: 'snake_period_start', endKey: 'snake_period_end', endedKey: 'snake_ended',
+    url: 'https://founditcheaper.net/founditcheaper-snake.html',
+    subject: 'Hungry Banana just started',
+    lead: 'Hungry Banana is live again. You asked us to let you know when a new round starts, so here it is.',
+    rule: 'Eat bananas, do not bite yourself. Highest score by the end of the round comes out on top.',
+    cta: 'Play Hungry Banana',
+  },
+  {
     key: 'flappy',
     markerCol: 'last_flappy_period', optInCol: 'notify_flappy',
     startKey: 'flappy_period_start', endKey: 'flappy_period_end', endedKey: 'flappy_ended',

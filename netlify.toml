@@ -85,6 +85,13 @@
   schedule = "*/15 * * * *"
   timeout = 26
 
+# Hungry Banana: email the top 3 + Erik when a competition ends. Runs hourly and
+# self-gates: emails only once per game, only after the end date has passed (or a
+# force-end). No-ops until PRIVATE_EMAIL_PASS is set.
+[functions."snake-end-notify"]
+  schedule = "9 * * * *"
+  timeout = 26
+
 # Flappy Banana: email the winner + Erik when a competition ends. Runs hourly and
 # self-gates — emails only once per game, only after the end date has passed (or a
 # force-end). No-ops until PRIVATE_EMAIL_PASS (the deals@ mailbox password) is set.
@@ -140,6 +147,12 @@
 [[redirects]]
   from = "/claim-flappy/*"
   to = "/.netlify/functions/flappy-claim?t=:splat"
+  status = 200
+
+# Hungry Banana prize claim: pretty URL -> the snake claim function (token as ?t=).
+[[redirects]]
+  from = "/claim-snake/*"
+  to = "/.netlify/functions/snake-claim?t=:splat"
   status = 200
 
 # The homepage is index.html, which Netlify serves at "/" automatically —
