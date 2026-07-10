@@ -2117,17 +2117,22 @@ function toggleLeaderboard(id, btn) {
   el.style.display = open ? 'block' : 'none';
   var caret = btn.querySelector('.lb-caret'); if (caret) caret.textContent = open ? '▾' : '▸';
 }
-// Show how many people are on the "notify me when it's live" waiting list.
+// Show how many people are waiting to be notified, split by game. The opt-in is scoped:
+// somebody who signed up on the dice card only ever hears about the dice game.
 function renderNotifyCount(payload) {
   var num = document.getElementById('notifyCountNum');
   var sub = document.getElementById('notifyCountSub');
   if (!num) return;
   var active = (payload && Number(payload.notify_active)) || 0;
   var total = (payload && Number(payload.notify_total)) || 0;
-  num.innerHTML = '<span style="color:#60b8f5">' + active + '</span> ' + (active === 1 ? 'person' : 'people') + ' waiting to be notified';
+  var dice = (payload && Number(payload.notify_dice)) || 0;
+  var flappy = (payload && Number(payload.notify_flappy)) || 0;
+  num.innerHTML = '<span style="color:#60b8f5">' + dice + '</span> waiting on the dice game &nbsp;·&nbsp; '
+    + '<span style="color:var(--accent)">' + flappy + '</span> waiting on Flappy Banana';
   if (sub) {
     var optedOut = Math.max(0, total - active);
-    sub.textContent = "They'll get an email when the next game goes live." + (optedOut ? ' (' + optedOut + ' opted out)' : '');
+    sub.textContent = 'Each person is only emailed about the game they signed up for.'
+      + (optedOut ? ' (' + optedOut + ' opted out)' : '');
   }
 }
 async function loadGameResults() {

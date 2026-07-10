@@ -1867,7 +1867,7 @@ function promoCardsHtml() {
     gameCard = '<div style="background:linear-gradient(135deg,rgba(245,200,66,0.15),rgba(10,31,51,0.5));border:1px solid rgba(245,200,66,0.35);border-radius:10px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px">';
     gameCard += '<div style="font-size:28px">\u{1F34C}</div>';
     gameCard += '<div style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:900;color:var(--text);text-transform:uppercase;line-height:1.2">Flappy<br>Banana</div>';
-    gameCard += '<div style="font-size:11px;color:var(--muted);line-height:1.5">No game running right now. Get an email when the next one starts.</div>';
+    gameCard += '<div style="font-size:11px;color:var(--muted);line-height:1.5">No game running right now. Get an email when Flappy Banana is live.</div>';
     gameCard += '<input id="gridGameNotifyInput" type="email" value="' + _pcEsc(savedEmail) + '" placeholder="your@email.com" onkeydown="if(event.key===\'Enter\')gridGameNotify()" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:9px 10px;color:var(--text);font-size:12px;font-family:Inter,sans-serif;outline:none;box-sizing:border-box">';
     gameCard += '<button onclick="gridGameNotify()" style="width:100%;background:rgba(245,200,66,0.2);border:1px solid rgba(245,200,66,0.45);border-radius:6px;padding:9px;font-size:13px;font-weight:800;color:var(--accent);cursor:pointer;font-family:Inter,sans-serif">\u{1F514} Notify me when it is live</button>';
     gameCard += '<div id="gridGameNotifyMsg" style="font-size:11px;display:none"></div>';
@@ -1894,7 +1894,8 @@ async function gridEmailSignup() {
   } catch (e) { if (msg) { msg.style.color = '#f87171'; msg.textContent = 'Network error.'; } }
 }
 
-// Dice game "notify me when it's live" (shown on the grid card when no game is running).
+// "Notify me when it's live" on the grid card. The card is Flappy Banana, so the
+// opt-in is scoped to Flappy: people only hear about the game they signed up for.
 async function gridGameNotify() {
   var input = document.getElementById('gridGameNotifyInput');
   var msg = document.getElementById('gridGameNotifyMsg');
@@ -1904,11 +1905,11 @@ async function gridGameNotify() {
   try {
     var res = await fetch('/.netlify/functions/game-notify-signup', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email }),
+      body: JSON.stringify({ email: email, game: 'flappy' }),
     });
     // Grow the newsletter list too (same as the game sign-in does).
     try { fetch('/.netlify/functions/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email, source: 'game-notify' }) }); } catch (e) {}
-    if (res.ok) { if (msg) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Done. We will email you when the next game starts.'; } if (input) input.value = ''; }
+    if (res.ok) { if (msg) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Done. We will email you when Flappy Banana is live.'; } if (input) input.value = ''; }
     else if (msg) { msg.style.color = '#f87171'; msg.textContent = 'Try again.'; }
   } catch (e) { if (msg) { msg.style.color = '#f87171'; msg.textContent = 'Network error.'; } }
 }

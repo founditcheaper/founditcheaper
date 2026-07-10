@@ -1,15 +1,16 @@
 // Scheduled: when a game goes live, email everyone on the game_notify list once, so
 // people who asked to be told when the next game starts get a nudge to come play.
 //
-// Covers BOTH games (Flappy Banana and the dice game). One list, one opt-out: people
-// signed up to hear "when the next game is live", and either game qualifies. The email
-// says which one it is.
+// Covers BOTH games (Flappy Banana and the dice game), but a person only ever hears
+// about the game they actually signed up for. The opt-in is scoped: `notify_dice` /
+// `notify_flappy`. Somebody who typed their email into a dice card consented to hear
+// about the dice game, not about whatever we launch next. One list, one opt-out.
 //
 // Dedup is PER SUBSCRIBER, PER GAME (last_flappy_period / last_notified_period hold the
 // period start we last emailed that person about for that game). We only email active
-// subscribers whose marker != the current period, then stamp it. So a timeout mid-send
-// never double-emails anyone: the next run picks up whoever wasn't stamped yet, and a
-// second game going live can't un-stamp the first.
+// subscribers who opted into that game AND whose marker != the current period, then
+// stamp it. So a timeout mid-send never double-emails anyone: the next run picks up
+// whoever wasn't stamped yet, and a second game going live can't un-stamp the first.
 //
 // REQUIRED env: PRIVATE_EMAIL_PASS. OPTIONAL: PRIVATE_EMAIL_USER.
 
@@ -26,7 +27,7 @@ function todayCT() { return new Date().toLocaleDateString('en-CA', { timeZone: '
 const GAMES = [
   {
     key: 'flappy',
-    markerCol: 'last_flappy_period',
+    markerCol: 'last_flappy_period', optInCol: 'notify_flappy',
     startKey: 'flappy_period_start', endKey: 'flappy_period_end', endedKey: 'flappy_ended',
     url: 'https://founditcheaper.net/founditcheaper-flappy.html',
     subject: 'Flappy Banana just started',
@@ -36,7 +37,7 @@ const GAMES = [
   },
   {
     key: 'dice',
-    markerCol: 'last_notified_period',
+    markerCol: 'last_notified_period', optInCol: 'notify_dice',
     startKey: 'game_period_start', endKey: 'game_period_end', endedKey: 'game_ended',
     url: 'https://founditcheaper.net/founditcheaper-game.html',
     subject: 'The founditcheaper dice game just started',
@@ -80,11 +81,11 @@ exports.handler = async function () {
   for (const g of liveGames) {
     const period = settings[g.startKey];
 
-    // Active subscribers not yet notified about THIS game's current round.
+    // Active subscribers who opted into THIS game and haven't been told about this round.
     let subs = [];
     try {
       const r = await fetch(
-        `${sbUrl}/rest/v1/game_notify?active=eq.true&or=(${g.markerCol}.is.null,${g.markerCol}.neq.${encodeURIComponent(period)})&select=id,email,token&limit=${MAX_PER_RUN}`,
+        `${sbUrl}/rest/v1/game_notify?active=eq.true&${g.optInCol}=eq.true&or=(${g.markerCol}.is.null,${g.markerCol}.neq.${encodeURIComponent(period)})&select=id,email,token&limit=${MAX_PER_RUN}`,
         { headers: H }
       );
       const rows = await r.json();

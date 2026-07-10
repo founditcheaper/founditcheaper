@@ -37,17 +37,29 @@ exports.handler = async function (event) {
       return row;
     });
 
-    // How many people are on the "notify me when it's live" list (active = waiting).
-    let notifyActive = 0, notifyTotal = 0;
+    // How many people are waiting to be notified. The opt-in is scoped per game, so
+    // report each one: somebody who signed up on the dice card is not a Flappy signup.
+    let notifyActive = 0, notifyTotal = 0, notifyDice = 0, notifyFlappy = 0;
     try {
       const parseCount = function (cr) { const m = String(cr || '').split('/')[1]; const n = parseInt(m, 10); return isNaN(n) ? 0 : n; };
-      const ca = await fetch(`${sbUrl}/rest/v1/game_notify?select=id&active=eq.true`, { headers: { ...H, Prefer: 'count=exact', Range: '0-0' } });
-      notifyActive = parseCount(ca.headers.get('content-range'));
-      const ct = await fetch(`${sbUrl}/rest/v1/game_notify?select=id`, { headers: { ...H, Prefer: 'count=exact', Range: '0-0' } });
-      notifyTotal = parseCount(ct.headers.get('content-range'));
-    } catch (e) { /* table may not exist yet → counts stay 0 */ }
+      const countOf = async function (qs) {
+        const r = await fetch(`${sbUrl}/rest/v1/game_notify?select=id&${qs}`, { headers: { ...H, Prefer: 'count=exact', Range: '0-0' } });
+        return parseCount(r.headers.get('content-range'));
+      };
+      notifyActive = await countOf('active=eq.true');
+      notifyTotal = await countOf('id=not.is.null');
+      notifyDice = await countOf('active=eq.true&notify_dice=eq.true');
+      notifyFlappy = await countOf('active=eq.true&notify_flappy=eq.true');
+    } catch (e) { /* table/columns may not exist yet → counts stay 0 */ }
 
-    return { statusCode: 200, body: JSON.stringify({ ok: true, rows: out, notify_active: notifyActive, notify_total: notifyTotal }) };
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        ok: true, rows: out,
+        notify_active: notifyActive, notify_total: notifyTotal,
+        notify_dice: notifyDice, notify_flappy: notifyFlappy,
+      }),
+    };
   } catch (e) {
     return { statusCode: 500, body: JSON.stringify({ error: 'game-results failed', detail: String(e).slice(0, 160) }) };
   }
