@@ -812,6 +812,11 @@
     </div>
 
     <!-- MENU ITEMS -->
+    <a href="founditcheaper-flappy.html" class="menu-item">
+      <span class="menu-item-icon">🍌</span>
+      <div><div class="menu-item-label">Flappy Banana</div><div class="menu-item-sub">Fly the banana · Top score wins</div></div>
+    </a>
+
     <a href="founditcheaper-game.html" class="menu-item">
       <span class="menu-item-icon">🎲</span>
       <div><div class="menu-item-label">Daily Dice Game</div><div class="menu-item-sub">Roll every day · Win prizes</div></div>
@@ -1802,19 +1807,20 @@ async function siteFinderNotify() {
   } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error — try again.'; }
 }
 
-// Live game state for the in-grid dice card (the prize + whether a game is running now).
-// `settings` is publicly readable, so we use the same query the game page does.
-var _game = { live: false, prize: '', start: '', end: '' };
+// Live game state for the in-grid game card (the prize + whether a game is running now).
+// `settings` is publicly readable, so we use the same query the game pages do.
+// The grid card shows FLAPPY BANANA; the dice game lives in the hamburger menu.
+var _flappy = { live: false, prize: '', start: '', end: '' };
 async function loadGameCardInfo() {
   try {
-    var res = await _sb.from('settings').select('key,value').in('key', ['game_prize', 'game_period_start', 'game_period_end', 'game_ended']);
+    var res = await _sb.from('settings').select('key,value').in('key', ['flappy_prize', 'flappy_period_start', 'flappy_period_end', 'flappy_ended']);
     if (res && res.data) {
       var m = {}; res.data.forEach(function (r) { m[r.key] = r.value; });
-      _game.prize = m.game_prize || '';
-      _game.start = m.game_period_start || '';
-      _game.end = m.game_period_end || '';
+      _flappy.prize = m.flappy_prize || '';
+      _flappy.start = m.flappy_period_start || '';
+      _flappy.end = m.flappy_period_end || '';
       var t = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
-      _game.live = !!(_game.start && _game.end && String(m.game_ended || '0') !== '1' && t >= _game.start && t <= _game.end);
+      _flappy.live = !!(_flappy.start && _flappy.end && String(m.flappy_ended || '0') !== '1' && t >= _flappy.start && t <= _flappy.end);
     }
   } catch (e) { /* card falls back to the generic version */ }
 }
@@ -1837,31 +1843,35 @@ function promoCardsHtml() {
   alertCard += '<div onclick="window.location.href=\'deal-alert.html\'" style="font-size:10px;color:var(--muted);text-decoration:underline;cursor:pointer">or send a screenshot</div>';
   alertCard += '</div>';
 
-  // Dice game card. LIVE → whole card is a Play Now link. NOT live → a "notify me when
-  // it's live" signup so people don't land on a dead game page (and we grow the list).
-  var live = _game.live, prize = _game.prize;
+  // Flappy Banana card. LIVE → whole card is a Play Now link. NOT live → a "notify me
+  // when it's live" signup so people don't land on a dead game page (and we grow the
+  // list). The notify list covers every game, so it is correct either way.
+  var live = _flappy.live, prize = _flappy.prize;
   var gameCard;
   if (live) {
-    gameCard = '<div onclick="window.location.href=\'founditcheaper-game.html\'" style="background:linear-gradient(135deg,rgba(74,158,212,0.15),rgba(10,31,51,0.5));border:1px solid rgba(74,158,212,0.35);border-radius:10px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px;cursor:pointer">';
-    gameCard += '<div style="font-size:28px">\u{1F3B2}</div>';
-    gameCard += '<div style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:900;color:var(--text);text-transform:uppercase;line-height:1.2">Daily Dice<br>Roll Game</div>';
+    gameCard = '<div onclick="window.location.href=\'founditcheaper-flappy.html\'" style="background:linear-gradient(135deg,rgba(245,200,66,0.15),rgba(10,31,51,0.5));border:1px solid rgba(245,200,66,0.35);border-radius:10px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px;cursor:pointer">';
+    gameCard += '<div style="font-size:28px">\u{1F34C}</div>';
+    gameCard += '<div style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:900;color:var(--text);text-transform:uppercase;line-height:1.2">Flappy<br>Banana</div>';
     gameCard += '<div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#4ade80;background:rgba(74,222,128,0.14);border:1px solid rgba(74,222,128,0.4);border-radius:20px;padding:3px 11px">● GAME LIVE NOW</div>';
     gameCard += prize
       ? '<div style="font-size:11px;color:var(--text-soft);line-height:1.5">Playing for <b style="color:var(--accent)">' + _pcEsc(prize) + '</b></div>'
-      : '<div style="font-size:11px;color:var(--muted);line-height:1.5">Roll every day. Top score wins.</div>';
-    gameCard += '<div style="width:100%;background:rgba(74,158,212,0.2);border:1px solid rgba(74,158,212,0.4);border-radius:6px;padding:9px;font-size:13px;font-weight:800;color:#60b8f5;font-family:Inter,sans-serif">Play Now</div>';
+      : '<div style="font-size:11px;color:var(--muted);line-height:1.5">Tap to fly. Top score wins.</div>';
+    gameCard += '<div style="width:100%;background:rgba(245,200,66,0.2);border:1px solid rgba(245,200,66,0.45);border-radius:6px;padding:9px;font-size:13px;font-weight:800;color:var(--accent);font-family:Inter,sans-serif">Play Now</div>';
     gameCard += '</div>';
   } else {
     var savedEmail = '';
-    try { var _pj = JSON.parse(localStorage.getItem('fic_player_v1') || 'null'); if (_pj && _pj.email) savedEmail = _pj.email; } catch (e) {}
-    gameCard = '<div style="background:linear-gradient(135deg,rgba(74,158,212,0.15),rgba(10,31,51,0.5));border:1px solid rgba(74,158,212,0.35);border-radius:10px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px">';
-    gameCard += '<div style="font-size:28px">\u{1F3B2}</div>';
-    gameCard += '<div style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:900;color:var(--text);text-transform:uppercase;line-height:1.2">Daily Dice<br>Roll Game</div>';
+    try {
+      var _pj = JSON.parse(localStorage.getItem('fic_flappy_player_v1') || localStorage.getItem('fic_player_v1') || 'null');
+      if (_pj && _pj.email) savedEmail = _pj.email;
+    } catch (e) {}
+    gameCard = '<div style="background:linear-gradient(135deg,rgba(245,200,66,0.15),rgba(10,31,51,0.5));border:1px solid rgba(245,200,66,0.35);border-radius:10px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px">';
+    gameCard += '<div style="font-size:28px">\u{1F34C}</div>';
+    gameCard += '<div style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:900;color:var(--text);text-transform:uppercase;line-height:1.2">Flappy<br>Banana</div>';
     gameCard += '<div style="font-size:11px;color:var(--muted);line-height:1.5">No game running right now. Get an email when the next one starts.</div>';
     gameCard += '<input id="gridGameNotifyInput" type="email" value="' + _pcEsc(savedEmail) + '" placeholder="your@email.com" onkeydown="if(event.key===\'Enter\')gridGameNotify()" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:9px 10px;color:var(--text);font-size:12px;font-family:Inter,sans-serif;outline:none;box-sizing:border-box">';
-    gameCard += '<button onclick="gridGameNotify()" style="width:100%;background:rgba(74,158,212,0.2);border:1px solid rgba(74,158,212,0.4);border-radius:6px;padding:9px;font-size:13px;font-weight:800;color:#60b8f5;cursor:pointer;font-family:Inter,sans-serif">\u{1F514} Notify me when it is live</button>';
+    gameCard += '<button onclick="gridGameNotify()" style="width:100%;background:rgba(245,200,66,0.2);border:1px solid rgba(245,200,66,0.45);border-radius:6px;padding:9px;font-size:13px;font-weight:800;color:var(--accent);cursor:pointer;font-family:Inter,sans-serif">\u{1F514} Notify me when it is live</button>';
     gameCard += '<div id="gridGameNotifyMsg" style="font-size:11px;display:none"></div>';
-    gameCard += '<div onclick="window.location.href=\'founditcheaper-game.html\'" style="font-size:10px;color:var(--muted);text-decoration:underline;cursor:pointer">or peek at the game</div>';
+    gameCard += '<div onclick="window.location.href=\'founditcheaper-flappy.html\'" style="font-size:10px;color:var(--muted);text-decoration:underline;cursor:pointer">or peek at the game</div>';
     gameCard += '</div>';
   }
 
