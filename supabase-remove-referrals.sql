@@ -1,4 +1,4 @@
--- Dice game: referrals REMOVED (2026-07-10). Run once in the Supabase SQL Editor.
+-- Dice game: referrals REMOVED (2026-07-10).
 --
 -- Why: an audit found the referral bonus was being farmed with throwaway emails.
 -- 81 referrals came from 12 accounts, 75 of them from just 6 repeat referrers.
@@ -7,32 +7,46 @@
 -- looked genuine. At +25 each (capped at +125) against a ~17-point average dice
 -- score, referrals decided the winner in 3 of 6 rounds.
 --
--- Fix: zero the bonus at the source. The column is KEPT (so every consumer keeps
--- working: the game page, admin standings, game-results.js and game-end-notify.js
--- all read referral_bonus) but it is always 0. Totals now equal the real dice score
--- everywhere, including the winner pick.
+-- HOW IT WAS REMOVED, and why there is no SQL change here:
 --
--- game_referrals is intentionally NOT dropped: it is the evidence trail and the
--- source for identifying the junk emails to purge from the newsletter. Nothing
--- writes to it anymore (netlify/functions/refer.js is disabled).
+-- Referrals are stopped at the SOURCE, not in the view:
+--   * founditcheaper-game.html  - invite card, share link and the capture/send
+--                                 referral code are deleted. A stale ?ref= link is ignored.
+--   * netlify/functions/refer.js - disabled; records nothing.
+-- So no new rows are ever written to game_referrals. A future competition simply has
+-- no referral rows, and the joins in game_leaderboard yield a 0 bonus for it naturally.
+--
+-- The view is deliberately LEFT ALONE (original bonus math intact). Zeroing it would
+-- retroactively re-rank every past competition, which looks like the owner rewriting
+-- results to avoid paying out. Published standings must never change after the fact.
+-- Bonuses already earned stay earned; nothing new can be earned.
+--
+-- game_referrals is retained as the evidence trail.
+--
+-- This is the CURRENT view definition, recorded here for reference only. Do not re-run
+-- it unless you need to rebuild the view from scratch.
 
-create or replace view game_leaderboard as
-select
-  gs.username,
-  gs.player_tag,
-  gs.week_score,
-  gs.last_roll,
-  gs.roll_days,
-  gs.streak,
-  gs.week_start,
-  0::bigint as referral_bonus
-from game_scores gs;
+-- create or replace view game_leaderboard as
+-- select
+--   gs.username, gs.player_tag, gs.week_score, gs.last_roll, gs.roll_days,
+--   gs.streak, gs.week_start,
+--   coalesce(rb.bonus, 0::bigint) +
+--     case when wb.referred_email is not null then 25 else 0 end as referral_bonus
+-- from game_scores gs
+-- left join (
+--   select referrer_tag, week_start, least(count(*), 5::bigint) * 25 as bonus
+--   from game_referrals group by referrer_tag, week_start
+-- ) rb on rb.referrer_tag::text = gs.player_tag and rb.week_start = gs.week_start
+-- left join (
+--   select distinct lower(referred_email) as referred_email, week_start
+--   from game_referrals
+-- ) wb on wb.referred_email = lower(gs.email) and wb.week_start = gs.week_start;
 
 
 -- ── Reference: the query that identifies the farmed (junk) emails ──────────────
 -- High-confidence junk = referred by one of the six ring accounts, never came back
 -- for a second competition, and never scored 25+ (i.e. never played beyond a roll
--- or two). Conservative on purpose: it spares anyone who actually engaged.
+-- or two). Conservative on purpose: it spares anyone who actually engaged. 68 rows.
 --
 -- select distinct lower(gr.referred_email) as email
 -- from game_referrals gr

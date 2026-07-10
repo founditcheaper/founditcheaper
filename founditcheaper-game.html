@@ -376,6 +376,7 @@
         <div class="player-name" id="playerNameDisplay"></div>
         <div style="text-align:right">
           <div class="player-score"><span>This round · </span><span id="playerScoreDisplay">0</span> pts</div>
+          <div id="refBonusNote" style="display:none;font-size:11px;color:#7dd3fc;font-weight:700;margin-top:2px"></div>
         </div>
       </div>
       <div id="playerIdNote" style="font-size:11px;color:var(--muted);text-align:center;margin:2px 0 10px;line-height:1.5;background:rgba(245,200,66,0.06);border:1px solid rgba(245,200,66,0.2);border-radius:8px;padding:8px 10px"></div>
@@ -633,14 +634,17 @@ async function loadScores() {
   try {
     var weekStart = getPeriodBounds().start.toISOString().split('T')[0];
     // Read the public view (names + IDs + scores only — no emails exposed).
-    // Referrals were removed 2026-07-10; the score is the dice score, nothing else.
-    var res = await _sb.from('game_leaderboard').select('username,player_tag,week_score,last_roll,roll_days,streak').eq('week_start', weekStart);
+    // Referrals can no longer be EARNED (removed 2026-07-10), but bonuses already earned
+    // in past rounds still count, so standings never change retroactively.
+    var res = await _sb.from('game_leaderboard').select('username,player_tag,week_score,last_roll,roll_days,streak,referral_bonus').eq('week_start', weekStart);
+    if (res.error) res = await _sb.from('game_leaderboard').select('username,player_tag,week_score,last_roll,roll_days,streak').eq('week_start', weekStart);
     if (res.error) throw res.error;
     var data = res.data;
     scores = {};
     if (data) data.forEach(function(row) {
       var key = row.player_tag || row.username;
       scores[key] = { name: row.username, tag: row.player_tag, weekScore: row.week_score,
+        bonus: row.referral_bonus || 0,
         lastRoll: row.last_roll, rollDays: row.roll_days || [], streak: row.streak };
     });
     // Cache locally for offline resilience
@@ -826,7 +830,14 @@ async function signupGameNotify() {
 
 function updateScoreDisplay() {
   var entry = scores[player.tag];
-  document.getElementById('playerScoreDisplay').textContent = entry ? (entry.weekScore || 0) : 0;
+  var bonus = entry ? (entry.bonus || 0) : 0;   // legacy: only rounds before 2026-07-10 have one
+  var total = entry ? ((entry.weekScore || 0) + bonus) : 0;
+  document.getElementById('playerScoreDisplay').textContent = total;
+  var rb = document.getElementById('refBonusNote');
+  if (rb) {
+    if (bonus > 0) { rb.textContent = 'Includes +' + bonus + ' from referrals'; rb.style.display = 'block'; }
+    else { rb.style.display = 'none'; }
+  }
 }
 
 function checkAlreadyPlayed() {
@@ -1093,7 +1104,7 @@ async function renderLeaderboard() {
   document.getElementById('lbWeekRange').textContent = getWeekString();
 
   var entries = Object.entries(scores).map(function(e) {
-    return { tag: e[1].tag || e[0], name: e[1].name, score: (e[1].weekScore || 0) };
+    return { tag: e[1].tag || e[0], name: e[1].name, score: (e[1].weekScore || 0) + (e[1].bonus || 0) };
   });
   entries.sort(function(a,b) { return b.score - a.score; });
 
@@ -1235,8 +1246,10 @@ function demoStartGame() {
 
 // Referrals were removed on 2026-07-10. They were being farmed with throwaway emails
 // (a +125 bonus dwarfed the ~17-point average dice score, so it decided every winner).
-// The score is now the dice score, full stop. A stale ?ref= link in the wild is simply
-// ignored, and /refer returns "disabled" so nothing is ever recorded.
+// No new referral can be EARNED: the invite UI is gone, a stale ?ref= link is ignored,
+// and /refer records nothing. Bonuses already earned in past rounds are still counted,
+// so published standings never change after the fact. Future rounds have no referral
+// rows at all, so their bonus is naturally 0.
 
 loadPlayer();
 if (DEMO) {
