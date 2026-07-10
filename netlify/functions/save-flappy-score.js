@@ -1,96 +1,175 @@
-// Flappy Banana score save. Like the dice game, flappy_scores holds player emails
-// and is fully locked from the public anon key — every write comes through here on
-// the service-role key (which bypasses RLS). The public reads the email-free
-// flappy_leaderboard view instead.
+// Flappy Banana score submission — REPLAY VERIFIED.
 //
-// Fair play: this is a skill game whose score is computed in the browser, so it can
-// never be 100% cheat-proof. What we DO enforce server-side:
-//   1) keep-max — we only ever raise a player's best, never lower it. Replaying a
-//      worse run can't hurt you, and a stale/duplicate submit can't overwrite a
-//      higher score.
-//   2) a hard ceiling — scores above SCORE_CAP are rejected as bogus.
-//   3) a plausibility floor — a run must have lasted at least roughly the time it
-//      physically takes to clear that many pillars. Blocks the trivial "POST 9999
-//      with no game" cheat. (game_ms is client-sent too, so this is a deterrent,
-//      not a wall — the admin can always toss an absurd score and force a winner.)
+// The browser does NOT send a score. It sends the run it was issued (runId, seed, sig)
+// and the ticks on which the player tapped. This function replays that exact course
+// against those taps using the shared deterministic simulation and works out the score
+// itself. You cannot claim 47 pillars unless your taps genuinely fly the banana through
+// 47 pillars.
 //
-// POST { email, username, player_tag, best_score, game_ms, period_start, period_end }
-// Upserts on (email, period_start) so each player has one row per competition.
+// What that closes (all of it was wide open before 2026-07-10):
+//   * posting any score you like            -> there is no score field anymore
+//   * inventing the competition period      -> the period comes from `settings`
+//   * spoofing your player id               -> player_tag is derived from the email
+//   * replaying a run someone else was sent -> the signature binds the run to the email
+//   * grinding a seed offline for hours     -> runs expire
+//
+// What it does NOT close: a bot that genuinely plays well. That is true of every skill
+// game with a prize. The bar is now "write a game-playing bot", not "open dev tools".
+// We store the winning run's replay so it can be watched and its input timing checked.
+//
+// POST { email, username, runId, seed, issuedAt, sig, flapTicks[] }
 
-const SCORE_CAP = 5000;              // no legit flappy run gets close to this
-const MIN_MS_PER_POINT = 550;        // lenient floor: ~0.55s of play per pillar cleared
+const crypto = require('crypto');
+const { fsSimulate } = require('./lib/flappy-sim');
 
-function clampInt(v, lo, hi) {
-  const n = parseInt(v, 10);
-  if (isNaN(n)) return null;
-  return Math.max(lo, Math.min(hi, n));
+const SCORE_CAP = 5000;            // sanity ceiling; a real run never approaches this
+const MAX_TICKS = 72000;           // 20 minutes at 60 ticks/sec
+const MAX_FLAPS = 20000;
+const RUN_MAX_AGE_MS = 2 * 60 * 60 * 1000;   // a run must be submitted within 2 hours
+const RUN_FUTURE_SKEW_MS = 2 * 60 * 1000;    // tolerate small clock skew
+const MIN_SUBMIT_GAP_MS = 1500;              // light anti-spam between submissions
+
+function todayCT() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); }
+
+function tagFromEmail(email) {
+  let h = 5381; const e = (email || '').toLowerCase();
+  for (let i = 0; i < e.length; i++) h = ((h << 5) + h + e.charCodeAt(i)) >>> 0;
+  return 10000 + (h % 90000);
+}
+
+function signRun(runId, seed, issuedAt, email) {
+  const key = 'flappy-run-v1:' + (process.env.SUPABASE_SERVICE_ROLE_KEY || '');
+  return crypto.createHmac('sha256', key)
+    .update(`${runId}|${seed}|${issuedAt}|${email}`)
+    .digest('hex');
+}
+
+function safeEqualHex(a, b) {
+  const A = Buffer.from(String(a || ''), 'utf8');
+  const B = Buffer.from(String(b || ''), 'utf8');
+  if (A.length !== B.length) return false;
+  return crypto.timingSafeEqual(A, B);
 }
 
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
   let body;
   try { body = JSON.parse(event.body || '{}'); }
-  catch { return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON' }) }; }
+  catch { return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Invalid JSON' }) }; }
 
   const email = String(body.email || '').trim().toLowerCase();
-  const periodStart = String(body.period_start || '');
-  if (!email.includes('@') || !/^\d{4}-\d{2}-\d{2}$/.test(periodStart)) {
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Valid email required' }) };
+  }
+  const username = String(body.username || 'Player').slice(0, 60);
+
+  // ── 1. The run must be one we issued, to this email, recently. ──────────────
+  const runId = String(body.runId || '');
+  const seed = Number(body.seed);
+  const issuedAt = Number(body.issuedAt);
+  const sig = String(body.sig || '');
+  if (!/^[a-f0-9]{24}$/.test(runId) || !Number.isInteger(seed) || seed < 0 || seed > 0xFFFFFFFF ||
+      !Number.isFinite(issuedAt) || !/^[a-f0-9]{64}$/.test(sig)) {
+    return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Invalid run' }) };
+  }
+  if (!safeEqualHex(sig, signRun(runId, seed, issuedAt, email))) {
+    return { statusCode: 403, body: JSON.stringify({ ok: false, error: 'Run signature invalid' }) };
+  }
+  const now = Date.now();
+  if (issuedAt > now + RUN_FUTURE_SKEW_MS || now - issuedAt > RUN_MAX_AGE_MS) {
+    return { statusCode: 403, body: JSON.stringify({ ok: false, error: 'Run expired' }) };
+  }
+
+  // ── 2. Taps must be a sane, strictly increasing list of tick numbers. ───────
+  const raw = body.flapTicks;
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_FLAPS) {
     return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Invalid input' }) };
   }
-
-  const bestScore = clampInt(body.best_score, 0, SCORE_CAP);
-  if (bestScore === null) return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Bad score' }) };
-  if (parseInt(body.best_score, 10) > SCORE_CAP) {
-    return { statusCode: 422, body: JSON.stringify({ ok: false, error: 'Score out of range' }) };
+  const flapTicks = [];
+  let prev = -1;
+  for (let i = 0; i < raw.length; i++) {
+    const t = raw[i];
+    if (!Number.isInteger(t) || t < 0 || t >= MAX_TICKS || t <= prev) {
+      return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Invalid input' }) };
+    }
+    flapTicks.push(t); prev = t;
   }
 
-  // Plausibility: the run has to have lasted long enough for that many pillars.
-  const gameMs = clampInt(body.game_ms, 0, 100000000);
-  if (bestScore > 0 && gameMs !== null && gameMs > 0 && gameMs < bestScore * MIN_MS_PER_POINT) {
-    return { statusCode: 422, body: JSON.stringify({ ok: false, error: 'Run too short for that score' }) };
-  }
-
-  const username = String(body.username || 'Player').slice(0, 60);
-  const playerTag = body.player_tag != null ? String(body.player_tag).slice(0, 40) : null;
-  const periodEnd = /^\d{4}-\d{2}-\d{2}$/.test(String(body.period_end || '')) ? String(body.period_end) : null;
-
+  // ── 3. There must be a live competition, and WE decide which one. ───────────
   const sbUrl = process.env.SUPABASE_URL, sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!sbUrl || !sbKey) return { statusCode: 500, body: JSON.stringify({ error: 'Config error' }) };
+  if (!sbUrl || !sbKey) return { statusCode: 500, body: JSON.stringify({ ok: false, error: 'Config error' }) };
   const H = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
 
+  let settings = {};
   try {
-    // keep-max: read the existing best for this player+period first.
+    const r = await fetch(`${sbUrl}/rest/v1/settings?select=key,value`, { headers: H });
+    const rows = await r.json();
+    if (Array.isArray(rows)) rows.forEach(function (x) { settings[x.key] = x.value; });
+  } catch (e) {
+    return { statusCode: 502, body: JSON.stringify({ ok: false, error: 'settings read failed' }) };
+  }
+  const periodStart = settings.flappy_period_start || '';
+  const periodEnd = settings.flappy_period_end || '';
+  const forceEnded = String(settings.flappy_ended || '0') === '1';
+  const today = todayCT();
+  if (!periodStart || !periodEnd || forceEnded || today < periodStart || today > periodEnd) {
+    return { statusCode: 200, body: JSON.stringify({ ok: false, reason: 'no-game' }) };
+  }
+
+  // ── 4. Replay the run. This is the score. Nothing the client said matters. ──
+  const sim = fsSimulate(seed, flapTicks, MAX_TICKS);
+  const trueScore = Math.max(0, Math.min(sim.score, SCORE_CAP));
+
+  const playerTag = String(tagFromEmail(email));
+  const nowIso = new Date().toISOString();
+
+  try {
     const gr = await fetch(
-      `${sbUrl}/rest/v1/flappy_scores?email=eq.${encodeURIComponent(email)}&period_start=eq.${encodeURIComponent(periodStart)}&select=best_score`,
+      `${sbUrl}/rest/v1/flappy_scores?email=eq.${encodeURIComponent(email)}&period_start=eq.${encodeURIComponent(periodStart)}&select=id,best_score,last_play`,
       { headers: H }
     );
     const existing = await gr.json().catch(function () { return []; });
-    const prevBest = Array.isArray(existing) && existing[0] ? (existing[0].best_score || 0) : 0;
+    const row = Array.isArray(existing) && existing[0] ? existing[0] : null;
 
-    if (Array.isArray(existing) && existing[0] && bestScore <= prevBest) {
-      // Nothing to raise. Still report ok so the client doesn't retry.
-      return { statusCode: 200, body: JSON.stringify({ ok: true, best: prevBest, kept: true }) };
+    if (row && row.last_play) {
+      const since = now - Date.parse(row.last_play);
+      if (since >= 0 && since < MIN_SUBMIT_GAP_MS) {
+        return { statusCode: 429, body: JSON.stringify({ ok: false, error: 'Slow down' }) };
+      }
     }
 
-    const row = {
+    const prevBest = row ? (row.best_score || 0) : 0;
+    if (row && trueScore <= prevBest) {
+      // keep-max: a worse run never lowers your best. Still refresh the display name
+      // (so a rename reaches the leaderboard) and the last-played stamp.
+      await fetch(`${sbUrl}/rest/v1/flappy_scores?id=eq.${encodeURIComponent(row.id)}`, {
+        method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' },
+        body: JSON.stringify({ username, player_tag: playerTag, last_play: nowIso, updated_at: nowIso }),
+      }).catch(function () {});
+      return { statusCode: 200, body: JSON.stringify({ ok: true, score: trueScore, best: prevBest, kept: true }) };
+    }
+
+    const record = {
       email, username, player_tag: playerTag,
-      best_score: bestScore,
-      last_play: new Date().toISOString(),
+      best_score: trueScore,
+      last_play: nowIso,
       period_start: periodStart,
       period_end: periodEnd,
-      updated_at: new Date().toISOString(),
+      // Keep the winning run so it can be replayed and its timing inspected.
+      run_seed: seed, run_flaps: flapTicks, run_ticks: sim.ticks,
+      updated_at: nowIso,
     };
     const r = await fetch(`${sbUrl}/rest/v1/flappy_scores?on_conflict=email,period_start`, {
       method: 'POST',
       headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify(row),
+      body: JSON.stringify(record),
     });
     if (!r.ok) {
       const detail = await r.text();
       return { statusCode: 502, body: JSON.stringify({ ok: false, error: 'save failed', detail: detail.slice(0, 200) }) };
     }
-    return { statusCode: 200, body: JSON.stringify({ ok: true, best: bestScore }) };
+    return { statusCode: 200, body: JSON.stringify({ ok: true, score: trueScore, best: trueScore }) };
   } catch (e) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'save-flappy-score failed', detail: String(e).slice(0, 160) }) };
+    return { statusCode: 500, body: JSON.stringify({ ok: false, error: 'save-flappy-score failed', detail: String(e).slice(0, 160) }) };
   }
 };

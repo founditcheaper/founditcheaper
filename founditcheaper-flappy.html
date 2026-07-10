@@ -404,8 +404,7 @@ function savePlayer() { try { localStorage.setItem(PLAYER_KEY, JSON.stringify(pl
 // ── SCORES ────────────────────────────────────────────────────────────
 // scores[tag] = { name, tag, bestScore }
 var scores = {};
-var myBest = 0;              // this player's best this round
-var lastGameMs = 0;         // duration of the most recent run (plausibility signal for the server)
+var myBest = 0;              // this player's best this round (the server is the authority)
 
 async function loadScores() {
   if (DEMO) return;   // demo keeps its own in-memory scores
@@ -424,25 +423,8 @@ async function loadScores() {
   }
 }
 
-// Persist the player's best to the server (service-role function keeps the max).
-async function saveBest() {
-  if (DEMO || !player || !player.email || !FLAPPY_START) return;
-  scores[player.tag] = { name: player.username, tag: player.tag, bestScore: myBest };
-  try {
-    await fetch('/.netlify/functions/save-flappy-score', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: player.email,
-        username: player.username,
-        player_tag: player.tag,
-        best_score: myBest,
-        game_ms: lastGameMs,
-        period_start: FLAPPY_START,
-        period_end: FLAPPY_END,
-      }),
-    });
-  } catch (e) {}
-}
+// (There is no "save my score" call. The score is never sent. See submitRun(), which
+// sends the run itself so the server can replay it and decide the score.)
 
 // ── UI GLUE ───────────────────────────────────────────────────────────
 function switchTab(tab) {
@@ -482,7 +464,7 @@ function promptRename() {
   savePlayer();
   if (scores[player.tag]) scores[player.tag].name = name;
   document.getElementById('playerNameDisplay').innerHTML = player.username + ' <span style="color:var(--muted);font-weight:600">#' + player.tag + '</span>';
-  if (myBest > 0) saveBest();   // push the new name to the DB
+  // The new name reaches the leaderboard on the next run you submit (every run carries it).
 }
 
 function logoutPlayer() {
@@ -535,27 +517,92 @@ function updateScoreDisplay() {
 var LW = 360, LH = 560;          // logical canvas size
 var GROUND_H = 46;               // ground band height (logical)
 var canvas, ctx, _dpr = 1, _scale = 1, _resizeBound = false;
-var state = 'ready';             // 'ready' | 'playing' | 'over'
-var rafId = null, lastT = 0, startedAt = 0;
+var state = 'ready';             // 'ready' | 'starting' | 'playing' | 'over'
+var rafId = null, lastT = 0;
 
-// Physics (logical units, per second)
-var GRAVITY = 1500;
-var FLAP_V  = -430;
+// Drawing-only constants. All physics constants live in FS below (the shared sim).
 var PIPE_W  = 60;
-var BASE_SPEED = 150;
-var BASE_GAP = 165;
-var PIPE_INTERVAL = 210;         // horizontal spacing between pipes (logical px)
 var BANANA_X = 96;               // banana's fixed horizontal position
 var BANANA_R = 15;               // collision radius
 
-var banana = { y: LH / 2, v: 0, angle: 0 };
+// Render mirrors of the sim state (visuals only; the sim is the source of truth).
+var banana = { y: LH / 2, angle: 0 };
 var pipes = [];                  // { x, gapY, gapH, scored }
-var spawnAcc = 0;
 var score = 0;
 var _bgScroll = 0;
 
-function curSpeed() { return BASE_SPEED + Math.min(score * 3, 95); }        // 150 → 245
-function curGap()   { return Math.max(BASE_GAP - Math.min(score * 1.2, 40), 125); }  // 165 → 125
+// ══════════════════════════════════════════════════════════════════════
+// DETERMINISTIC SIMULATION — MUST STAY BYTE-IDENTICAL TO
+// netlify/functions/lib/flappy-sim.js
+//
+// The server replays your run from the seed it issued plus the ticks you tapped on,
+// and computes the score itself. That only works if this code and the server's code
+// agree exactly, so if you change a constant or a line of fsStep() here, change it
+// there too. Use only + - * / comparisons and Math.min/max/imul: those are bit-exact
+// in every JS engine. No Math.random / sin / pow in the sim. Visual-only things
+// (banana tilt, parallax) live OUTSIDE the sim.
+// ══════════════════════════════════════════════════════════════════════
+var FS = {
+  LW: 360, LH: 560, GROUND_H: 46,
+  GRAVITY: 1500, FLAP_V: -430,
+  PIPE_W: 60, BASE_SPEED: 150, BASE_GAP: 165, PIPE_INTERVAL: 210,
+  BANANA_X: 96, BANANA_R: 15,
+  MARGIN: 44,
+  DT: 1 / 60
+};
+function fsRng(seed) {
+  var a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    var t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function fsSpeed(sc) { return FS.BASE_SPEED + Math.min(sc * 3, 95); }
+function fsGap(sc) { return Math.max(FS.BASE_GAP - Math.min(sc * 1.2, 40), 125); }
+function fsCreate(seed) {
+  return { y: FS.LH / 2, v: 0, spawnAcc: FS.PIPE_INTERVAL, score: 0, pipes: [], tick: 0, dead: false, rand: fsRng(seed) };
+}
+function fsSpawn(s) {
+  var gap = fsGap(s.score);
+  var minTop = FS.MARGIN;
+  var maxTop = FS.LH - FS.GROUND_H - gap - FS.MARGIN;
+  var gapY = minTop + s.rand() * Math.max(10, maxTop - minTop);
+  s.pipes.push({ x: FS.LW + 8, gapY: gapY, gapH: gap, scored: false });
+}
+function fsHits(s, p) {
+  var bx = FS.BANANA_X, by = s.y, r = FS.BANANA_R - 1;
+  if (bx + r < p.x || bx - r > p.x + FS.PIPE_W) return false;
+  if (by - r > p.gapY && by + r < p.gapY + p.gapH) return false;
+  return true;
+}
+function fsStep(s, flap) {
+  if (s.dead) return;
+  if (flap) s.v = FS.FLAP_V;
+  s.v += FS.GRAVITY * FS.DT;
+  s.y += s.v * FS.DT;
+  if (s.y < FS.BANANA_R) { s.y = FS.BANANA_R; if (s.v < 0) s.v = 0; }
+
+  var sp = fsSpeed(s.score);
+  s.spawnAcc += sp * FS.DT;
+  if (s.spawnAcc >= FS.PIPE_INTERVAL) { s.spawnAcc -= FS.PIPE_INTERVAL; fsSpawn(s); }
+
+  for (var i = s.pipes.length - 1; i >= 0; i--) {
+    var p = s.pipes[i];
+    p.x -= sp * FS.DT;
+    if (!p.scored && p.x + FS.PIPE_W < FS.BANANA_X - FS.BANANA_R) { p.scored = true; s.score++; }
+    if (p.x + FS.PIPE_W < -10) s.pipes.splice(i, 1);
+  }
+
+  if (s.y + FS.BANANA_R >= FS.LH - FS.GROUND_H) { s.dead = true; s.tick++; return; }
+  for (var j = 0; j < s.pipes.length; j++) { if (fsHits(s, s.pipes[j])) { s.dead = true; s.tick++; return; } }
+  s.tick++;
+}
+
+// Run state. flapTicks is the ONLY thing we send: the moments the player tapped.
+var sim = null, flapTicks = [], runToken = null, pendingFlap = false, _acc = 0;
+var MAX_STEPS_PER_FRAME = 8;
 
 function initGame() {
   canvas = document.getElementById('stage');
@@ -594,27 +641,57 @@ function bindInput() {
 }
 
 function resetRound() {
-  banana.y = LH / 2; banana.v = 0; banana.angle = 0;
-  pipes = []; spawnAcc = PIPE_INTERVAL;   // spawn the first pipe shortly after start
-  score = 0;
+  sim = null; flapTicks = []; runToken = null; pendingFlap = false; _acc = 0;
+  banana.y = LH / 2; banana.angle = 0;
+  pipes = []; score = 0;
   state = 'ready';
-  updateHudScore();
 }
 
-function updateHudScore() {
-  // (Live score is drawn on the canvas; nothing else to update mid-run.)
+// Tap-to-start asks the SERVER for a course. The browser never picks its own seed,
+// because the seed is what decides where every pillar gap sits.
+async function startRun() {
+  state = 'starting';
+  var seed;
+  if (DEMO) {
+    seed = (Math.random() * 0xFFFFFFFF) >>> 0;      // sandbox: local course, nothing saved
+    runToken = null;
+  } else {
+    var d = null;
+    try {
+      var res = await fetch('/.netlify/functions/flappy-start', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: player.email }),
+      });
+      d = await res.json();
+    } catch (e) { d = null; }
+    if (!d || !d.ok) {
+      state = 'ready';
+      if (d && d.reason === 'no-game') { applyGameLiveState(); return; }
+      showOverlay('error');
+      return;
+    }
+    runToken = { runId: d.runId, seed: d.seed, issuedAt: d.issuedAt, sig: d.sig };
+    seed = d.seed;
+  }
+  sim = fsCreate(seed);
+  flapTicks = [];
+  pendingFlap = true;      // the tap that started the run counts as tick 0's flap
+  _acc = 0;
+  score = 0;
+  state = 'playing';
+  clearOverlay();
 }
 
 function flap() {
-  if (state === 'ready') { state = 'playing'; startedAt = performance.now(); banana.v = FLAP_V; clearOverlay(); return; }
-  if (state === 'playing') { banana.v = FLAP_V; return; }
-  if (state === 'over') { restart(); return; }   // tapping after death restarts
+  if (state === 'ready') { startRun(); return; }
+  if (state === 'starting') return;                  // waiting on the server for a course
+  if (state === 'playing') { pendingFlap = true; return; }
+  if (state === 'over') { restart(); return; }       // tapping after death restarts
 }
 
 function restart() {
   resetRound();
   clearOverlay();
-  state = 'ready';
   showOverlay('ready');
 }
 
@@ -627,78 +704,83 @@ function stopGame() {
   if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
 }
 
+// The game advances in fixed 1/60s ticks, never in frames. A 120Hz phone and a 60Hz
+// phone therefore play exactly the same game, and the run can be replayed by the server.
 function loop(t) {
-  var dt = Math.min((t - lastT) / 1000, 0.05);   // cap dt so a tab-switch can't tunnel through pipes
+  var real = Math.min((t - lastT) / 1000, 0.25);   // clamp: a backgrounded tab must not fast-forward
   lastT = t;
-  if (state === 'playing') update(dt);
+
+  if (state === 'playing' && sim) {
+    _acc += real;
+    var steps = 0;
+    while (_acc >= FS.DT && steps < MAX_STEPS_PER_FRAME && !sim.dead) {
+      var doFlap = pendingFlap;
+      if (doFlap) { flapTicks.push(sim.tick); pendingFlap = false; }
+      fsStep(sim, doFlap);
+      _acc -= FS.DT;
+      steps++;
+    }
+    // Mirror the sim into the render globals (visuals only).
+    banana.y = sim.y;
+    pipes = sim.pipes;
+    score = sim.score;
+    var target = Math.max(-0.5, Math.min(1.1, sim.v / 520));
+    banana.angle += (target - banana.angle) * Math.min(1, real * 10);
+    _bgScroll = (_bgScroll + fsSpeed(score) * real * 0.4) % 40;
+    if (sim.dead) gameOver();
+  }
+
   draw();
   rafId = requestAnimationFrame(loop);
-}
-
-function update(dt) {
-  _bgScroll = (_bgScroll + curSpeed() * dt * 0.4) % 40;
-  banana.v += GRAVITY * dt;
-  banana.y += banana.v * dt;
-  // tilt: nose up when rising, dive when falling
-  var target = Math.max(-0.5, Math.min(1.1, banana.v / 520));
-  banana.angle += (target - banana.angle) * Math.min(1, dt * 10);
-
-  // soft ceiling
-  if (banana.y < BANANA_R) { banana.y = BANANA_R; if (banana.v < 0) banana.v = 0; }
-
-  // move + spawn pipes
-  var sp = curSpeed();
-  spawnAcc += sp * dt;
-  if (spawnAcc >= PIPE_INTERVAL) {
-    spawnAcc -= PIPE_INTERVAL;
-    spawnPipe();
-  }
-  for (var i = pipes.length - 1; i >= 0; i--) {
-    var p = pipes[i];
-    p.x -= sp * dt;
-    if (!p.scored && p.x + PIPE_W < BANANA_X - BANANA_R) { p.scored = true; score++; if (window.navigator.vibrate) {} }
-    if (p.x + PIPE_W < -10) pipes.splice(i, 1);
-  }
-
-  // collisions
-  if (banana.y + BANANA_R >= LH - GROUND_H) { banana.y = LH - GROUND_H - BANANA_R; return gameOver(); }
-  for (var j = 0; j < pipes.length; j++) {
-    if (hitsPipe(pipes[j])) return gameOver();
-  }
-}
-
-function spawnPipe() {
-  var gap = curGap();
-  var margin = 44;
-  var minTop = margin;
-  var maxTop = LH - GROUND_H - gap - margin;
-  var gapY = minTop + Math.random() * Math.max(10, (maxTop - minTop));   // top of the gap
-  pipes.push({ x: LW + 8, gapY: gapY, gapH: gap, scored: false });
-}
-
-function hitsPipe(p) {
-  // Nearest-point circle vs the two rects (top pillar + bottom pillar).
-  var bx = BANANA_X, by = banana.y, r = BANANA_R - 1;
-  if (bx + r < p.x || bx - r > p.x + PIPE_W) return false;    // horizontally clear
-  // within the pipe's x-span: safe only if fully inside the gap
-  if (by - r > p.gapY && by + r < p.gapY + p.gapH) return false;
-  return true;
 }
 
 function gameOver() {
   if (state !== 'playing') return;
   state = 'over';
-  lastGameMs = Math.round(performance.now() - startedAt);
   var isPb = score > myBest;
-  if (isPb) {
-    myBest = score;
-    updateScoreDisplay();
-    // Reflect the new best locally right away (so the leaderboard shows it before the
-    // server round-trip, and so the demo leaderboard includes "You" too).
-    if (player) scores[player.tag] = { name: player.username, tag: player.tag, bestScore: myBest };
-    saveBest();
+  if (DEMO) {
+    if (isPb) { myBest = score; updateScoreDisplay(); if (player) scores[player.tag] = { name: player.username, tag: player.tag, bestScore: myBest }; }
+    showOverlay('over', { score: score, best: myBest, pb: isPb });
+    return;
   }
-  showOverlay('over', { score: score, best: myBest, pb: isPb });
+  // Show the result immediately; the server confirms it a moment later. Our score and
+  // the server's must agree, because we ran the identical simulation on the same course.
+  showOverlay('over', { score: score, best: Math.max(myBest, score), pb: isPb });
+  submitRun(isPb);
+}
+
+// Send the RUN, not the score: the course we were issued plus the ticks we tapped on.
+// The server replays it and decides what we scored.
+async function submitRun(isPb) {
+  var note = document.getElementById('saveNote');
+  if (!player || !player.email || !runToken) return;
+  if (note) note.textContent = isPb ? 'Saving your run…' : 'Checking your run…';
+  try {
+    var res = await fetch('/.netlify/functions/save-flappy-score', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: player.email,
+        username: player.username,
+        runId: runToken.runId, seed: runToken.seed, issuedAt: runToken.issuedAt, sig: runToken.sig,
+        flapTicks: flapTicks,
+      }),
+    });
+    var d = await res.json();
+    if (d && d.ok) {
+      var raised = (d.best || 0) > (myBest || 0);
+      myBest = Math.max(myBest || 0, d.best || 0);
+      if (player) scores[player.tag] = { name: player.username, tag: player.tag, bestScore: myBest };
+      updateScoreDisplay();
+      if (note) note.textContent = raised ? ('🍌 New best saved: ' + myBest) : 'Best score kept. Beat it to move up.';
+    } else if (d && d.reason === 'no-game') {
+      if (note) note.textContent = 'The round is not running, so that run was not saved.';
+    } else {
+      if (note) note.textContent = 'Could not save that run.';
+    }
+  } catch (e) {
+    if (note) note.textContent = 'Could not save that run.';
+  }
+  runToken = null;   // a run token is good for exactly one run
 }
 
 // ── DRAW ──────────────────────────────────────────────────────────────
@@ -812,7 +894,14 @@ function showOverlay(kind, data) {
         '<button class="ov-btn" onclick="restart()">Play again</button>' +
       '</div>';
     var note = document.getElementById('saveNote');
-    if (note) note.textContent = DEMO ? 'Demo run — not saved.' : (data.pb ? 'Saving your new best…' : 'Best score kept. Beat it to move up.');
+    if (note && DEMO) note.textContent = 'Demo run, not saved.';
+  } else if (kind === 'error') {
+    ov.innerHTML =
+      '<div class="ov-card">' +
+        '<div class="ov-title">Could not start</div>' +
+        '<div class="ov-sub">We could not reach the game just now. Check your connection and try again.</div>' +
+        '<button class="ov-btn" onclick="restart()">Try again</button>' +
+      '</div>';
   }
 }
 function clearOverlay() { var ov = document.getElementById('stageOverlay'); if (ov) ov.innerHTML = ''; }
