@@ -145,6 +145,17 @@
 # The homepage is index.html, which Netlify serves at "/" automatically —
 # no root redirect needed.
 
+# Expired one-day promo page (Circle K Fuel Day, July 9 2026). Page removed, but the
+# URL was shared on social, so send stragglers to the deals homepage instead of a 404.
+[[redirects]]
+  from = "/circle-k-fuel-day"
+  to = "/"
+  status = 301
+[[redirects]]
+  from = "/circle-k-fuel-day.html"
+  to = "/"
+  status = 301
+
 # Canonical host: send the old netlify.app URL to the custom domain (one host for SEO).
 [[redirects]]
   from = "https://founditcheaper.netlify.app/*"
