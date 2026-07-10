@@ -376,7 +376,6 @@
         <div class="player-name" id="playerNameDisplay"></div>
         <div style="text-align:right">
           <div class="player-score"><span>This round · </span><span id="playerScoreDisplay">0</span> pts</div>
-          <div id="refBonusNote" style="display:none;font-size:11px;color:#7dd3fc;font-weight:700;margin-top:2px"></div>
         </div>
       </div>
       <div id="playerIdNote" style="font-size:11px;color:var(--muted);text-align:center;margin:2px 0 10px;line-height:1.5;background:rgba(245,200,66,0.06);border:1px solid rgba(245,200,66,0.2);border-radius:8px;padding:8px 10px"></div>
@@ -437,23 +436,6 @@
         </div>
       </div>
 
-      <!-- Invite / referral -->
-      <div style="background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.3);border-radius:10px;padding:14px 12px;text-align:center;margin-top:14px">
-        <div style="font-size:13px;font-weight:800;color:var(--accent);margin-bottom:4px">🎁 Invite friends, earn points</div>
-        <div style="font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:12px">When a friend who is new to the game joins and rolls, you both score.</div>
-        <div style="display:flex;gap:10px;margin-bottom:12px">
-          <div style="flex:1;background:rgba(255,255,255,0.05);border-radius:8px;padding:10px 6px">
-            <div style="font-size:18px;font-weight:800;color:#fff">+25</div>
-            <div style="font-size:10px;color:var(--muted);line-height:1.4;margin-top:3px">for you, per friend<br>up to 5 (+125)</div>
-          </div>
-          <div style="flex:1;background:rgba(255,255,255,0.05);border-radius:8px;padding:10px 6px">
-            <div style="font-size:18px;font-weight:800;color:#fff">+25</div>
-            <div style="font-size:10px;color:var(--muted);line-height:1.4;margin-top:3px">for your friend<br>to get started</div>
-          </div>
-        </div>
-        <div style="font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:12px">First-time players only. Inviting someone who has played the game before does not earn points.</div>
-        <button id="shareRefBtn" onclick="shareReferral()" style="background:var(--accent);color:#0a1f33;border:none;border-radius:8px;padding:11px 20px;font-size:14px;font-weight:800;cursor:pointer;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px">🔗 Share my invite link</button>
-      </div>
     </div>
 
   </div>
@@ -651,16 +633,14 @@ async function loadScores() {
   try {
     var weekStart = getPeriodBounds().start.toISOString().split('T')[0];
     // Read the public view (names + IDs + scores only — no emails exposed).
-    // referral_bonus is added by the game_referrals SQL; fall back if not there yet.
-    var res = await _sb.from('game_leaderboard').select('username,player_tag,week_score,last_roll,roll_days,streak,referral_bonus').eq('week_start', weekStart);
-    if (res.error) res = await _sb.from('game_leaderboard').select('username,player_tag,week_score,last_roll,roll_days,streak').eq('week_start', weekStart);
+    // Referrals were removed 2026-07-10; the score is the dice score, nothing else.
+    var res = await _sb.from('game_leaderboard').select('username,player_tag,week_score,last_roll,roll_days,streak').eq('week_start', weekStart);
     if (res.error) throw res.error;
     var data = res.data;
     scores = {};
     if (data) data.forEach(function(row) {
       var key = row.player_tag || row.username;
       scores[key] = { name: row.username, tag: row.player_tag, weekScore: row.week_score,
-        bonus: row.referral_bonus || 0,
         lastRoll: row.last_roll, rollDays: row.roll_days || [], streak: row.streak };
     });
     // Cache locally for offline resilience
@@ -846,14 +826,7 @@ async function signupGameNotify() {
 
 function updateScoreDisplay() {
   var entry = scores[player.tag];
-  var bonus = entry ? (entry.bonus || 0) : 0;
-  var total = entry ? ((entry.weekScore || 0) + bonus) : 0;
-  document.getElementById('playerScoreDisplay').textContent = total;
-  var rb = document.getElementById('refBonusNote');
-  if (rb) {
-    if (bonus > 0) { rb.textContent = 'Includes +' + bonus + ' from referrals'; rb.style.display = 'block'; }
-    else { rb.style.display = 'none'; }
-  }
+  document.getElementById('playerScoreDisplay').textContent = entry ? (entry.weekScore || 0) : 0;
 }
 
 function checkAlreadyPlayed() {
@@ -1101,7 +1074,6 @@ async function rollDice() {
     entry.tag = player.tag;
     scores[player.tag] = entry;
     saveScores();
-    maybeSendReferral();   // if invited via a share link, credit the referrer (first roll)
     updateScoreDisplay();
     document.getElementById('playedMsg').style.display = 'block';
     startCountdown();
@@ -1121,7 +1093,7 @@ async function renderLeaderboard() {
   document.getElementById('lbWeekRange').textContent = getWeekString();
 
   var entries = Object.entries(scores).map(function(e) {
-    return { tag: e[1].tag || e[0], name: e[1].name, score: (e[1].weekScore || 0) + (e[1].bonus || 0) };
+    return { tag: e[1].tag || e[0], name: e[1].name, score: (e[1].weekScore || 0) };
   });
   entries.sort(function(a,b) { return b.score - a.score; });
 
@@ -1261,44 +1233,10 @@ function demoStartGame() {
   showGame();
 }
 
-// ── REFERRALS ─────────────────────────────────────────────────────────
-// Arriving via a friend's share link (?ref=<tag>)? If this is a brand-new visitor,
-// remember who invited them so we credit that person +25 when this visitor rolls
-// for the first time. Capped at 5 referrals / 125 pts (enforced in the DB view).
-(function captureReferral() {
-  try {
-    var m = /[?&]ref=(\d{4,6})(?:&|$)/.exec(location.search);
-    if (m && !localStorage.getItem(PLAYER_KEY) && !localStorage.getItem('fic_ref')) {
-      localStorage.setItem('fic_ref', m[1]);
-    }
-  } catch (e) {}
-})();
-function maybeSendReferral() {
-  if (DEMO) return;
-  try {
-    var ref = localStorage.getItem('fic_ref');
-    if (!ref || localStorage.getItem('fic_ref_sent')) return;
-    if (!player || !player.email || String(player.tag) === String(ref)) { localStorage.setItem('fic_ref_sent', '1'); return; }
-    localStorage.setItem('fic_ref_sent', '1');   // set first so we never double-send
-    fetch('/.netlify/functions/refer', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refTag: parseInt(ref, 10), email: player.email, weekStart: getPeriodBounds().start.toISOString().split('T')[0] }),
-    }).catch(function () {});
-  } catch (e) {}
-}
-function shareReferral() {
-  if (!player) return;
-  var link = location.origin + location.pathname + '?ref=' + player.tag;
-  var msg = 'I\'m playing the founditcheaper Daily Dice Roll. Roll every day for a shot at the prize. Join with my link and I get a bonus:';
-  var btn = document.getElementById('shareRefBtn');
-  if (navigator.share) {
-    navigator.share({ title: 'founditcheaper Daily Dice Roll', text: msg, url: link }).catch(function () {});
-  } else if (navigator.clipboard) {
-    navigator.clipboard.writeText(link).then(function () {
-      if (btn) { var o = btn.textContent; btn.textContent = '✓ Link copied, go share it'; setTimeout(function () { btn.textContent = o; }, 2200); }
-    }).catch(function () { prompt('Copy your invite link:', link); });
-  } else { prompt('Copy your invite link:', link); }
-}
+// Referrals were removed on 2026-07-10. They were being farmed with throwaway emails
+// (a +125 bonus dwarfed the ~17-point average dice score, so it decided every winner).
+// The score is now the dice score, full stop. A stale ?ref= link in the wild is simply
+// ignored, and /refer returns "disabled" so nothing is ever recorded.
 
 loadPlayer();
 if (DEMO) {
