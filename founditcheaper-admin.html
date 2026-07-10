@@ -312,7 +312,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
         <div style="font-size:12px;color:var(--muted);line-height:1.6;margin:6px 0 12px">Choose which game to open below.</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-primary" id="gamechoice-dice" onclick="openGame('dice')" style="flex:1;min-width:150px">🎲 Dice Game <span style="color:#0a1f33;font-weight:800;font-size:11px">● LIVE</span></button>
-          <button class="btn btn-ghost" id="gamechoice-flappy" onclick="openGame('flappy')" style="flex:1;min-width:150px">🍌 Flappy Banana <span style="color:var(--muted);font-weight:700;font-size:11px">DEMO</span></button>
+          <button class="btn btn-ghost" id="gamechoice-flappy" onclick="openGame('flappy')" style="flex:1;min-width:150px">🍌 Flappy Banana</button>
         </div>
       </div>
 
@@ -397,12 +397,12 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       <div id="gameResults"></div>
       </div><!-- /games-sub-dice -->
 
-      <!-- FLAPPY BANANA — demo only for now (not launched to players) -->
+      <!-- FLAPPY BANANA — controls live, but the game page is not linked in the menu yet -->
       <div id="games-sub-flappy" style="display:none">
         <div class="section-header">
           <div>
-            <div class="section-title">Flappy Banana <span style="font-size:12px;color:var(--muted);font-weight:600">— not launched yet</span></div>
-            <div class="section-sub">Try it with the demo below. When you want to run a real round (prize, dates, winners, leaderboard), tell the game agent and the launch controls turn on here.</div>
+            <div class="section-title">Flappy Banana <span style="font-size:12px;color:var(--muted);font-weight:600">— not in the menu yet</span></div>
+            <div class="section-sub">Setting dates below starts a real round. The game page is still not linked anywhere on the site, so only someone with the direct link can find it. Add the menu link when you're ready to announce it.</div>
           </div>
         </div>
 
@@ -416,9 +416,9 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
           </div>
         </div>
 
-        <!-- Full launch controls. Hidden until Flappy Banana goes live: flip
-             #flappyLiveControls to display:block and add the public menu link to launch. -->
-        <div id="flappyLiveControls" style="display:none">
+        <!-- Launch controls (enabled 2026-07-10). The remaining step to a public launch
+             is adding the Flappy link back to the index.html hamburger menu. -->
+        <div id="flappyLiveControls">
           <div id="flappyStatusBanner" style="margin-bottom:16px"></div>
 
           <div class="settings-card" style="margin-bottom:16px">
