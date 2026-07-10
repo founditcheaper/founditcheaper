@@ -84,6 +84,12 @@
   footer .links a{color:#b9c7da;text-decoration:none;font-weight:600}
   footer .disc{color:#61748c;font-size:12px;margin-top:16px;max-width:460px;margin-left:auto;margin-right:auto}
 </style>
+<style>
+  .expired-banner{display:none;background:linear-gradient(180deg,#3a1c22,#2b151a);
+    border:1px solid rgba(255,140,140,.35);border-left:5px solid #ff8a8a;border-radius:14px;
+    padding:18px 20px;margin:30px 0 0;color:#ffd9d9;font-size:16px;line-height:1.5}
+  .expired-banner b{color:#ff8a8a}
+</style>
 </head>
 <body>
 <header>
@@ -99,6 +105,7 @@
 </header>
 
 <main class="wrap">
+  <div class="expired-banner" id="expiredBanner"><p><b>this one is over.</b> the offer ran through july 14, 2026 and has expired. the page is still here for reference, but do not go out expecting it. <a href="/freebies" style="color:var(--gold);font-weight:700">see what is live now &rarr;</a></p></div>
   <div class="hero">
     <span class="pill">free food</span>
     <h1>chick-fil-a will give you a<br><span class="g">free chicken sandwich</span><br>for dressing like a cow</h1>
@@ -174,5 +181,15 @@
     <p class="disc">we're not chick-fil-a. we just round up the free stuff and point you where to go.</p>
   </div>
 </footer>
+<script>
+(function () {
+  var ENDS = '2026-07-14';
+  var today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  if (today > ENDS) {
+    var b = document.getElementById('expiredBanner');
+    if (b) b.style.display = 'block';
+  }
+})();
+</script>
 </body>
 </html>
