@@ -654,27 +654,21 @@ async function loadScores() {
   }
 }
 
+// Register the player (or update their display name). This can NOT set a score:
+// the score lives on the server and only changes inside /roll-dice.
 async function saveScores() {
   if (DEMO) return;   // demo never persists — no localStorage, no Supabase
   localStorage.setItem(SCORES_KEY, JSON.stringify(scores));
-  if (!USE_SUPABASE || !player) return;
+  if (!USE_SUPABASE || !player || !player.email) return;
   try {
     var weekStart = getPeriodBounds().start.toISOString().split('T')[0];
     var periodEnd = _gameEnd || getPeriodBounds().end.toISOString().split('T')[0];
     var entry = scores[player.tag];
-    if (!entry || !player.email) return;
-    // game_scores is locked from the public key (it holds emails), so the write
-    // goes through the service-role save-score function instead of a direct upsert.
     await fetch('/.netlify/functions/save-score', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email:      player.email,
-        username:   entry.name,
-        player_tag: player.tag,
-        week_score: entry.weekScore,
-        last_roll:  entry.lastRoll,
-        roll_days:  entry.rollDays || [],
-        streak:     entry.streak || 0,
+        username:   (entry && entry.name) || player.username,
         week_start: weekStart,
         period_end: periodEnd,
       }),
@@ -944,105 +938,121 @@ function animateDice(die1El, die2El, callback) {
   tick();
 }
 
+// Build a demo roll locally. The sandbox never touches the server, so it generates its
+// own sequence in exactly the shape /roll-dice returns.
+function demoRollResult() {
+  var rolls = [];
+  function pushPair(isBonus) {
+    var p = rollOnePair(), d1 = p[0], d2 = p[1];
+    var kind = isSnakeEyes(d1, d2) ? 'snake' : (isDoubles(d1, d2) ? 'doubles' : 'normal');
+    rolls.push({ d1: d1, d2: d2, pts: d1 + d2, bonus: !!isBonus, kind: kind });
+    return kind;
+  }
+  var firstKind = pushPair(false);
+  var extra = firstKind === 'snake' ? 2 : (firstKind === 'doubles' ? 1 : 0);
+  for (var i = 0; i < extra; i++) pushPair(true);
+  var gained = rolls.reduce(function (s, r) { return s + r.pts; }, 0);
+  return { ok: true, rolls: rolls, gained: gained, streakBonus: 0, streak: 0,
+           rolledEveryDay: false, isLastDay: false, isFullWeek: gameIsFullWeek() };
+}
+
+// The SERVER rolls the dice. The page only animates what came back and shows the total
+// the server recorded. Nothing here can change a score, which is the whole point:
+// there is no number to tamper with. See netlify/functions/roll-dice.js.
 async function rollDice() {
-  // Guard: no live game → nothing to roll into (nothing would be saved/counted).
+  // Guard: no live game → nothing to roll into.
   if (!gameIsLive()) { applyGameLiveState(); return; }
-  // Guard: never allow a roll while the one-hour cooldown is active (except in demo).
-  // Protects against the button somehow being enabled after a refresh.
+  // Guard: don't even ask while the cooldown is up (the server enforces it regardless).
   if (!DEMO && rollLocked(scores[player.tag])) { checkAlreadyPlayed(); return; }
 
-  document.getElementById('rollBtn').disabled = true;
+  var rollBtn = document.getElementById('rollBtn');
+  rollBtn.disabled = true;
   die1El = document.getElementById('die1');
   die2El = document.getElementById('die2');
   resultBox = document.getElementById('resultBox');
   resultBox.innerHTML = '';
 
-  // Streak calculation
-  var entry = scores[player.tag] || { name: player.username, tag: player.tag, weekScore: 0, lastRoll: null, streak: 0, rollDays: [] };
-  if (!entry.rollDays) entry.rollDays = [];
-  var today = todayString();
-  var weekStart = getPeriodBounds().start;
-  var allDays = [], cursor = new Date(weekStart);
-  var todayDate = DEMO ? demoTodayDate() : new Date(); todayDate.setHours(0,0,0,0);
-  while (cursor <= todayDate) {
-    allDays.push(cursor.getFullYear()+'-'+(cursor.getMonth()+1)+'-'+cursor.getDate());
-    cursor.setDate(cursor.getDate()+1);
-  }
-  // Normalize stored roll days (DB dates can be zero-padded) before comparing.
-  var rollSet = {}; entry.rollDays.forEach(function(d) { rollSet[normDay(d)] = 1; });
-  var firstRollToday = !rollSet[normDay(today)];
-  if (firstRollToday) { entry.rollDays.push(today); rollSet[normDay(today)] = 1; }
-  var hasRolledEveryDay = allDays.every(function(d) { return rollSet[normDay(d)]; });
-  var weekEnd = getPeriodBounds().end;
-  var isLastDay = todayDate.toDateString() === new Date(weekEnd).toDateString();
-  // Pay the perfect-week bonus once — on the first roll of the final day — not on every
-  // hourly roll that day.
-  var streakBonus = (firstRollToday && gameIsFullWeek() && hasRolledEveryDay && isLastDay) ? allDays.length * 5 : 0;
-  entry.streak = hasRolledEveryDay ? allDays.length : 0;
+  var result;
+  if (DEMO) {
+    result = demoRollResult();
+  } else {
+    try {
+      var res = await fetch('/.netlify/functions/roll-dice', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: player.email, username: player.username }),
+      });
+      result = await res.json();
+    } catch (e) { result = { ok: false, reason: 'network' }; }
 
-  // Roll sequence. bonusRemaining = how many extra rolls the FIRST roll earned:
-  //   Doubles → 1 bonus roll (2 total) · Snake Eyes → 2 bonus rolls (3 total).
-  var rolls = [], totalPoints = 0, rollCount = 0, bonusRemaining = 0;
+    if (!result || !result.ok) {
+      rollBtn.disabled = false;
+      if (result && result.reason === 'cooldown') {
+        // The server says wait. Trust it over our local clock and show the countdown.
+        var e2 = scores[player.tag] || { name: player.username, tag: player.tag, weekScore: 0 };
+        if (result.nextRollAt) e2.lastRoll = new Date(Date.parse(result.nextRollAt) - ROLL_COOLDOWN_MS).toISOString();
+        scores[player.tag] = e2;
+        checkAlreadyPlayed();
+      } else if (result && result.reason === 'no-game') {
+        applyGameLiveState();
+      } else {
+        resultBox.innerHTML = '<div style="color:var(--red);font-size:13px;text-align:center;padding:10px">Could not roll right now. Try again in a moment.</div>';
+      }
+      return;
+    }
+  }
+
+  var serverRolls = result.rolls || [];
+  var streakBonus = result.streakBonus || 0;
+  var shown = [];        // the rolls revealed so far
+  var next = 0;          // index of the next roll to reveal
+
+  function labelFor(r, i) {
+    if (i === 0) {
+      if (r.kind === 'snake')   return '💀 Snake Eyes! Two bonus rolls!';
+      if (r.kind === 'doubles') return '🔥 Doubles! Bonus roll!';
+      return r.pts >= 10 ? 'Nice roll!' : 'Keep rolling!';
+    }
+    if (r.kind === 'snake')   return '💀 Snake Eyes (no extra roll on bonus roll)';
+    if (r.kind === 'doubles') return '🔥 Doubles (no extra roll on bonus roll)';
+    return 'Bonus roll';
+  }
 
   function buildResultHtml() {
-    var html = '';
-    rolls.forEach(function(r, i) {
+    var html = '', running = 0;
+    shown.forEach(function (r, i) {
+      var special = r.kind !== 'normal';
       var rollLabel = i === 0 ? 'Roll' : 'Bonus Roll ' + i;
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,'+(r.special?'0.2':'0.07')+');border-radius:8px;margin-bottom:6px">';
+      running += r.pts;
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,'+(special?'0.2':'0.07')+');border-radius:8px;margin-bottom:6px">';
       html += '<div><div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase">'+rollLabel+'</div>';
       html += '<div style="margin:4px 0;display:flex;gap:6px">'+miniDie(r.d1)+miniDie(r.d2)+'</div>';
-      html += '<div style="font-size:11px;font-weight:700;color:'+(r.special?'var(--accent)':'var(--muted)')+'">'+r.label+'</div></div>';
+      html += '<div style="font-size:11px;font-weight:700;color:'+(special?'var(--accent)':'var(--muted)')+'">'+labelFor(r, i)+'</div></div>';
       html += '<div style="text-align:right"><div style="font-size:20px;font-weight:800;color:var(--green)">+'+r.pts+'</div><div style="font-size:10px;color:var(--muted)">pts</div></div>';
       html += '</div>';
     });
-    if (rolls.length > 1 || streakBonus > 0) {
+    var allShown = shown.length === serverRolls.length;
+    if (shown.length > 1 || (allShown && streakBonus > 0)) {
       html += '<div style="text-align:center;padding:10px;font-size:14px;color:var(--accent);font-weight:800;border-top:1px solid rgba(255,255,255,0.08);margin-top:4px">';
-      html += 'Roll total: '+(totalPoints+streakBonus)+' pts';
-      if (streakBonus > 0) html += '<div style="font-size:11px;color:var(--green);font-weight:600;margin-top:2px">+'+streakBonus+' perfect week bonus included!</div>';
+      html += 'Roll total: '+(running + (allShown ? streakBonus : 0))+' pts';
+      if (allShown && streakBonus > 0) html += '<div style="font-size:11px;color:var(--green);font-weight:600;margin-top:2px">+'+streakBonus+' perfect week bonus included</div>';
       html += '</div>';
     }
-    if (gameIsFullWeek() && hasRolledEveryDay && !isLastDay && streakBonus === 0) {
+    if (result.isFullWeek && result.rolledEveryDay && !result.isLastDay && streakBonus === 0) {
       html += '<div style="text-align:center;font-size:11px;color:var(--green);font-weight:600;padding:6px 0">🔥 Perfect streak. Bonus unlocks on final day.</div>';
     }
     resultBox.innerHTML = html;
   }
 
-  function doRoll() {
+  function revealNext() {
     _animating = true;
-    animateDice(die1El, die2El, function() {
+    animateDice(die1El, die2El, function () {
       _animating = false;
-      var pair = rollOnePair();
-      var d1 = pair[0], d2 = pair[1];
-      renderDie(die1El, d1); renderDie(die2El, d2);
-      var pts = d1 + d2;
-      var label = '', special = false;
-      rollCount++;
-
-      if (rollCount === 1) {
-        // Only the first roll grants bonus rolls.
-        if (isSnakeEyes(d1, d2))      { special = true; bonusRemaining = 2; label = '💀 Snake Eyes! Two bonus rolls!'; }
-        else if (isDoubles(d1, d2))   { special = true; bonusRemaining = 1; label = '🔥 Doubles! Bonus roll!'; }
-        else                          { label = pts >= 10 ? 'Nice roll!' : 'Keep rolling!'; }
-      } else {
-        // On a bonus roll, doubles/snake eyes do NOT earn another roll. Say so plainly.
-        // The old "bonus!" wording made players expect an extra roll they never got.
-        if (isSnakeEyes(d1, d2))      { special = true; label = '💀 Snake Eyes (no extra roll on bonus roll)'; }
-        else if (isDoubles(d1, d2))   { special = true; label = '🔥 Doubles (no extra roll on bonus roll)'; }
-        else                          { label = 'Bonus roll'; }
-      }
-
-      rolls.push({ d1:d1, d2:d2, pts:pts, label:label, special:special });
-      totalPoints += pts;
+      var r = serverRolls[next]; next++;
+      renderDie(die1El, r.d1); renderDie(die2El, r.d2);
+      shown.push(r);
       buildResultHtml();
-
-      if (bonusRemaining > 0) {
-        // Celebrate and wait for the player to click for each remaining bonus roll.
-        var owedNow = bonusRemaining;
-        bonusRemaining--;
-        offerBonusRoll({ firstSnake: (rollCount === 1 && isSnakeEyes(d1, d2)), owed: owedNow });
-      } else {
-        finalizeRoll();
-      }
+      if (next < serverRolls.length) offerBonusRoll({ owed: serverRolls.length - next, firstSnake: (next === 1 && r.kind === 'snake') });
+      else finalizeRoll();
     });
   }
 
@@ -1070,29 +1080,35 @@ async function rollDice() {
     btn.onclick = function () {
       btn.classList.remove('bonus');
       btn.disabled = true;
-      btn.onclick = rollDice;          // restore normal handler for future days
+      btn.onclick = rollDice;          // restore the normal handler
       btn.textContent = 'Roll!';
       if (cel.parentNode) cel.parentNode.removeChild(cel);
-      doRoll();
+      revealNext();
     };
   }
 
   function finalizeRoll() {
-    var finalTotal = totalPoints + streakBonus;
-    entry.weekScore = (entry.weekScore || 0) + finalTotal;
-    entry.lastRoll = DEMO ? today : new Date().toISOString();   // live: timestamp for the hourly cooldown
+    var entry = scores[player.tag] || { name: player.username, tag: player.tag, weekScore: 0 };
     entry.name = player.username;
     entry.tag = player.tag;
+    if (DEMO) {
+      entry.weekScore = (entry.weekScore || 0) + result.gained;
+      entry.lastRoll = todayString();
+    } else {
+      entry.weekScore = result.weekScore;   // authoritative: whatever the server banked
+      entry.streak = result.streak;
+      entry.lastRoll = new Date(Date.parse(result.nextRollAt) - ROLL_COOLDOWN_MS).toISOString();
+    }
     scores[player.tag] = entry;
-    saveScores();
+    if (!DEMO) { try { localStorage.setItem(SCORES_KEY, JSON.stringify(scores)); } catch (e) {} }
     updateScoreDisplay();
     document.getElementById('playedMsg').style.display = 'block';
     startCountdown();
-    // Reveal the "remind me when I can roll" opt-in right after rolling (not just on reload).
+    // Reveal the "remind me when I can roll" opt-in right after rolling.
     if (_remindOn === null) loadRemindState(); else renderRemindBtn();
   }
 
-  doRoll();
+  revealNext();
 }
 
 // ── LEADERBOARD ───────────────────────────────────────────────────────
