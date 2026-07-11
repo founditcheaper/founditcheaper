@@ -6,9 +6,20 @@
 // and — if it hasn't already emailed for that game — sends, then records a
 // `flappy_notified_period` marker so it never double-sends.
 //
-// Copies the dice game's game-end-notify.js. Deliverability: the winner email avoids
-// the words spam filters hate (gift card, prize, won, free, $ amounts). The real
-// reward is revealed on the confirmation web page, which isn't spam-filtered.
+// ROBUSTNESS (added 2026-07-11 after a live round marked itself "done" but the winner
+// never got a working confirm email). The round is marked "done" ONLY after everything
+// that should have happened, happened. Any failure returns WITHOUT marking, so the next
+// hourly run retries:
+//   * standings read must actually succeed (a transient failure used to be treated as
+//     "no players", which emailed the wrong summary and then gave up)
+//   * the winner's claim token must be CONFIRMED saved before we email them (otherwise
+//     their "Confirm it is me" link points at a token that isn't in the database)
+//   * the winner's email (if they have one) must actually send
+//   * Erik's summary email must actually send
+// The claim token is generated once and reused on retry, so retries are idempotent.
+//
+// Deliverability: the winner email avoids the words spam filters hate (gift card,
+// prize, won, free, $ amounts). The real reward is revealed on the confirmation page.
 //
 // REQUIRED env: PRIVATE_EMAIL_PASS (the deals@founditcheaper.net mailbox password).
 // OPTIONAL env: GAME_ALERT_TO (recipient), PRIVATE_EMAIL_USER (sender).
@@ -56,61 +67,54 @@ exports.handler = async function () {
     return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'PRIVATE_EMAIL_PASS not set' }) };
   }
 
-  // 5) Standings for this game.
-  let players = [];
+  // 5) Standings for this game. A successful read is REQUIRED — if it fails we return
+  // without marking, so the next hourly run retries instead of wrongly reporting "no
+  // players" and giving up.
+  let players;
   try {
     const r = await fetch(`${sbUrl}/rest/v1/flappy_scores?period_start=eq.${encodeURIComponent(start)}&select=id,username,player_tag,email,best_score,claim_token,claimed_at&order=best_score.desc&limit=25`, { headers: H });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
     const rows = await r.json();
-    if (Array.isArray(rows)) players = rows;
-  } catch (e) { console.error('[flappy-end-notify] scores read failed:', e.message); }
+    if (!Array.isArray(rows)) throw new Error('unexpected shape');
+    players = rows;
+  } catch (e) {
+    console.error('[flappy-end-notify] standings read failed, will retry:', e.message);
+    return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'standings read failed, will retry' }) };
+  }
 
   const range = start === end ? start : (start + ' to ' + end);
   const prize = settings.flappy_prize || '';
   const winner = players[0];
   const winnerEmail = (winner && String(winner.email || '').trim()) || '';
 
-  // Give the winner a one-time claim token so their confirm button works.
+  // 6) If there is a winner WITH an email, make sure their claim token is CONFIRMED saved
+  // before we email them. If the save fails, bail without marking so we retry (rather than
+  // emailing a "Confirm it is me" link whose token isn't in the database).
   let claimToken = (winner && winner.claim_token) || '';
   if (winner && winnerEmail && !claimToken) {
     claimToken = crypto.randomBytes(16).toString('hex');
-    await fetch(`${sbUrl}/rest/v1/flappy_scores?id=eq.${encodeURIComponent(winner.id)}`, {
-      method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' },
-      body: JSON.stringify({ claim_token: claimToken }),
-    }).catch(function () { claimToken = ''; });
+    let saved = false;
+    try {
+      const pr = await fetch(`${sbUrl}/rest/v1/flappy_scores?id=eq.${encodeURIComponent(winner.id)}`, {
+        method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' },
+        body: JSON.stringify({ claim_token: claimToken }),
+      });
+      saved = pr.ok;
+    } catch (e) { console.error('[flappy-end-notify] token save threw:', e.message); }
+    if (!saved) {
+      console.error('[flappy-end-notify] claim token save failed, will retry');
+      return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'token save failed, will retry' }) };
+    }
   }
 
-  const subject = winner
-    ? `Flappy Banana ended (${range}) — winner: ${winner.username} (${winner.best_score} pts)`
-    : `Flappy Banana ended (${range}) — no players`;
-
-  let html = `<h2 style="margin:0 0 8px">Flappy Banana ended</h2><p style="margin:0 0 12px"><strong>Competition:</strong> ${esc(range)}${prize ? ` &middot; <strong>Prize:</strong> ${esc(prize)}` : ''}</p>`;
-  if (winner) {
-    html += `<p style="font-size:15px;margin:0 0 12px">🏆 <strong>Winner: ${esc(winner.username)}</strong> <span style="color:#888">#${esc(winner.player_tag || '?')}</span> — <strong>${winner.best_score} pts</strong><br><span style="color:#555">${esc(winner.email || '(no email on file)')}</span></p>`;
-    html += winnerEmail
-      ? `<p style="font-size:13px;color:#0a7d2c;margin:0 0 12px">We emailed the winner a confirm button. You'll get a second email the moment they click it — that confirms a real person is on the other end before you send the reward.</p>`
-      : `<p style="font-size:13px;color:#b00;margin:0 0 12px">This winner has no email on file, so we could not send them a claim link. Reach out via their standings info.</p>`;
-    html += `<p style="margin:0 0 4px"><strong>Top players:</strong></p><ol style="margin:0 0 12px;padding-left:20px">`;
-    players.slice(0, 10).forEach(function (p) { html += `<li>${esc(p.username)} <span style="color:#888">#${esc(p.player_tag || '?')}</span> — ${p.best_score} pts — <span style="color:#555">${esc(p.email || '')}</span></li>`; });
-    html += `</ol>`;
-  } else {
-    html += `<p>No one played this round.</p>`;
-  }
-  html += `<p style="color:#888;font-size:12px">Full standings + emails are in the admin panel → Flappy Banana.</p>`;
-
-  // 6) Send — first to Erik (required), then to the winner (best-effort).
   const transporter = nodemailer.createTransport({
     host: SMTP_HOST, port: SMTP_PORT, secure: true,
     auth: { user: FROM, pass: process.env.PRIVATE_EMAIL_PASS },
   });
-  try {
-    await transporter.sendMail({ from: `founditcheaper <${FROM}>`, to: TO, subject: subject, html: html });
-  } catch (e) {
-    console.error('[flappy-end-notify] owner email send failed:', e.message);
-    return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'send failed: ' + String(e.message).slice(0, 160) }) };
-  }
 
-  // Tell the winner and give them the confirm button.
-  if (winnerEmail && claimToken) {
+  // 7) Email the winner their confirm button FIRST — this is the part that was silently
+  // failing. If a winner with an email doesn't get it, bail without marking so we retry.
+  if (winner && winnerEmail && claimToken) {
     try {
       const claimUrl = 'https://founditcheaper.net/claim-flappy/' + claimToken;
       const wHtml =
@@ -132,10 +136,37 @@ exports.handler = async function () {
         html: wHtml,
         text: wText,
       });
-    } catch (e) { console.error('[flappy-end-notify] winner email failed:', e.message); }
+    } catch (e) {
+      console.error('[flappy-end-notify] winner email failed, will retry:', e.message);
+      return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'winner email failed, will retry' }) };
+    }
   }
 
-  // 7) Mark notified so it never double-sends.
+  // 8) Erik's summary email (required).
+  const subject = winner
+    ? `Flappy Banana ended (${range}) — winner: ${winner.username} (${winner.best_score} pts)`
+    : `Flappy Banana ended (${range}) — no players`;
+  let html = `<h2 style="margin:0 0 8px">Flappy Banana ended</h2><p style="margin:0 0 12px"><strong>Competition:</strong> ${esc(range)}${prize ? ` &middot; <strong>Prize:</strong> ${esc(prize)}` : ''}</p>`;
+  if (winner) {
+    html += `<p style="font-size:15px;margin:0 0 12px">🏆 <strong>Winner: ${esc(winner.username)}</strong> <span style="color:#888">#${esc(winner.player_tag || '?')}</span> — <strong>${winner.best_score} pts</strong><br><span style="color:#555">${esc(winner.email || '(no email on file)')}</span></p>`;
+    html += winnerEmail
+      ? `<p style="font-size:13px;color:#0a7d2c;margin:0 0 12px">We emailed the winner a confirm button. You'll get a second email the moment they click it — that confirms a real person is on the other end before you send the reward.</p>`
+      : `<p style="font-size:13px;color:#b00;margin:0 0 12px">This winner has no email on file, so we could not send them a claim link. Reach out via their standings info.</p>`;
+    html += `<p style="margin:0 0 4px"><strong>Top players:</strong></p><ol style="margin:0 0 12px;padding-left:20px">`;
+    players.slice(0, 10).forEach(function (p) { html += `<li>${esc(p.username)} <span style="color:#888">#${esc(p.player_tag || '?')}</span> — ${p.best_score} pts — <span style="color:#555">${esc(p.email || '')}</span></li>`; });
+    html += `</ol>`;
+  } else {
+    html += `<p>No one played this round.</p>`;
+  }
+  html += `<p style="color:#888;font-size:12px">Full standings + emails are in the admin panel → Flappy Banana.</p>`;
+  try {
+    await transporter.sendMail({ from: `founditcheaper <${FROM}>`, to: TO, subject: subject, html: html });
+  } catch (e) {
+    console.error('[flappy-end-notify] owner email failed, will retry:', e.message);
+    return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'owner email failed, will retry' }) };
+  }
+
+  // 9) Everything that should have sent, sent. NOW mark notified so it never repeats.
   try {
     await fetch(`${sbUrl}/rest/v1/settings`, {
       method: 'POST', headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
@@ -143,6 +174,6 @@ exports.handler = async function () {
     });
   } catch (e) { console.error('[flappy-end-notify] marker write failed:', e.message); }
 
-  console.log(`[flappy-end-notify] emailed winner for ${range}`);
+  console.log(`[flappy-end-notify] notified for ${range}, winner ${winner ? winner.username : 'none'}`);
   return { statusCode: 200, body: JSON.stringify({ ok: true, notified: start, winner: winner ? winner.username : null }) };
 };

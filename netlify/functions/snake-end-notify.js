@@ -49,12 +49,19 @@ exports.handler = async function () {
     return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'PRIVATE_EMAIL_PASS not set' }) };
   }
 
-  let players = [];
+  // A successful standings read is REQUIRED. If it fails, return without marking so the
+  // next hourly run retries, rather than wrongly reporting "no players" and giving up.
+  let players;
   try {
     const r = await fetch(`${sbUrl}/rest/v1/snake_scores?period_start=eq.${encodeURIComponent(start)}&select=id,username,player_tag,email,best_score,claim_token,claimed_at&order=best_score.desc&limit=25`, { headers: H });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
     const rows = await r.json();
-    if (Array.isArray(rows)) players = rows;
-  } catch (e) { console.error('[snake-end-notify] scores read failed:', e.message); }
+    if (!Array.isArray(rows)) throw new Error('unexpected shape');
+    players = rows;
+  } catch (e) {
+    console.error('[snake-end-notify] standings read failed, will retry:', e.message);
+    return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'standings read failed, will retry' }) };
+  }
 
   const range = start === end ? start : (start + ' to ' + end);
   const prizes = [settings.snake_prize || '', settings.snake_prize_2 || '', settings.snake_prize_3 || ''];
@@ -66,16 +73,27 @@ exports.handler = async function () {
     auth: { user: FROM, pass: process.env.PRIVATE_EMAIL_PASS },
   });
 
-  // Give each winner a one-time claim token AND stamp their place.
+  // Give each winner a one-time claim token AND stamp their place. The token must be
+  // CONFIRMED saved before we email that winner, or their confirm link would point at a
+  // token that isn't in the database. If a save fails, bail without marking so we retry.
   for (let i = 0; i < winners.length; i++) {
     const w = winners[i];
     let token = w.claim_token || '';
+    const alreadyHadToken = !!token;
     if (!token) token = crypto.randomBytes(16).toString('hex');
-    w._token = token;
-    await fetch(`${sbUrl}/rest/v1/snake_scores?id=eq.${encodeURIComponent(w.id)}`, {
-      method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' },
-      body: JSON.stringify({ claim_token: token, win_place: i + 1 }),
-    }).catch(function () { w._token = ''; });
+    let saved = alreadyHadToken;
+    try {
+      const pr = await fetch(`${sbUrl}/rest/v1/snake_scores?id=eq.${encodeURIComponent(w.id)}`, {
+        method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' },
+        body: JSON.stringify({ claim_token: token, win_place: i + 1 }),
+      });
+      saved = pr.ok;
+    } catch (e) { console.error('[snake-end-notify] token save threw:', e.message); }
+    if (!saved && String(w.email || '').trim()) {
+      console.error('[snake-end-notify] claim token save failed for a winner, will retry');
+      return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'token save failed, will retry' }) };
+    }
+    w._token = saved ? token : '';
   }
 
   const winner = winners[0];
@@ -114,6 +132,7 @@ exports.handler = async function () {
     return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'send failed: ' + String(e.message).slice(0, 160) }) };
   }
 
+  let allWinnersEmailed = true;
   for (let i = 0; i < winners.length; i++) {
     const w = winners[i];
     const wEmail = String(w.email || '').trim();
@@ -137,7 +156,12 @@ exports.handler = async function () {
         subject: 'Your founditcheaper banana game result',
         html: wHtml, text: wText,
       });
-    } catch (e) { console.error('[snake-end-notify] winner email failed:', e.message); }
+    } catch (e) { console.error('[snake-end-notify] winner email failed:', e.message); allWinnersEmailed = false; }
+  }
+
+  // If a winner who should have been emailed wasn't, don't mark — retry next hour.
+  if (!allWinnersEmailed) {
+    return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'a winner email failed, will retry' }) };
   }
 
   try {

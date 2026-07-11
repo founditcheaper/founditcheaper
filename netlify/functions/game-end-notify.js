@@ -53,13 +53,20 @@ exports.handler = async function () {
     return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'PRIVATE_EMAIL_PASS not set' }) };
   }
 
-  // 5) Standings for this game.
-  let players = [];
+  // 5) Standings for this game. A successful read is REQUIRED — if it fails we return
+  // without marking, so the next hourly run retries instead of wrongly reporting "no
+  // players" and giving up (which is how the Flappy round lost its winner email 7/11).
+  let players;
   try {
     const r = await fetch(`${sbUrl}/rest/v1/game_scores?week_start=eq.${encodeURIComponent(start)}&select=id,username,player_tag,email,week_score,claim_token,claimed_at&order=week_score.desc&limit=2000`, { headers: H });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
     const rows = await r.json();
-    if (Array.isArray(rows)) players = rows;
-  } catch (e) { console.error('[game-end-notify] scores read failed:', e.message); }
+    if (!Array.isArray(rows)) throw new Error('unexpected shape');
+    players = rows;
+  } catch (e) {
+    console.error('[game-end-notify] standings read failed, will retry:', e.message);
+    return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'standings read failed, will retry' }) };
+  }
 
   // Add the referral bonus — the SAME total the public leaderboard shows — so the true
   // winner wins. Raw week_score alone under-counts anyone who earned referral points, which
@@ -86,17 +93,27 @@ exports.handler = async function () {
     auth: { user: FROM, pass: process.env.PRIVATE_EMAIL_PASS },
   });
 
-  // Give each winner a one-time claim token AND stamp their place, so the claim page can
-  // reveal the right prize and mark the right person confirmed. Reuse an existing token.
+  // Give each winner a one-time claim token AND stamp their place. The token must be
+  // CONFIRMED saved before we email that winner, or their confirm link points at a token
+  // that isn't in the database. If a save fails, bail without marking so we retry.
   for (let i = 0; i < winners.length; i++) {
     const w = winners[i];
     let token = w.claim_token || '';
+    const alreadyHadToken = !!token;
     if (!token) token = crypto.randomBytes(16).toString('hex');
-    w._token = token;
-    await fetch(`${sbUrl}/rest/v1/game_scores?id=eq.${encodeURIComponent(w.id)}`, {
-      method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' },
-      body: JSON.stringify({ claim_token: token, win_place: i + 1 }),
-    }).catch(function () { w._token = ''; });
+    let saved = alreadyHadToken;
+    try {
+      const pr = await fetch(`${sbUrl}/rest/v1/game_scores?id=eq.${encodeURIComponent(w.id)}`, {
+        method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' },
+        body: JSON.stringify({ claim_token: token, win_place: i + 1 }),
+      });
+      saved = pr.ok;
+    } catch (e) { console.error('[game-end-notify] token save threw:', e.message); }
+    if (!saved && String(w.email || '').trim()) {
+      console.error('[game-end-notify] claim token save failed for a winner, will retry');
+      return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'token save failed, will retry' }) };
+    }
+    w._token = saved ? token : '';
   }
 
   const winner = winners[0];
@@ -139,6 +156,7 @@ exports.handler = async function () {
   // Email each winner their confirm button (best-effort). Wording is place-agnostic and
   // deliverability-safe (no gift card / prize / won / free / $ amounts). The exact place
   // and prize are revealed on the confirmation page, which isn't spam-filtered.
+  let allWinnersEmailed = true;
   for (let i = 0; i < winners.length; i++) {
     const w = winners[i];
     const wEmail = String(w.email || '').trim();
@@ -164,7 +182,12 @@ exports.handler = async function () {
         html: wHtml,
         text: wText,
       });
-    } catch (e) { console.error('[game-end-notify] winner email failed:', e.message); }
+    } catch (e) { console.error('[game-end-notify] winner email failed:', e.message); allWinnersEmailed = false; }
+  }
+
+  // If a winner who should have been emailed wasn't, don't mark — retry next hour.
+  if (!allWinnersEmailed) {
+    return { statusCode: 200, body: JSON.stringify({ ok: false, error: 'a winner email failed, will retry' }) };
   }
 
   // 7) Mark notified so it never double-sends.
