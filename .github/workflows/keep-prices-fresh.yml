@@ -1,0 +1,41 @@
+name: keep-prices-fresh
+
+# Netlify's built-in scheduler has been firing the price-refresh cron unreliably
+# (deals were sitting >24h stale, so the site hid ~70% of Amazon prices behind
+# "See price on Amazon"). The refresh function itself works fine on demand, so we
+# drive it from GitHub Actions instead, which is reliable and free for this public repo.
+#
+# Each run loops the refresh endpoint until the API reports everything is fresh
+# (or a safety cap). One endpoint call re-pulls ~150 of the stalest Amazon deals.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # every 15 minutes (GitHub may delay this a few minutes; the loop catches up)
+  workflow_dispatch: {}        # allows a manual run from the Actions tab
+
+# Never let two runs overlap.
+concurrency:
+  group: keep-prices-fresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Refresh the stalest Amazon prices until all fresh
+        run: |
+          URL="https://founditcheaper.net/.netlify/functions/refresh-prices"
+          total=0
+          for i in $(seq 1 24); do
+            r=$(curl -s --max-time 30 "$URL" || echo '{"error":"curl_failed"}')
+            echo "run $i: $r"
+            n=$(echo "$r" | grep -oE '"refreshed":[0-9]+' | grep -oE '[0-9]+' || echo 0)
+            total=$((total + ${n:-0}))
+            if echo "$r" | grep -q '"note":"all fresh"'; then
+              echo "All Amazon prices are fresh."
+              break
+            fi
+            sleep 3
+          done
+          echo "Refreshed ~$total deals this run."
