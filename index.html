@@ -1842,19 +1842,44 @@ async function siteFinderNotify() {
 // Live game state for the in-grid game card (the prize + whether a game is running now).
 // `settings` is publicly readable, so we use the same query the game pages do.
 // The grid card shows FLAPPY BANANA; the dice game lives in the hamburger menu.
-var _flappy = { live: false, prize: '', start: '', end: '' };
+// The in-grid game card features whichever game is LIVE right now, so it never needs a
+// manual swap. If several are live, the one ending soonest. If none is live, the most
+// recently ended game's "notify me" signup, so the card is never a dead end.
+var GAME_META = {
+  dice:   { url: 'founditcheaper-game.html',   icon: '\u{1F3B2}', title: 'Daily Dice<br>Roll Game', notify: 'dice',   liveSub: 'Roll every day. Top score wins.', name: 'the dice game', playerKey: 'fic_player_v1' },
+  flappy: { url: 'founditcheaper-flappy.html', icon: '\u{1F34C}', title: 'Flappy<br>Banana',        notify: 'flappy', liveSub: 'Tap to fly. Top score wins.',    name: 'Flappy Banana',  playerKey: 'fic_flappy_player_v1' },
+  snake:  { url: 'founditcheaper-snake.html',  icon: '\u{1F40D}', title: 'Hungry<br>Banana',        notify: 'snake',  liveSub: 'Eat bananas. Top score wins.',    name: 'Hungry Banana',  playerKey: 'fic_snake_player_v1' }
+};
+var _featured = { key: 'dice', live: false, prize: '', meta: GAME_META.dice };
 async function loadGameCardInfo() {
   try {
-    var res = await _sb.from('settings').select('key,value').in('key', ['flappy_prize', 'flappy_period_start', 'flappy_period_end', 'flappy_ended']);
-    if (res && res.data) {
-      var m = {}; res.data.forEach(function (r) { m[r.key] = r.value; });
-      _flappy.prize = m.flappy_prize || '';
-      _flappy.start = m.flappy_period_start || '';
-      _flappy.end = m.flappy_period_end || '';
-      var t = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
-      _flappy.live = !!(_flappy.start && _flappy.end && String(m.flappy_ended || '0') !== '1' && t >= _flappy.start && t <= _flappy.end);
+    var res = await _sb.from('settings').select('key,value').in('key', [
+      'game_prize', 'game_period_start', 'game_period_end', 'game_ended',
+      'flappy_prize', 'flappy_period_start', 'flappy_period_end', 'flappy_ended',
+      'snake_prize', 'snake_period_start', 'snake_period_end', 'snake_ended'
+    ]);
+    var m = {}; (res && res.data || []).forEach(function (r) { m[r.key] = r.value; });
+    var t = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+    var PREFIX = { dice: 'game', flappy: 'flappy', snake: 'snake' };   // dice settings use the 'game_' prefix
+    var games = ['dice', 'flappy', 'snake'].map(function (key) {
+      var p = PREFIX[key];
+      var start = m[p + '_period_start'] || '', end = m[p + '_period_end'] || '';
+      var ended = String(m[p + '_ended'] || '0') === '1';
+      return { key: key, start: start, end: end, prize: m[p + '_prize'] || '',
+        live: !!(start && end && !ended && t >= start && t <= end) };
+    });
+    var liveGames = games.filter(function (g) { return g.live; });
+    var pick;
+    if (liveGames.length) {
+      liveGames.sort(function (a, b) { return (a.end || '').localeCompare(b.end || ''); });   // ends soonest
+      pick = liveGames[0];
+    } else {
+      var configured = games.filter(function (g) { return g.start && g.end; });
+      configured.sort(function (a, b) { return (b.end || '').localeCompare(a.end || ''); });   // most recently ended
+      pick = configured[0] || games[0];
     }
-  } catch (e) { /* card falls back to the generic version */ }
+    _featured = { key: pick.key, live: pick.live, prize: pick.prize, meta: GAME_META[pick.key] };
+  } catch (e) { /* keep the default dice card */ }
 }
 function _pcEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
 // Deal Alerts card: typing an item + "Set an Alert" jumps to the intake page prefilled.
@@ -1875,35 +1900,35 @@ function promoCardsHtml() {
   alertCard += '<div onclick="window.location.href=\'deal-alert.html\'" style="font-size:10px;color:var(--muted);text-decoration:underline;cursor:pointer">or send a screenshot</div>';
   alertCard += '</div>';
 
-  // Flappy Banana card. LIVE → whole card is a Play Now link. NOT live → a "notify me
-  // when it's live" signup so people don't land on a dead game page (and we grow the
-  // list). The notify list covers every game, so it is correct either way.
-  var live = _flappy.live, prize = _flappy.prize;
+  // Game card: features whichever game is live (see loadGameCardInfo). LIVE → a Play Now
+  // link. NOT live → a "notify me when it's live" signup scoped to that game, so it is
+  // never a dead end.
+  var meta = _featured.meta, live = _featured.live, prize = _featured.prize;
   var gameCard;
   if (live) {
-    gameCard = '<div onclick="window.location.href=\'founditcheaper-flappy.html\'" style="background:linear-gradient(135deg,rgba(245,200,66,0.15),rgba(10,31,51,0.5));border:1px solid rgba(245,200,66,0.35);border-radius:10px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px;cursor:pointer">';
-    gameCard += '<div style="font-size:28px">\u{1F34C}</div>';
-    gameCard += '<div style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:900;color:var(--text);text-transform:uppercase;line-height:1.2">Flappy<br>Banana</div>';
+    gameCard = '<div onclick="window.location.href=\'' + meta.url + '\'" style="background:linear-gradient(135deg,rgba(245,200,66,0.15),rgba(10,31,51,0.5));border:1px solid rgba(245,200,66,0.35);border-radius:10px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px;cursor:pointer">';
+    gameCard += '<div style="font-size:28px">' + meta.icon + '</div>';
+    gameCard += '<div style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:900;color:var(--text);text-transform:uppercase;line-height:1.2">' + meta.title + '</div>';
     gameCard += '<div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#4ade80;background:rgba(74,222,128,0.14);border:1px solid rgba(74,222,128,0.4);border-radius:20px;padding:3px 11px">● GAME LIVE NOW</div>';
     gameCard += prize
       ? '<div style="font-size:11px;color:var(--text-soft);line-height:1.5">Playing for <b style="color:var(--accent)">' + _pcEsc(prize) + '</b></div>'
-      : '<div style="font-size:11px;color:var(--muted);line-height:1.5">Tap to fly. Top score wins.</div>';
+      : '<div style="font-size:11px;color:var(--muted);line-height:1.5">' + meta.liveSub + '</div>';
     gameCard += '<div style="width:100%;background:rgba(245,200,66,0.2);border:1px solid rgba(245,200,66,0.45);border-radius:6px;padding:9px;font-size:13px;font-weight:800;color:var(--accent);font-family:Inter,sans-serif">Play Now</div>';
     gameCard += '</div>';
   } else {
     var savedEmail = '';
     try {
-      var _pj = JSON.parse(localStorage.getItem('fic_flappy_player_v1') || localStorage.getItem('fic_player_v1') || 'null');
+      var _pj = JSON.parse(localStorage.getItem(meta.playerKey) || localStorage.getItem('fic_player_v1') || 'null');
       if (_pj && _pj.email) savedEmail = _pj.email;
     } catch (e) {}
     gameCard = '<div style="background:linear-gradient(135deg,rgba(245,200,66,0.15),rgba(10,31,51,0.5));border:1px solid rgba(245,200,66,0.35);border-radius:10px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px">';
-    gameCard += '<div style="font-size:28px">\u{1F34C}</div>';
-    gameCard += '<div style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:900;color:var(--text);text-transform:uppercase;line-height:1.2">Flappy<br>Banana</div>';
-    gameCard += '<div style="font-size:11px;color:var(--muted);line-height:1.5">No game running right now. Get an email when Flappy Banana is live.</div>';
+    gameCard += '<div style="font-size:28px">' + meta.icon + '</div>';
+    gameCard += '<div style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:900;color:var(--text);text-transform:uppercase;line-height:1.2">' + meta.title + '</div>';
+    gameCard += '<div style="font-size:11px;color:var(--muted);line-height:1.5">No game running right now. Get an email when ' + meta.name + ' is live.</div>';
     gameCard += '<input id="gridGameNotifyInput" type="email" value="' + _pcEsc(savedEmail) + '" placeholder="your@email.com" onkeydown="if(event.key===\'Enter\')gridGameNotify()" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:9px 10px;color:var(--text);font-size:12px;font-family:Inter,sans-serif;outline:none;box-sizing:border-box">';
     gameCard += '<button onclick="gridGameNotify()" style="width:100%;background:rgba(245,200,66,0.2);border:1px solid rgba(245,200,66,0.45);border-radius:6px;padding:9px;font-size:13px;font-weight:800;color:var(--accent);cursor:pointer;font-family:Inter,sans-serif">\u{1F514} Notify me when it is live</button>';
     gameCard += '<div id="gridGameNotifyMsg" style="font-size:11px;display:none"></div>';
-    gameCard += '<div onclick="window.location.href=\'founditcheaper-flappy.html\'" style="font-size:10px;color:var(--muted);text-decoration:underline;cursor:pointer">or peek at the game</div>';
+    gameCard += '<div onclick="window.location.href=\'' + meta.url + '\'" style="font-size:10px;color:var(--muted);text-decoration:underline;cursor:pointer">or peek at the game</div>';
     gameCard += '</div>';
   }
 
@@ -1926,22 +1951,23 @@ async function gridEmailSignup() {
   } catch (e) { if (msg) { msg.style.color = '#f87171'; msg.textContent = 'Network error.'; } }
 }
 
-// "Notify me when it's live" on the grid card. The card is Flappy Banana, so the
-// opt-in is scoped to Flappy: people only hear about the game they signed up for.
+// "Notify me when it's live" on the grid card. Scoped to the featured game, so people
+// only hear about the game whose card they signed up on.
 async function gridGameNotify() {
   var input = document.getElementById('gridGameNotifyInput');
   var msg = document.getElementById('gridGameNotifyMsg');
   var email = input ? (input.value || '').trim() : '';
   if (!email.includes('@')) { if (msg) { msg.style.display = 'block'; msg.style.color = '#f87171'; msg.textContent = 'Enter a valid email.'; } return; }
   if (msg) { msg.style.display = 'block'; msg.style.color = 'var(--muted)'; msg.textContent = 'Signing up…'; }
+  var meta = (_featured && _featured.meta) ? _featured.meta : GAME_META.flappy;
   try {
     var res = await fetch('/.netlify/functions/game-notify-signup', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, game: 'flappy' }),
+      body: JSON.stringify({ email: email, game: meta.notify }),
     });
     // Grow the newsletter list too (same as the game sign-in does).
     try { fetch('/.netlify/functions/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email, source: 'game-notify' }) }); } catch (e) {}
-    if (res.ok) { if (msg) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Done. We will email you when Flappy Banana is live.'; } if (input) input.value = ''; }
+    if (res.ok) { if (msg) { msg.style.color = 'var(--green)'; msg.textContent = '✓ Done. We will email you when ' + meta.name + ' is live.'; } if (input) input.value = ''; }
     else if (msg) { msg.style.color = '#f87171'; msg.textContent = 'Try again.'; }
   } catch (e) { if (msg) { msg.style.color = '#f87171'; msg.textContent = 'Network error.'; } }
 }
