@@ -229,6 +229,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       <button class="tab" id="tabbtn-games" onclick="switchTab('games')">🎮 Games</button>
       <button class="tab" id="tabbtn-picks" onclick="switchTab('picks')">📋 Today's Top Deal Picks</button>
       <button class="tab" id="tabbtn-autopicker" onclick="switchTab('autopicker')">🤖 Auto-Fill &amp; Schedule</button>
+      <button class="tab" id="tabbtn-analytics" onclick="switchTab('analytics')">📊 Analytics</button>
       <button class="tab" id="tabbtn-hidden" onclick="switchTab('hidden')">🙈 Hidden Features</button>
     </div>
 
@@ -541,6 +542,46 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
       </div><!-- /games-sub-snake -->
     </div><!-- /tab-games -->
 
+    <!-- TAB: ANALYTICS (first-party on-site numbers) -->
+    <div class="tab-content" id="tab-analytics">
+      <div class="section-title" style="margin-bottom:6px">Analytics</div>
+      <div class="section-sub" style="margin-bottom:16px">Your own on-site numbers, updated live. Visits and clicks are logged anonymously (no personal data). "Clicks per visit" is the health number to watch.</div>
+      <div id="anLoading" style="color:var(--muted);font-size:14px;padding:10px 0">Loading…</div>
+      <div id="anBody" style="display:none">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px">
+          <div style="flex:1 1 150px;background:#0f2138;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 16px">
+            <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Visits (7 days)</div>
+            <div id="anVisits" style="font-size:26px;font-weight:800;color:#fff;margin-top:4px">–</div>
+          </div>
+          <div style="flex:1 1 150px;background:#0f2138;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 16px">
+            <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Amazon clicks (7 days)</div>
+            <div id="anClicks" style="font-size:26px;font-weight:800;color:#fff;margin-top:4px">–</div>
+          </div>
+          <div style="flex:1 1 150px;background:linear-gradient(180deg,#132844,#0f2138);border:1px solid rgba(245,200,66,.4);border-radius:12px;padding:14px 16px">
+            <div style="font-size:12px;color:#f5c842;text-transform:uppercase;letter-spacing:.5px">Clicks per visit</div>
+            <div id="anCpv" style="font-size:26px;font-weight:800;color:#f5c842;margin-top:4px">–</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">the health metric</div>
+          </div>
+        </div>
+        <div class="section-title" style="font-size:15px;margin:14px 0 8px">Daily trend</div>
+        <div style="overflow-x:auto"><table id="anDaily" style="width:100%;border-collapse:collapse;font-size:13px"></table></div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:20px">
+          <div style="flex:1 1 300px;min-width:0">
+            <div class="section-title" style="font-size:15px;margin:0 0 8px">Most-clicked deals (7 days)</div>
+            <div id="anTopDeals" style="font-size:13px"></div>
+          </div>
+          <div style="flex:1 1 300px;min-width:0">
+            <div class="section-title" style="font-size:15px;margin:0 0 8px">Top searches (7 days)</div>
+            <div id="anTopSearch" style="font-size:13px"></div>
+            <div class="section-title" style="font-size:15px;margin:16px 0 8px;color:#ff8a8a">Searches that found nothing</div>
+            <div class="section-sub" style="margin-bottom:8px">Demand you're not meeting. Add these, or they leave.</div>
+            <div id="anZero" style="font-size:13px"></div>
+          </div>
+        </div>
+        <div style="margin-top:18px"><button class="abtn" style="width:auto;padding:8px 14px" onclick="loadAnalytics()">Refresh</button></div>
+      </div>
+    </div>
+
     <!-- TAB: HIDDEN FEATURES (site display toggles) -->
     <div class="tab-content" id="tab-hidden">
       <div class="section-title" style="margin-bottom:6px">Hidden Features</div>
@@ -830,11 +871,12 @@ function applyTabVisibility() {
   _setTabVis('games', !vaOnly);
   _setTabVis('hidden', !vaOnly);                         // Hidden Features (owner-only)
   _setTabVis('finder', !vaOnly);                         // Deal Finder demo (owner-only)
+  _setTabVis('analytics', !vaOnly);                      // Analytics (owner-only)
   // If the currently-open tab just got hidden, fall back to Uploaded Deals.
   var active = document.querySelector('.tab-content.active');
   if (active) {
     var aid = active.id.replace('tab-', '');
-    if ((aid === 'picks' && !_picksEnabled) || (aid === 'autopicker' && (!_picksEnabled || vaOnly)) || ((aid === 'games' || aid === 'hidden' || aid === 'finder') && vaOnly)) switchTab('promocodes');
+    if ((aid === 'picks' && !_picksEnabled) || (aid === 'autopicker' && (!_picksEnabled || vaOnly)) || ((aid === 'games' || aid === 'hidden' || aid === 'finder' || aid === 'analytics') && vaOnly)) switchTab('promocodes');
   }
 }
 function setPicksEnabled(on) {
@@ -849,6 +891,44 @@ function switchTab(id) {
   if (id === 'promocodes') loadPromoCodeDeals();
   if (id === 'games') openGame(_openGameKey || 'dice');
   if (id === 'finder') openFeatured();
+  if (id === 'analytics') loadAnalytics();
+}
+
+// ── ANALYTICS tab: pull first-party aggregates and render ──
+var _anLoaded = false;
+async function loadAnalytics() {
+  var load = document.getElementById('anLoading'), body = document.getElementById('anBody');
+  if (load) load.style.display = 'block';
+  if (body) body.style.display = 'none';
+  try {
+    var res = await fetch('/.netlify/functions/analytics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, days: 14 }) });
+    var d = await res.json();
+    if (!d.ok) { if (load) load.textContent = 'Could not load analytics' + (d.error ? ': ' + d.error : ''); return; }
+    _anLoaded = true;
+    var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
+    document.getElementById('anVisits').textContent = (d.totals.visits7 || 0).toLocaleString();
+    document.getElementById('anClicks').textContent = (d.totals.clicks7 || 0).toLocaleString();
+    document.getElementById('anCpv').textContent = (d.totals.cpv7 || 0).toFixed(2);
+    // daily table
+    var t = '<tr style="text-align:left;color:var(--muted);border-bottom:1px solid rgba(255,255,255,.1)"><th style="padding:6px 8px">Day</th><th style="padding:6px 8px;text-align:right">Visits</th><th style="padding:6px 8px;text-align:right">Clicks</th><th style="padding:6px 8px;text-align:right">Per visit</th></tr>';
+    (d.days || []).slice().reverse().forEach(function (r) {
+      t += '<tr style="border-bottom:1px solid rgba(255,255,255,.05)"><td style="padding:6px 8px">' + esc(r.dt) + '</td><td style="padding:6px 8px;text-align:right">' + r.visits.toLocaleString() + '</td><td style="padding:6px 8px;text-align:right">' + r.clicks.toLocaleString() + '</td><td style="padding:6px 8px;text-align:right;color:#f5c842;font-weight:700">' + r.cpv.toFixed(2) + '</td></tr>';
+    });
+    document.getElementById('anDaily').innerHTML = t;
+    // top deals
+    var td = (d.topDeals || []).map(function (x) { return '<div style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><b style="color:#f5c842">' + x.clicks + '</b> &nbsp;' + esc((x.name || x.asin).slice(0, 70)) + '</div>'; }).join('') || '<div style="color:var(--muted)">No clicks logged yet.</div>';
+    document.getElementById('anTopDeals').innerHTML = td;
+    // top searches
+    var ts = (d.topSearches || []).map(function (x) { return '<div style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><b style="color:#f5c842">' + x.cnt + '</b> &nbsp;' + esc(x.term) + ' <span style="color:var(--muted);font-size:11px">(avg ' + x.avg_results + ' results)</span></div>'; }).join('') || '<div style="color:var(--muted)">No searches logged yet.</div>';
+    document.getElementById('anTopSearch').innerHTML = ts;
+    // zero-result searches
+    var zs = (d.zeroSearches || []).map(function (x) { return '<div style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><b style="color:#ff8a8a">' + x.cnt + '</b> &nbsp;' + esc(x.term) + '</div>'; }).join('') || '<div style="color:var(--muted)">None. Every search is finding something.</div>';
+    document.getElementById('anZero').innerHTML = zs;
+    if (load) load.style.display = 'none';
+    if (body) body.style.display = 'block';
+  } catch (e) {
+    if (load) load.textContent = 'Network error loading analytics.';
+  }
 }
 
 // ── FEATURED tab: host the live All Deals grid (embed=feature) with a Feature button per card ──

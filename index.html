@@ -1133,6 +1133,38 @@ function money(n) { var v = parseFloat(n); return isNaN(v) ? (n == null ? '' : n
 var state = { store: 'all', category: 'all', minDiscount: 10, maxPrice: 0, minStars: 0, brandOnly: false, sort: 'value', search: '', promoOnly: false, hideInflated: true, verifiedOnly: false, dateAdded: 'all', dateLabel: '' };
 var filtered = [], page = 0, loading = false;
 
+// ── FIRST-PARTY ANALYTICS (anonymous, fire-and-forget; never blocks the page) ──
+var _TRACK = '/.netlify/functions/track';
+function _ficSid() { try { var s = localStorage.getItem('fic_sid'); if (!s) { s = Date.now().toString(36) + Math.random().toString(36).slice(2, 8); localStorage.setItem('fic_sid', s); } return s; } catch (_) { return null; } }
+function _ficSource() {
+  try {
+    var q = new URLSearchParams(location.search).get('s'); if (q) return q.slice(0, 40);
+    var r = document.referrer || ''; if (!r) return 'direct';
+    var h = (new URL(r)).hostname.replace(/^www\./, '').toLowerCase();
+    if (/instagram/.test(h)) return 'instagram';
+    if (/facebook|fb\./.test(h)) return 'facebook';
+    if (/tiktok/.test(h)) return 'tiktok';
+    if (/google/.test(h)) return 'google';
+    if (/bing|duckduckgo|yahoo/.test(h)) return 'search';
+    if (/founditcheaper/.test(h)) return 'internal';
+    return h.slice(0, 40);
+  } catch (_) { return 'direct'; }
+}
+function _ficTrack(payload) {
+  try {
+    var body = JSON.stringify(payload);
+    if (navigator.sendBeacon) navigator.sendBeacon(_TRACK, new Blob([body], { type: 'application/json' }));
+    else fetch(_TRACK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true });
+  } catch (_) {}
+}
+try { if (!sessionStorage.getItem('fic_v')) { sessionStorage.setItem('fic_v', '1'); _ficTrack({ type: 'visit', sid: _ficSid(), source: _ficSource() }); } } catch (_) { _ficTrack({ type: 'visit', source: _ficSource() }); }
+var _ficSearchT = null;
+function _ficLogSearch(term, count) {
+  term = (term || '').trim(); if (term.length < 2) return;
+  clearTimeout(_ficSearchT);
+  _ficSearchT = setTimeout(function () { _ficTrack({ type: 'search', term: term.slice(0, 100), results: count, sid: _ficSid(), source: _ficSource() }); }, 1100);
+}
+
 // ── HELPERS ───────────────────────────────────────────────────────────
 function amzLink(asin) { return 'https://www.amazon.com/dp/' + asin + '?tag=' + ASSOCIATE_TAG; }
 function starsHtml(r) { return '★'.repeat(Math.floor(r)) + (r % 1 >= 0.5 ? '½' : ''); }
@@ -2039,6 +2071,7 @@ function updateSearch(val) {
   state.search = val.trim();
   document.getElementById('searchClear').style.display = val ? 'flex' : 'none';
   resetAndRender();
+  try { _ficLogSearch(state.search, filtered.length); } catch (_) {}
 }
 function clearSearch() {
   state.search = '';
