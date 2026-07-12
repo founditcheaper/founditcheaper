@@ -98,6 +98,10 @@ exports.handler = async function () {
   // that isn't in the database. If a save fails, bail without marking so we retry.
   for (let i = 0; i < winners.length; i++) {
     const w = winners[i];
+    // Only notify/confirm a place that actually has a prize set. Without this, a top-3
+    // scorer whose place has no prize would still get a "confirm your win" email and could
+    // confirm a reward that doesn't exist. They still appear in the standings summary below.
+    if (!prizes[i] || !String(prizes[i]).trim()) continue;
     let token = w.claim_token || '';
     const alreadyHadToken = !!token;
     if (!token) token = crypto.randomBytes(16).toString('hex');

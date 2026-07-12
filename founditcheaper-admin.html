@@ -345,12 +345,18 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
           <input type="text" id="gamePrizeInput" class="field-input" placeholder="$25 Amazon Gift Card" maxlength="120">
         </div>
         <div class="field-group" style="margin-bottom:10px">
-          <label class="field-label">🥈 2nd place prize <span style="color:var(--muted);font-weight:400">(optional)</span></label>
-          <input type="text" id="gamePrize2Input" class="field-input" placeholder="$15 Amazon Gift Card" maxlength="120">
+          <label class="field-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="gamePrize2Toggle" onchange="togglePrizePlace(2)" style="width:16px;height:16px;cursor:pointer;accent-color:#f5c842">
+            🥈 2nd place prize <span id="gamePrize2State" style="color:var(--muted);font-weight:400">(off — no 2nd place winner)</span>
+          </label>
+          <input type="text" id="gamePrize2Input" class="field-input" placeholder="$15 Amazon Gift Card" maxlength="120" disabled style="opacity:.45">
         </div>
         <div class="field-group" style="margin-bottom:10px">
-          <label class="field-label">🥉 3rd place prize <span style="color:var(--muted);font-weight:400">(optional)</span></label>
-          <input type="text" id="gamePrize3Input" class="field-input" placeholder="$10 Amazon Gift Card" maxlength="120">
+          <label class="field-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="gamePrize3Toggle" onchange="togglePrizePlace(3)" style="width:16px;height:16px;cursor:pointer;accent-color:#f5c842">
+            🥉 3rd place prize <span id="gamePrize3State" style="color:var(--muted);font-weight:400">(off — no 3rd place winner)</span>
+          </label>
+          <input type="text" id="gamePrize3Input" class="field-input" placeholder="$10 Amazon Gift Card" maxlength="120" disabled style="opacity:.45">
         </div>
         <div class="field-group" style="margin-bottom:12px">
           <label class="field-label">Details / deadline line</label>
@@ -2143,8 +2149,8 @@ async function loadSettings() {
     var _fdEl = document.getElementById('featureDate'); if (_fdEl && !_fdEl.value) _fdEl.value = _featureDate;
     renderPinPanel();
     if (m.game_prize != null && document.getElementById('gamePrizeInput')) document.getElementById('gamePrizeInput').value = m.game_prize;
-    if (m.game_prize_2 != null && document.getElementById('gamePrize2Input')) document.getElementById('gamePrize2Input').value = m.game_prize_2;
-    if (m.game_prize_3 != null && document.getElementById('gamePrize3Input')) document.getElementById('gamePrize3Input').value = m.game_prize_3;
+    if (document.getElementById('gamePrize2Input')) { document.getElementById('gamePrize2Input').value = m.game_prize_2 || ''; document.getElementById('gamePrize2Toggle').checked = !!((m.game_prize_2 || '').trim()); togglePrizePlace(2); }
+    if (document.getElementById('gamePrize3Input')) { document.getElementById('gamePrize3Input').value = m.game_prize_3 || ''; document.getElementById('gamePrize3Toggle').checked = !!((m.game_prize_3 || '').trim()); togglePrizePlace(3); }
     if (m.game_prize_sub != null && document.getElementById('gamePrizeSubInput')) document.getElementById('gamePrizeSubInput').value = m.game_prize_sub;
     if (m.game_period_start != null && document.getElementById('gameStartInput')) document.getElementById('gameStartInput').value = m.game_period_start;
     if (m.game_period_end != null && document.getElementById('gameEndInput')) document.getElementById('gameEndInput').value = m.game_period_end;
@@ -2190,10 +2196,23 @@ function setGamePreset(days) {
   document.getElementById('gameStartInput').value = today;
   document.getElementById('gameEndInput').value = e.toLocaleDateString('en-CA');
 }
+// 2nd/3rd place prize on/off toggle. Off = input disabled + cleared + saved empty, so no
+// winner is ever notified for that place (the game-end email only contacts places with a prize).
+function togglePrizePlace(n) {
+  var t = document.getElementById('gamePrize' + n + 'Toggle');
+  var inp = document.getElementById('gamePrize' + n + 'Input');
+  var state = document.getElementById('gamePrize' + n + 'State');
+  if (!t || !inp) return;
+  var on = t.checked;
+  inp.disabled = !on;
+  inp.style.opacity = on ? '1' : '0.45';
+  if (!on) inp.value = '';
+  if (state) state.textContent = on ? '(on)' : (n === 2 ? '(off — no 2nd place winner)' : '(off — no 3rd place winner)');
+}
 async function saveGameSettings() {
   var prize = (document.getElementById('gamePrizeInput').value || '').trim();
-  var prize2 = (document.getElementById('gamePrize2Input').value || '').trim();
-  var prize3 = (document.getElementById('gamePrize3Input').value || '').trim();
+  var prize2 = document.getElementById('gamePrize2Toggle').checked ? (document.getElementById('gamePrize2Input').value || '').trim() : '';
+  var prize3 = document.getElementById('gamePrize3Toggle').checked ? (document.getElementById('gamePrize3Input').value || '').trim() : '';
   var sub = (document.getElementById('gamePrizeSubInput').value || '').trim();
   var start = document.getElementById('gameStartInput').value;
   var end = document.getElementById('gameEndInput').value;
