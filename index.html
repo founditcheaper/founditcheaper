@@ -652,6 +652,22 @@
   <div class="intro-name">founditcheaper</div>
   <div class="intro-sub">Loading deals</div>
 </div>
+<script>
+  // Cycle the splash subtitle through friendly "steps" so the wait feels like work
+  // getting done, not a hang. Advances every 0.8s and holds on the last step; stops
+  // the instant the grid is ready (fadeIntroOut adds .gone / _gone).
+  (function () {
+    var steps = ['Loading deals', "Applying today's date", 'Removing inflated discounts', 'Sorting by best value', 'Almost ready'];
+    var i = 0, sub = document.querySelector('#introLoader .intro-sub');
+    window._introStepTimer = setInterval(function () {
+      var il = document.getElementById('introLoader');
+      if (!il || il._gone || il.classList.contains('gone')) { clearInterval(window._introStepTimer); return; }
+      i++;
+      if (i >= steps.length) { clearInterval(window._introStepTimer); return; }
+      if (sub) sub.textContent = steps[i];
+    }, 800);
+  })();
+</script>
 
 <header>
 <div class="header-inner">
@@ -1280,6 +1296,7 @@ function hideDealLoading() {
 function fadeIntroOut() {
   var el = document.getElementById('introLoader'); if (!el || el._gone) return;
   el._gone = true;
+  try { if (window._introStepTimer) clearInterval(window._introStepTimer); } catch (_) {}
   el.classList.add('gone');
   setTimeout(function () { el.style.display = 'none'; }, 500);
 }
