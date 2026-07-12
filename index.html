@@ -663,9 +663,9 @@
       var il = document.getElementById('introLoader');
       if (!il || il._gone || il.classList.contains('gone')) { clearInterval(window._introStepTimer); return; }
       i++;
-      if (i >= steps.length) { clearInterval(window._introStepTimer); return; }
+      if (i >= steps.length) i = 1;   // loop the working steps (skip re-showing "Loading deals") so nothing, esp. "Almost ready", ever lingers
       if (sub) sub.textContent = steps[i];
-    }, 800);
+    }, 1150);
   })();
 </script>
 
