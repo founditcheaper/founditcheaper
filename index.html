@@ -657,7 +657,7 @@
   // getting done, not a hang. Advances every 0.8s and holds on the last step; stops
   // the instant the grid is ready (fadeIntroOut adds .gone / _gone).
   (function () {
-    var steps = ['Loading deals', "Applying today's date", 'Removing inflated discounts', 'Sorting by best value', 'Almost ready'];
+    var steps = ['Loading deals', 'Filtering out inflated discounts', "Setting today's date", 'Sorting by best value', 'Almost ready'];
     var i = 0, sub = document.querySelector('#introLoader .intro-sub');
     window._introStepTimer = setInterval(function () {
       var il = document.getElementById('introLoader');
