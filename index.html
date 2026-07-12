@@ -1688,17 +1688,17 @@ function topPickCardHtml(p, rank) {
 
   var html = '<div class="product-card" onclick="openDrawer(\'' + p.id + '\')" style="cursor:pointer;border-color:' + rankColors[rank] + ';border-width:2px">';
   html += '<div style="position:relative;background:#ffffff;overflow:hidden">';
-  html += '<img class="product-img" src="' + p.img + '" alt="' + p.name + '" onerror="this.style.opacity=\'0\'">';
+  html += '<img class="product-img" src="' + _fesc(p.img) + '" alt="' + _fesc(p.name) + '" onerror="this.style.opacity=\'0\'">';
   html += '<div style="position:absolute;top:8px;left:8px;min-width:28px;height:28px;border-radius:7px;background:' + rankBg[rank] + ';border:2px solid ' + rankColors[rank] + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:' + rankColors[rank] + ';padding:0 7px;font-family:Barlow Condensed,sans-serif">#' + rank + '</div>';
   html += '<span class="store-badge ' + s + '" style="position:absolute;top:8px;right:8px">' + sName + '</span>';
   html += _offBadge(p, 'position:absolute;bottom:8px;left:8px');
   if (p.code) html += '<span style="position:absolute;bottom:8px;right:8px;background:rgba(245,200,66,0.9);color:#0a1f33;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.5px">PROMO</span>';
   html += '</div>';
   html += '<div class="product-body">';
-  html += '<div class="product-category">' + p.category + '</div>';
-  html += '<div class="product-name">' + p.name + '</div>';
+  html += '<div class="product-category">' + _fesc(p.category) + '</div>';
+  html += '<div class="product-name">' + _fesc(p.name) + '</div>';
   if (p.rating && p.reviews) { html += '<div class="product-stars"><span class="stars-display">' + starsHtml(p.rating) + '</span><span class="rating-num">' + p.rating + ' (' + p.reviews.toLocaleString() + ')</span></div>'; }
-  html += (p.code ? '<div class="code-row"><span class="code-label">CODE</span><span class="code-value">' + p.code + '</span></div>' : '');
+  html += (p.code ? '<div class="code-row"><span class="code-label">CODE</span><span class="code-value">' + _fesc(p.code) + '</span></div>' : '');
   html += _cardPriceBlock(p);
   html += '</div></div>';
   return html;
@@ -1717,17 +1717,17 @@ function cardHtml(p) {
 
   // Image first with store badge overlaid top-left
   html += '<div style="position:relative;background:#ffffff;overflow:hidden">';
-  html += '<img class="product-img" src="' + p.img + '" alt="' + p.name + '" onerror="this.style.opacity=\'0\'">';
+  html += '<img class="product-img" src="' + _fesc(p.img) + '" alt="' + _fesc(p.name) + '" onerror="this.style.opacity=\'0\'">';
   html += '<span class="store-badge ' + s.cls + '" style="position:absolute;top:8px;left:8px">' + sName + '</span>';
   if (p.code) html += '<span style="position:absolute;top:8px;right:8px;background:rgba(245,200,66,0.9);color:#0a1f33;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.5px">PROMO</span>';
   html += _offBadge(p, 'position:absolute;bottom:8px;right:8px');
   html += '</div>';
 
   html += '<div class="product-body">';
-  html += '<div class="product-category">' + p.category + '</div>';
-  html += '<div class="product-name">' + p.name + '</div>';
+  html += '<div class="product-category">' + _fesc(p.category) + '</div>';
+  html += '<div class="product-name">' + _fesc(p.name) + '</div>';
   if (p.rating && p.reviews) { html += '<div class="product-stars"><span class="stars-display">★</span><span class="rating-num">' + parseFloat(p.rating).toFixed(1) + ' (' + Number(p.reviews).toLocaleString() + ')</span></div>'; }
-  html += (p.code ? '<div class="code-row"><span class="code-label">CODE</span><span class="code-value">' + p.code + '</span></div>' : '');
+  html += (p.code ? '<div class="code-row"><span class="code-label">CODE</span><span class="code-value">' + _fesc(p.code) + '</span></div>' : '');
   html += _cardPriceBlock(p);
   if (EMBED_FEATURE) html += ficFeatBtn(p);   // admin Featured tab: per-card Feature button
   html += '</div></div>';
@@ -1825,7 +1825,7 @@ async function siteFinderSearch() {
 function _finderResultCard(p) {
   var price = Math.round(Number(p.price) || 0), was = p.was ? Math.round(Number(p.was)) : 0, off = Number(p.off) || 0;
   var img = p.img
-    ? '<img src="' + p.img + '" alt="" style="width:100%;height:120px;object-fit:contain;background:#fff;border-radius:8px;flex-shrink:0" onerror="this.style.visibility=\'hidden\'">'
+    ? '<img src="' + _fesc(p.img) + '" alt="" style="width:100%;height:120px;object-fit:contain;background:#fff;border-radius:8px;flex-shrink:0" onerror="this.style.visibility=\'hidden\'">'
     : '<div style="width:100%;height:120px;background:#fff;border-radius:8px;flex-shrink:0"></div>';
   // Every row fixed-height (image + 2-line name + 1-line price) so all cards match exactly.
   return '<div style="height:100%;min-width:0;box-sizing:border-box;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:9px;display:flex;flex-direction:column;gap:7px">'
@@ -2769,10 +2769,10 @@ async function openDrawer(productId) {
   html += '<div class="drawer-gallery" id="drawerThumbRow" style="display:none"></div>';
 
   // Store + category
-  html += '<div class="drawer-store-row"><span class="store-badge ' + sCls + '">' + sName + '</span><span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px">' + p.category + '</span></div>';
+  html += '<div class="drawer-store-row"><span class="store-badge ' + sCls + '">' + sName + '</span><span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px">' + _fesc(p.category) + '</span></div>';
 
   // Name
-  html += '<div class="drawer-name">' + p.name + '</div>';
+  html += '<div class="drawer-name">' + _fesc(p.name) + '</div>';
 
   // Stars — populated immediately if Supabase has data, otherwise filled in after API call
   if (p.rating && p.reviews) {
@@ -2806,7 +2806,7 @@ async function openDrawer(productId) {
   if (p.code) {
     html += '<div class="drawer-code-box">';
     html += '<div class="drawer-code-label">Promo Code</div>';
-    html += '<div class="drawer-code-value">' + p.code + '</div>';
+    html += '<div class="drawer-code-value">' + _fesc(p.code) + '</div>';
     html += '<button class="drawer-copy-code" id="drawerCopyBtn" onclick="drawerCopyCode(\'' + p.code + '\')">Copy Code</button>';
     html += '<div class="drawer-code-note">Paste at checkout · Copy the code above to use on ' + sName + '</div>';
     html += '</div>';
@@ -2817,11 +2817,11 @@ async function openDrawer(productId) {
     html += '<div class="drawer-why-wrap">';
     html += '<button class="drawer-why-toggle" onclick="toggleWhy(this)"><span>🛒 How to use this code</span><svg style="width:16px;height:16px;transition:transform .2s" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>';
     html += '<div class="drawer-why-body">';
-    html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num yellow">1</span><div style="flex:1"><div class="why-title">Copy the code</div><div class="why-desc">Tap <strong>Copy Code</strong> above, then <strong>View Deal on ' + sName + '</strong> to open the product page.</div><svg viewBox="0 0 260 50" width="100%" style="margin-top:8px;display:block;max-width:260px"><rect x="1" y="1" width="258" height="48" rx="8" fill="rgba(245,200,66,0.06)" stroke="rgba(245,200,66,0.4)" stroke-dasharray="4 3"/><text x="16" y="31" font-family="Inter,sans-serif" font-size="15" font-weight="800" fill="#f5c842" letter-spacing="2">' + p.code + '</text><rect x="176" y="12" width="70" height="26" rx="6" fill="#f5c842"/><text x="211" y="30" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="800" fill="#0a1f33">Copy</text></svg></div></div></div>';
+    html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num yellow">1</span><div style="flex:1"><div class="why-title">Copy the code</div><div class="why-desc">Tap <strong>Copy Code</strong> above, then <strong>View Deal on ' + sName + '</strong> to open the product page.</div><svg viewBox="0 0 260 50" width="100%" style="margin-top:8px;display:block;max-width:260px"><rect x="1" y="1" width="258" height="48" rx="8" fill="rgba(245,200,66,0.06)" stroke="rgba(245,200,66,0.4)" stroke-dasharray="4 3"/><text x="16" y="31" font-family="Inter,sans-serif" font-size="15" font-weight="800" fill="#f5c842" letter-spacing="2">' + _fesc(p.code) + '</text><rect x="176" y="12" width="70" height="26" rx="6" fill="#f5c842"/><text x="211" y="30" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="800" fill="#0a1f33">Copy</text></svg></div></div></div>';
     html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num green">2</span><div style="flex:1"><div class="why-title">Grab any on-page coupon</div><div class="why-desc">If the product page shows a clip-on coupon box, check it too &#8212; it can stack for extra savings.</div><svg viewBox="0 0 260 42" width="100%" style="margin-top:8px;display:block;max-width:260px"><rect x="1" y="1" width="258" height="40" rx="8" fill="rgba(74,222,128,0.06)" stroke="rgba(74,222,128,0.35)"/><rect x="14" y="11" width="18" height="18" rx="4" fill="#4ade80"/><path d="M18 20 l3 3 l6 -7" stroke="#0a1f33" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><text x="42" y="25" font-family="Inter,sans-serif" font-size="12" font-weight="700" fill="#dfe7ef">Clip coupon &#8212; extra 5% off</text></svg></div></div></div>';
     html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num blue">3</span><div style="flex:1"><div class="why-title">Add to cart and check out</div><div class="why-desc">Pick your options, add to cart, and start checkout.</div><svg viewBox="0 0 260 42" width="100%" style="margin-top:8px;display:block;max-width:260px"><rect x="1" y="1" width="258" height="40" rx="8" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)"/><path d="M14 14 h5 l3 14 h14 l3 -10 h-19" stroke="#8aa0b4" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="24" cy="31" r="2" fill="#8aa0b4"/><circle cx="37" cy="31" r="2" fill="#8aa0b4"/><rect x="156" y="9" width="90" height="24" rx="6" fill="#f5c842"/><text x="201" y="25" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="800" fill="#0a1f33">Checkout</text></svg></div></div></div>';
     html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num yellow">4</span><div style="flex:1"><div class="why-title">Find the promo code box</div><div class="why-desc">At checkout, open <strong>&quot;Gift cards &amp; promotional codes&quot;</strong> (sometimes shown as &quot;Add a gift card or promo code&quot;).</div><svg viewBox="0 0 260 56" width="100%" style="margin-top:8px;display:block;max-width:260px"><text x="6" y="14" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="#8aa0b4">Gift card or promo code</text><rect x="6" y="22" width="174" height="26" rx="6" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.18)"/><rect x="188" y="22" width="64" height="26" rx="6" fill="rgba(255,255,255,0.12)"/><text x="220" y="39" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#dfe7ef">Apply</text></svg></div></div></div>';
-    html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num green">5</span><div style="flex:1"><div class="why-title">Paste the code &amp; Apply</div><div class="why-desc">Paste <strong>' + p.code + '</strong>, tap <strong>Apply</strong>, and the discount comes off your total.</div><svg viewBox="0 0 260 60" width="100%" style="margin-top:8px;display:block;max-width:260px"><rect x="6" y="8" width="174" height="26" rx="6" fill="rgba(255,255,255,0.05)" stroke="rgba(245,200,66,0.5)"/><text x="16" y="25" font-family="Inter,sans-serif" font-size="13" font-weight="800" fill="#f5c842" letter-spacing="1">' + p.code + '</text><rect x="188" y="8" width="64" height="26" rx="6" fill="#f5c842"/><text x="220" y="25" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="800" fill="#0a1f33">Apply</text><path d="M8 50 l4 4 l7 -8" stroke="#4ade80" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><text x="26" y="53" font-family="Inter,sans-serif" font-size="12" font-weight="800" fill="#4ade80">Promo applied</text></svg></div></div></div>';
+    html += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num green">5</span><div style="flex:1"><div class="why-title">Paste the code &amp; Apply</div><div class="why-desc">Paste <strong>' + _fesc(p.code) + '</strong>, tap <strong>Apply</strong>, and the discount comes off your total.</div><svg viewBox="0 0 260 60" width="100%" style="margin-top:8px;display:block;max-width:260px"><rect x="6" y="8" width="174" height="26" rx="6" fill="rgba(255,255,255,0.05)" stroke="rgba(245,200,66,0.5)"/><text x="16" y="25" font-family="Inter,sans-serif" font-size="13" font-weight="800" fill="#f5c842" letter-spacing="1">' + _fesc(p.code) + '</text><rect x="188" y="8" width="64" height="26" rx="6" fill="#f5c842"/><text x="220" y="25" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="800" fill="#0a1f33">Apply</text><path d="M8 50 l4 4 l7 -8" stroke="#4ade80" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><text x="26" y="53" font-family="Inter,sans-serif" font-size="12" font-weight="800" fill="#4ade80">Promo applied</text></svg></div></div></div>';
     html += '<div class="why-item" style="border-bottom:none"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num" style="background:rgba(255,255,255,0.08);color:var(--accent)">★</span><div><div class="why-title">Tip</div><div class="why-desc">Codes sometimes need a second try &#8212; re-enter it or refresh the page. Works on the U.S. store.</div></div></div></div>';
     html += '</div></div>';
 

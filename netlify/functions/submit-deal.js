@@ -96,7 +96,9 @@ function parseSubmittedDeals(text) {
       sale: getPrice(['discount', 'sale', 'deal', 'after', 'price'], ['original', 'retail', 'list', 'regular', 'was', 'msrp']),
       orig: getPrice(['original', 'retail', 'list', 'regular', 'was', 'msrp'], []),
       expires,
-      title: getStr(['product description', 'product name', 'product title', 'title', 'item', 'product', 'name'], []).slice(0, 250),
+      // Strip any HTML tags/angle brackets from the seller-supplied title so a crafted
+      // name (e.g. "<img onerror=...>") can never be stored and later rendered as markup.
+      title: getStr(['product description', 'product name', 'product title', 'title', 'item', 'product', 'name'], []).replace(/<[^>]*>/g, '').replace(/[<>]/g, '').slice(0, 250),
     });
   }
   return deals;

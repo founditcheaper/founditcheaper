@@ -119,7 +119,7 @@ updated_at timestamptz default now()
 - Wired to Supabase
 - Manage Top Deal Picks (drag to reorder, undo history)
 - Auto-Picker settings, brand list, category filters, schedule
-- Password: `founditcheaper2026`
+- Password: stored ONLY in the Netlify env var `ADMIN_PASSWORD` — never write it in any committed file.
 
 ### Infrastructure — COMPLETE
 - GitHub repo connected to Netlify (auto-deploy on push)
