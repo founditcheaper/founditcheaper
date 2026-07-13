@@ -1291,6 +1291,22 @@ function hideDealLoading() {
   var el = document.getElementById('dealLoading'); if (el) el.style.display = 'none';
   if (_dealLoadTimer) { clearTimeout(_dealLoadTimer); _dealLoadTimer = null; }
 }
+// Shown when a shared/email ?deal= link points to a deal we can no longer resolve at all
+// (live row deleted AND no snapshot). Instead of silently dumping the shopper on the bare
+// homepage, tell them plainly and leave them on today's live deals.
+function showDealGone() {
+  var t = document.getElementById('dealGoneToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'dealGoneToast';
+    t.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:500;max-width:92%;background:#0e2740;border:1px solid rgba(245,200,66,0.35);color:#dfe7ef;font-size:14px;font-weight:600;padding:13px 18px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.4);text-align:center;line-height:1.4';
+    t.innerHTML = 'That deal has ended. Here are today’s deals ↓';
+    document.body.appendChild(t);
+  }
+  t.style.display = 'block';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function () { if (t) t.style.display = 'none'; }, 5000);
+}
 // First-paint splash: fade out once the grid has rendered (called from the load flow).
 // The safety timer hides it no matter what, so a slow or failed load can't trap anyone.
 function fadeIntroOut() {
@@ -2729,25 +2745,41 @@ async function openDrawer(productId) {
     // the drawer always opens no matter which deal was shared. Show a loading
     // overlay while the fetch is in flight (takes ~1–2s).
     showDealLoading();
+    // Map a raw deals-table row (from Supabase OR the deal-data snapshot fallback) to a
+    // product object. `ended` marks a deal served from the snapshot store because the
+    // live row was deleted by a sync job — the UI notes price/stock may have changed.
+    function _rowToProduct(d, ended) {
+      return {
+        id: String(d.id), name: d.name, store: d.store, category: d.category || 'General',
+        brand: d.brand, brandName: d.brand_name || '', price: d.price, was: d.was,
+        off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
+        rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
+        found: formatFound(d.first_seen || d.created_at, d.active_date), addedDay: _addedDayOf(d), code: d.code || null,
+        priceCheckedAt: d.price_checked_at || d.created_at || d.first_seen, priceUnavailable: !!d.price_unavailable,
+        verifiedLow: !!d.verified_low,
+        endsAt: d.ends_at || null,       // seller-set expiry — deal is hidden once this passes
+        ended: !!ended,
+        images: (function() { try { return Array.isArray(d.images) ? d.images : JSON.parse(d.images || '[]'); } catch(e) { return []; } })(),
+      };
+    }
     try {
       var r = await _sb.from('deals').select('*').eq('id', pid).limit(1);
       var d = r && r.data && r.data[0];
-      if (d) {
-        p = {
-          id: String(d.id), name: d.name, store: d.store, category: d.category || 'General',
-          brand: d.brand, brandName: d.brand_name || '', price: d.price, was: d.was,
-          off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
-          rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
-          found: formatFound(d.first_seen || d.created_at, d.active_date), addedDay: _addedDayOf(d), code: d.code || null,
-          priceCheckedAt: d.price_checked_at || d.created_at || d.first_seen, priceUnavailable: !!d.price_unavailable,
-          verifiedLow: !!d.verified_low,
-          endsAt: d.ends_at || null,       // seller-set expiry — deal is hidden once this passes
-          images: (function() { try { return JSON.parse(d.images || '[]'); } catch(e) { return []; } })(),
-        };
-      }
+      if (d) p = _rowToProduct(d, false);
     } catch (e) {}
+    // Live row gone (deleted by a daily sync job) — fall back to the durable snapshot
+    // saved when this deal was emailed, so the card still opens from an old email link.
+    if (!p) {
+      try {
+        var fr = await fetch('/.netlify/functions/deal-data?id=' + encodeURIComponent(pid));
+        if (fr.ok) {
+          var fj = await fr.json();
+          if (fj && fj.deal) p = _rowToProduct(fj.deal, !!fj.ended);
+        }
+      } catch (e2) {}
+    }
   }
-  if (!p) { hideDealLoading(); return; }
+  if (!p) { hideDealLoading(); showDealGone(); return; }
   currentDrawerProduct = p;
 
   var storeNames = { 'Amazon':'Amazon', 'Walmart':'Walmart', 'HomeDepot':'Home Depot', 'BestBuy':'Best Buy', 'Lowes':"Lowe's" };
@@ -2773,6 +2805,12 @@ async function openDrawer(productId) {
 
   // Name
   html += '<div class="drawer-name">' + _fesc(p.name) + '</div>';
+
+  // Ended note — this deal was served from the emailed-deal snapshot because its live
+  // listing has rotated off the site. Be honest that the price/stock may have moved.
+  if (p.ended) {
+    html += '<div style="background:rgba(245,200,66,0.10);border:1px solid rgba(245,200,66,0.30);border-radius:8px;padding:9px 12px;margin:2px 0 10px;font-size:12.5px;color:var(--muted);line-height:1.45">This deal has rotated off the site. Price and availability may have changed &#8212; check the current price on ' + sName + '.</div>';
+  }
 
   // Stars — populated immediately if Supabase has data, otherwise filled in after API call
   if (p.rating && p.reviews) {
