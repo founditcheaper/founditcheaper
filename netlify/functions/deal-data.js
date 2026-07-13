@@ -80,7 +80,8 @@ exports.handler = async function (event) {
     if (!authed) return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
 
     const incoming = Array.isArray(body.deals) ? body.deals : (body.deal ? [body.deal] : []);
-    if (!incoming.length) return { statusCode: 400, body: JSON.stringify({ error: 'No deals provided' }) };
+    const removeIds = Array.isArray(body.remove) ? body.remove.map(cleanId).filter(Boolean) : [];
+    if (!incoming.length && !removeIds.length) return { statusCode: 400, body: JSON.stringify({ error: 'No deals provided' }) };
 
     const now = Date.now();
     try {
@@ -91,6 +92,10 @@ exports.handler = async function (event) {
         const s = await gr.json();
         if (Array.isArray(s) && s[0] && s[0].value) { try { map = JSON.parse(s[0].value) || {}; } catch (e) {} }
       }
+
+      // Remove any ids the caller asked to drop (maintenance / cleanup).
+      let removed = 0;
+      removeIds.forEach(id => { if (map[id]) { delete map[id]; removed++; } });
 
       // Merge each incoming deal (keep only known fields + a save timestamp).
       let saved = 0;
@@ -122,7 +127,7 @@ exports.handler = async function (event) {
         const detail = await wr.text();
         return { statusCode: 502, body: JSON.stringify({ error: 'save failed', detail: detail.slice(0, 160) }) };
       }
-      return { statusCode: 200, body: JSON.stringify({ ok: true, saved, total: Object.keys(map).length }) };
+      return { statusCode: 200, body: JSON.stringify({ ok: true, saved, removed, total: Object.keys(map).length }) };
     } catch (e) {
       return { statusCode: 500, body: JSON.stringify({ error: 'snapshot failed', detail: String(e).slice(0, 160) }) };
     }
