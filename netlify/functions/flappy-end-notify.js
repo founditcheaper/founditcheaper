@@ -30,7 +30,7 @@ const crypto = require('crypto');
 const SMTP_HOST = 'mail.privateemail.com';
 const SMTP_PORT = 465;                                     // SSL
 const FROM = process.env.PRIVATE_EMAIL_USER || 'deals@founditcheaper.net';
-const TO   = process.env.GAME_ALERT_TO || 'mm.founditcheaper@gmail.com';
+const TO   = process.env.GAME_ALERT_TO || 'deals@founditcheaper.net';
 
 function todayCT() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }

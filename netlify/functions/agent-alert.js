@@ -17,7 +17,7 @@ const nodemailer = require('nodemailer');
 const SMTP_HOST = 'mail.privateemail.com';
 const SMTP_PORT = 465;                                     // SSL
 const FROM = process.env.PRIVATE_EMAIL_USER || 'deals@founditcheaper.net';
-const TO   = process.env.GAME_ALERT_TO || 'mm.founditcheaper@gmail.com';
+const TO   = process.env.GAME_ALERT_TO || 'deals@founditcheaper.net';
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);

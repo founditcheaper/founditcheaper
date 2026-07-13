@@ -7,7 +7,7 @@
 //
 // Sending uses the site's own Private Email mailbox over SMTP (nodemailer).
 // REQUIRED env: PRIVATE_EMAIL_PASS — the deals@founditcheaper.net mailbox password.
-// OPTIONAL env: GAME_ALERT_TO (recipient; default = business Gmail),
+// OPTIONAL env: GAME_ALERT_TO (recipient; default = deals@founditcheaper.net),
 //               PRIVATE_EMAIL_USER (sender; default = deals@founditcheaper.net).
 
 const nodemailer = require('nodemailer');
@@ -16,7 +16,7 @@ const crypto = require('crypto');
 const SMTP_HOST = 'mail.privateemail.com';
 const SMTP_PORT = 465;                                     // SSL
 const FROM = process.env.PRIVATE_EMAIL_USER || 'deals@founditcheaper.net';
-const TO   = process.env.GAME_ALERT_TO || 'mm.founditcheaper@gmail.com';
+const TO   = process.env.GAME_ALERT_TO || 'deals@founditcheaper.net';
 
 function todayCT() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
