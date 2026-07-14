@@ -1562,12 +1562,84 @@ function typeKey(p) {
   if (/watch|fitness tracker|smartwatch/.test(n)) return 'wearable';
   return p.category || 'other';
 }
+// ── REPEAT DEMOTION ───────────────────────────────────────────────────
+// A product can come back day after day under a DIFFERENT listing — new deal id, new ASIN,
+// slightly reworded title (e.g. a near-identical Lenovo laptop every morning). Nothing keyed
+// on id or exact title ever catches that: to every dedup check it looks brand new. So we group
+// deals into a coarse FAMILY (brand + product type) and dock a deal's score for each recent day
+// its family already ran. A one-off keeps its natural rank; a daily regular sinks further each
+// day and ends up deep in the list — still on the site and still searchable, just not in your
+// face — and it climbs back on its own once it takes a break. Only Top Value is affected;
+// search and the explicit sorts (discount, price, newest) stay untouched.
+var REPEAT_WINDOW = 8;      // how many days of history count
+var REPEAT_STEP   = 0.12;   // score docked per prior day the family ran
+var REPEAT_CAP    = 0.60;   // ...capped, so a repeat still outranks genuine junk
+
+// Coarse product type from the TITLE. The category field can't be trusted for this — the
+// Lenovo laptop is filed under "Home & Kitchen".
+function _famType(name) {
+  var n = String(name || '').toLowerCase();
+  if (/\blaptop\b|chromebook|macbook|ideapad|thinkpad|notebook pc/.test(n)) return 'laptop';
+  if (/\btablet\b|\bipad\b/.test(n)) return 'tablet';
+  if (/headphone|earbud|earphone|headset|airpod|\bbuds\b/.test(n)) return 'audio';
+  if (/\bspeaker\b|soundbar/.test(n)) return 'speaker';
+  if (/vacuum|\bmop\b/.test(n)) return 'vacuum';
+  if (/\bmonitor\b|\btv\b|television/.test(n)) return 'display';
+  if (/smart\s?watch|fitness tracker|smart ring|\bwatch\b/.test(n)) return 'wearable';
+  if (/drill|impact driver|wrench|ratchet|\bsaw\b|sander|screwdriver|tool (kit|set)/.test(n)) return 'tools';
+  if (/air fryer|blender|coffee|espresso|toaster|food processor|chopper|\bmixer\b/.test(n)) return 'kitchen';
+  if (/power bank|charging station|\bcharger\b/.test(n)) return 'charging';
+  if (/backpack|luggage|suitcase/.test(n)) return 'bags';
+  if (/weighted vest|dumbbell|treadmill|vibration plate|\byoga\b/.test(n)) return 'fitness';
+  if (/\bmouse\b|keyboard/.test(n)) return 'pcaccess';
+  if (/security camera|doorbell/.test(n)) return 'camera';
+  if (/sunglass|eyewear/.test(n)) return 'eyewear';
+  return '';   // unknown type -> no family (never lump unrelated products together)
+}
+// Brand identity: the brand FIELD when we have one, else the first word of the title
+// (listings almost always lead with the brand).
+function _famBrand(p) {
+  var b = String(p.brandName || '').trim().toLowerCase();
+  if (b) return b;
+  var t = String(p.name || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean);
+  return t.length ? t[0] : '';
+}
+function _famKey(p) {
+  var t = _famType(p.name);
+  if (!t) return '';
+  var b = _famBrand(p);
+  return b ? b + '|' + t : '';
+}
+function _dayMinus(day, n) {
+  var t = new Date(day + 'T00:00:00Z');
+  t.setUTCDate(t.getUTCDate() - n);
+  return t.toISOString().slice(0, 10);
+}
+// Index every family -> the set of days it ran, then stamp each deal with the number of
+// EARLIER days (inside the window) its own family already appeared. Built once per load.
+var _famDays = null;
+function buildRepeatIndex() {
+  _famDays = {};
+  (allProducts || []).forEach(function (p) {
+    var k = _famKey(p);
+    if (k && p.addedDay) (_famDays[k] = _famDays[k] || {})[p.addedDay] = 1;
+  });
+  (allProducts || []).forEach(function (p) { p._rep = _repeatDays(p); });
+}
+function _repeatDays(p) {
+  var k = _famKey(p);
+  if (!k || !p.addedDay || !_famDays || !_famDays[k]) return 0;
+  var floor = _dayMinus(p.addedDay, REPEAT_WINDOW), n = 0;
+  Object.keys(_famDays[k]).forEach(function (d) { if (d < p.addedDay && d >= floor) n++; });
+  return n;
+}
 function valueScore(p) {
   var off     = Math.min(p.off || 0, 90) / 90;                      // % off — the dominant factor
   var rating  = (p.rating && p.rating > 0 ? p.rating : 4.0) / 5;    // stars (unknown -> neutral)
   var reviews = Math.min(Math.log(((p.reviews || 0) + 1)) / Math.log(10) / 4, 1);
   var promo   = p.code ? 0.05 : 0;                                  // small promo-code nudge
-  return off * 0.6 + rating * 0.25 + reviews * 0.1 + promo;
+  var repeat  = Math.min((p._rep || 0) * REPEAT_STEP, REPEAT_CAP);  // daily regulars sink
+  return off * 0.6 + rating * 0.25 + reviews * 0.1 + promo - repeat;
 }
 // Paid placements: pin PINNED deals to the very top of All Deals, but ONLY on the pristine
 // landing view. The moment a shopper sorts, searches, or filters, order goes fully natural.
@@ -2621,6 +2693,7 @@ function _afterLoad() {
   await loadGameCardInfo();
   if (EMBED_GRID) { state.sort = 'random'; }   // game-page feed: shuffled each visit so repeat players see fresh deals
   else { applyDefaultDate(); }                  // main site: open on the most recent day that has deals
+  buildRepeatIndex();   // stamp each deal with how many recent days its product family already ran
   // The interactive grid is ready — drop the static crawl/AI snapshot so shoppers see only it.
   var _seo = document.getElementById('seoDeals'); if (_seo && _seo.parentNode) _seo.parentNode.removeChild(_seo);
   resetAndRender();
