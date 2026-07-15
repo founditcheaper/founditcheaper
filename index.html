@@ -571,6 +571,7 @@
   .store-badge.low { background: rgba(0,160,80,0.2); color: #4ade80; border: 1px solid rgba(0,160,80,0.35); }
   .store-badge.nike { background: rgba(0,0,0,0.4); color: #f5f5f5; border: 1px solid rgba(255,255,255,0.35); }
   .store-badge.acad { background: rgba(200,30,45,0.22); color: #ff8f9b; border: 1px solid rgba(200,30,45,0.4); }
+  .store-badge.other { background: rgba(150,160,175,0.18); color: #c2ccd8; border: 1px solid rgba(150,160,175,0.35); }
   .brand-ribbon { padding: 5px 11px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.07); }
   .brand-ribbon.store-Amazon    { background: rgba(245,200,66,0.1);  color: var(--accent);  border-color: rgba(245,200,66,0.18); }
   .brand-ribbon.store-Walmart   { background: rgba(0,120,200,0.15);  color: #60b8f5;        border-color: rgba(0,120,200,0.2); }
@@ -739,6 +740,7 @@
         <button class="chip" data-store="HomeDepot" onclick="setStore(this,'HomeDepot')">Home Depot</button>
         <button class="chip" data-store="Nike" onclick="setStore(this,'Nike')">Nike</button>
         <button class="chip" data-store="Academy" onclick="setStore(this,'Academy')">Academy</button>
+        <button class="chip" data-store="__other__" onclick="setStore(this,'__other__')">More stores</button>
         <!-- Hidden until we actually pull deals for these stores. Re-add when live:
         <button class="chip" data-store="BestBuy" onclick="setStore(this,'BestBuy')">Best Buy</button>
         <button class="chip" data-store="Lowes" onclick="setStore(this,'Lowes')">Lowe's</button>
@@ -1470,7 +1472,7 @@ function pickCardHtml(item, rank) {
   var storeMap2 = { 'Amazon':'amz','Walmart':'wmt','HomeDepot':'hd','BestBuy':'bby','Lowes':'low','Nike':'nike','Academy':'acad' };
   var storeNames = { 'Amazon':'Amazon','Walmart':'Walmart','HomeDepot':'Home Depot','BestBuy':'Best Buy','Lowes':"Lowe's",'Nike':'Nike','Academy':'Academy' };
   var store = item.store || 'Amazon';
-  var s = storeMap2[store] || 'amz';
+  var s = storeMap2[store] || 'other';   // unwired ("More stores") retailers get the neutral badge
   var sName = storeNames[store] || store;
   var clickable = item.id ? 'onclick="openDrawer(\'' + item.id + '\')"' : '';
 
@@ -1487,7 +1489,7 @@ function pickCardHtml(item, rank) {
   if (showRank) {
     html += '<div style="position:absolute;top:8px;left:8px;min-width:28px;height:28px;border-radius:7px;background:' + rBg + ';border:2px solid ' + rColor + ';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:' + rColor + ';padding:0 8px;font-family:Barlow Condensed,sans-serif">#' + rank + '</div>';
   }
-  html += '<span class="store-badge ' + s + '" style="position:absolute;top:8px;right:8px">' + sName + '</span>';
+  html += '<span class="store-badge ' + s + '" style="position:absolute;top:8px;right:8px">' + _fesc(sName) + '</span>';
   html += '<span class="off-badge" style="position:absolute;bottom:8px;right:8px">' + item.off + '% OFF</span>';
   html += '</div>';
   html += '<div class="pick-body">';
@@ -1705,12 +1707,17 @@ function applyPins(list) {
   var natural = list.filter(function (d) { return !seen[String(d.id)]; });
   return pinned.concat(natural);
 }
+// Stores we wire individually (own chip/badge/maps). The "More stores" filter (data-store
+// "__other__") shows every deal whose store isn't one of these — the catch-all bucket for
+// one-off retailers imported under their real name.
+var KNOWN_STORES = { Amazon: 1, Walmart: 1, HomeDepot: 1, BestBuy: 1, Lowes: 1, Nike: 1, Academy: 1 };
 function getFiltered() {
   // Admin Featured tab: a pasted deal link narrows the grid to that single deal.
   if (_onlyDeal) return (allProducts || []).filter(function (d) { return String(d.id) === _onlyDeal; });
   var f = allProducts.filter(function(p) {
     if (state.promoOnly && !p.code) return false;
-    if (state.store !== 'all' && p.store !== state.store) return false;
+    if (state.store === '__other__') { if (KNOWN_STORES[p.store]) return false; }
+    else if (state.store !== 'all' && p.store !== state.store) return false;
     if (state.category !== 'all' && p.category !== state.category) return false;
     // A search looks across ALL days (ignore the day filter) — so it only comes up empty on a
     // genuine miss, not just because the item is from an earlier day than today's default.
@@ -1789,14 +1796,14 @@ function topPickCardHtml(p, rank) {
   var rankBg = { 1:'rgba(245,200,66,0.25)', 2:'rgba(192,192,192,0.2)', 3:'rgba(205,127,50,0.2)', 4:'rgba(255,255,255,0.1)' };
   var storeMap2 = { 'Amazon':'amz','Walmart':'wmt','HomeDepot':'hd','BestBuy':'bby','Lowes':'low','Nike':'nike','Academy':'acad' };
   var storeNames = { 'Amazon':'Amazon','Walmart':'Walmart','HomeDepot':'Home Depot','BestBuy':'Best Buy','Lowes':"Lowe's",'Nike':'Nike','Academy':'Academy' };
-  var s = storeMap2[p.store] || 'amz';
+  var s = storeMap2[p.store] || 'other';
   var sName = storeNames[p.store] || p.store;
 
   var html = '<div class="product-card" onclick="openDrawer(\'' + p.id + '\')" style="cursor:pointer;border-color:' + rankColors[rank] + ';border-width:2px">';
   html += '<div style="position:relative;background:#ffffff;overflow:hidden">';
   html += '<img class="product-img" src="' + _fesc(p.img) + '" alt="' + _fesc(p.name) + '" onerror="this.style.opacity=\'0\'">';
   html += '<div style="position:absolute;top:8px;left:8px;min-width:28px;height:28px;border-radius:7px;background:' + rankBg[rank] + ';border:2px solid ' + rankColors[rank] + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:' + rankColors[rank] + ';padding:0 7px;font-family:Barlow Condensed,sans-serif">#' + rank + '</div>';
-  html += '<span class="store-badge ' + s + '" style="position:absolute;top:8px;right:8px">' + sName + '</span>';
+  html += '<span class="store-badge ' + s + '" style="position:absolute;top:8px;right:8px">' + _fesc(sName) + '</span>';
   html += _offBadge(p, 'position:absolute;bottom:8px;left:8px');
   if (p.code) html += '<span style="position:absolute;bottom:8px;right:8px;background:rgba(245,200,66,0.9);color:#0a1f33;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.5px">PROMO</span>';
   html += '</div>';
@@ -1815,7 +1822,7 @@ function cardHtml(p) {
     'Amazon':    { cls: 'amz' }, 'Walmart': { cls: 'wmt' },
     'HomeDepot': { cls: 'hd'  }, 'BestBuy': { cls: 'bby' }, 'Lowes': { cls: 'low' }, 'Nike': { cls: 'nike' }, 'Academy': { cls: 'acad' }
   };
-  var s = storeMap[p.store] || { cls: 'amz' };
+  var s = storeMap[p.store] || { cls: 'other' };
   var storeNames = { 'Amazon':'Amazon', 'Walmart':'Walmart', 'HomeDepot':'Home Depot', 'BestBuy':'Best Buy', 'Lowes':"Lowe's", 'Nike':'Nike', 'Academy':'Academy' };
   var sName = storeNames[p.store] || p.store;
 
@@ -1824,7 +1831,7 @@ function cardHtml(p) {
   // Image first with store badge overlaid top-left
   html += '<div style="position:relative;background:#ffffff;overflow:hidden">';
   html += '<img class="product-img" src="' + _fesc(p.img) + '" alt="' + _fesc(p.name) + '" onerror="this.style.opacity=\'0\'">';
-  html += '<span class="store-badge ' + s.cls + '" style="position:absolute;top:8px;left:8px">' + sName + '</span>';
+  html += '<span class="store-badge ' + s.cls + '" style="position:absolute;top:8px;left:8px">' + _fesc(sName) + '</span>';
   if (p.code) html += '<span style="position:absolute;top:8px;right:8px;background:rgba(245,200,66,0.9);color:#0a1f33;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.5px">PROMO</span>';
   html += _offBadge(p, 'position:absolute;bottom:8px;right:8px');
   html += '</div>';
@@ -2453,7 +2460,7 @@ function updateFilterBars() {
   var dlabel = document.getElementById('fbtnDateLabel');
   if (dlabel) dlabel.textContent = (state.dateAdded !== 'all' && state.dateLabel) ? state.dateLabel : 'Date Added';
 }
-function _prettyStore(s) { return ({ HomeDepot: 'Home Depot', BestBuy: 'Best Buy', Lowes: "Lowe's" })[s] || s; }
+function _prettyStore(s) { return ({ HomeDepot: 'Home Depot', BestBuy: 'Best Buy', Lowes: "Lowe's", __other__: 'More stores' })[s] || s; }
 // Small summary of what's currently filtered + how many deals matched.
 function updateActiveSummary(count) {
   var el = document.getElementById('activeFilters');
@@ -2891,7 +2898,7 @@ async function openDrawer(productId) {
   var storeNames = { 'Amazon':'Amazon', 'Walmart':'Walmart', 'HomeDepot':'Home Depot', 'BestBuy':'Best Buy', 'Lowes':"Lowe's", 'Nike':'Nike', 'Academy':'Academy' };
   var storeMap2 = { 'Amazon':'amz', 'Walmart':'wmt', 'HomeDepot':'hd', 'BestBuy':'bby', 'Lowes':'low', 'Nike':'nike', 'Academy':'acad' };
   var sName = storeNames[p.store] || p.store;
-  var sCls = storeMap2[p.store] || 'amz';
+  var sCls = storeMap2[p.store] || 'other';
   var untracked = (p.store === 'HomeDepot' || p.store === 'BestBuy' || p.store === 'Lowes' || p.store === 'Nike' || p.store === 'Academy');
 
   var html = '';
@@ -2907,7 +2914,7 @@ async function openDrawer(productId) {
   html += '<div class="drawer-gallery" id="drawerThumbRow" style="display:none"></div>';
 
   // Store + category
-  html += '<div class="drawer-store-row"><span class="store-badge ' + sCls + '">' + sName + '</span><span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px">' + _fesc(p.category) + '</span></div>';
+  html += '<div class="drawer-store-row"><span class="store-badge ' + sCls + '">' + _fesc(sName) + '</span><span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px">' + _fesc(p.category) + '</span></div>';
 
   // Name
   html += '<div class="drawer-name">' + _fesc(p.name) + '</div>';

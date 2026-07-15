@@ -50,7 +50,17 @@ exports.handler = async function (event) {
                  : (process.env.AGENT_PASSWORD && password === process.env.AGENT_PASSWORD) ? 'Manual Agent'
                  : 'Erik';
 
-  const storeKey = STORE_KEY[String(body.store || '').trim()];
+  const rawStore = String(body.store || '').trim();
+  let storeKey = STORE_KEY[rawStore];
+  // Catch-all ("More stores"): aggregator one-offs from retailers we don't wire individually.
+  // When otherStore:true and the store isn't a wired one, accept the REAL retailer name as-is
+  // (sanitized) so it still displays + filters under the site's "More stores" bucket with its
+  // true name on the badge. Wired stores always map through STORE_KEY first, so this never
+  // overrides them, and the sanitize strips anything that could be an injection vector.
+  if (!storeKey && body.otherStore === true && rawStore) {
+    const clean = rawStore.replace(/<[^>]*>/g, '').replace(/[^\w '&.\-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 30);
+    if (clean) storeKey = clean;
+  }
   const name  = String(body.name || '').trim().slice(0, 250);
   const url   = String(body.url || '').trim();
   const img   = String(body.img || '').trim();
