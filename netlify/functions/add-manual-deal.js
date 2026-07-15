@@ -70,13 +70,20 @@ exports.handler = async function (event) {
   if (!sbUrl || !sbKey) return { statusCode: 500, body: JSON.stringify({ ok: false, error: 'Config error' }) };
   const H = { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' };
 
+  // Aggregator imports (Slickdeals etc.) can carry stale prices or planted/poison entries, so
+  // they land HIDDEN ('pending') and the review-deals scanner (runs every ~5 min) auto-publishes
+  // the clean ones after its delay, or flags junk. Everything else — manual/seller/agent adds —
+  // stays live immediately. Triggered by moderate:true (or source:'aggregator') in the request.
+  const moderate = body.moderate === true || String(body.source || '').toLowerCase() === 'aggregator';
+  const status = moderate ? 'pending' : 'live';
+
   const row = {
     rank: 900, name, store: storeKey, category, price, was, off,
     rating: 0, reviews: 0, img: img || null, images: null,
     url,                                               // pasted affiliate link — used as-is
     code, use_code_url: false, creator: false, brand: false, brand_name: null,
     active_date: todayCT(), is_top_pick: false,
-    uploaded_by: uploader, review_status: 'live',      // manually curated → live immediately
+    uploaded_by: uploader, review_status: status,      // aggregator → 'pending' (scanner auto-publishes); all else → 'live'
   };
 
   try {
@@ -84,19 +91,23 @@ exports.handler = async function (event) {
     // so the older copy doesn't linger and it never shows twice. This makes it safe for
     // two agents to add at once: the second add just refreshes the entry instead of
     // doubling it. On update we keep the existing row's pick/rank status.
+    // Match against live deals; for moderated (aggregator) adds also match still-pending ones, so
+    // a re-add during the hold window refreshes that row instead of leaving a second pending copy.
+    const statusFilter = moderate ? 'in.(live,pending)' : 'eq.live';
     let existing = [];
     try {
-      const q = await fetch(`${sbUrl}/rest/v1/deals?store=eq.${encodeURIComponent(storeKey)}&review_status=eq.live&select=id,name&limit=3000`, { headers: H });
+      const q = await fetch(`${sbUrl}/rest/v1/deals?store=eq.${encodeURIComponent(storeKey)}&review_status=${statusFilter}&select=id,name,review_status&limit=3000`, { headers: H });
       const j = await q.json(); if (Array.isArray(j)) existing = j;
     } catch (e) { /* pre-check failed → just insert below */ }
 
     const inc = new Set(_sigTokens(name));
-    const matches = existing.filter(e => _overlap(inc, _sigTokens(e.name)) >= SAME_PRODUCT).map(e => e.id);
+    const matches = existing.filter(e => _overlap(inc, _sigTokens(e.name)) >= SAME_PRODUCT);
 
     if (matches.length) {
-      const targetId = matches[0];
+      const target = matches[0];
       const updRow = { ...row }; delete updRow.is_top_pick; delete updRow.rank;   // keep pick/rank status
-      const upd = await fetch(`${sbUrl}/rest/v1/deals?id=eq.${encodeURIComponent(targetId)}`, {
+      updRow.review_status = target.review_status || 'live';   // refresh in place: don't hide a live deal, nor early-publish a pending one
+      const upd = await fetch(`${sbUrl}/rest/v1/deals?id=eq.${encodeURIComponent(target.id)}`, {
         method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify(updRow),
       });
       if (!upd.ok) {
@@ -105,11 +116,11 @@ exports.handler = async function (event) {
       }
       // Collapse any other duplicates of the same product so only one remains.
       let removed = 0;
-      for (const oid of matches.slice(1)) {
-        const del = await fetch(`${sbUrl}/rest/v1/deals?id=eq.${encodeURIComponent(oid)}`, { method: 'DELETE', headers: { ...H, Prefer: 'return=minimal' } });
+      for (const o of matches.slice(1)) {
+        const del = await fetch(`${sbUrl}/rest/v1/deals?id=eq.${encodeURIComponent(o.id)}`, { method: 'DELETE', headers: { ...H, Prefer: 'return=minimal' } });
         if (del.ok) removed++;
       }
-      return { statusCode: 200, body: JSON.stringify({ ok: true, id: targetId, store: storeKey, replaced: true, removedDuplicates: removed }) };
+      return { statusCode: 200, body: JSON.stringify({ ok: true, id: target.id, store: storeKey, replaced: true, removedDuplicates: removed, held: updRow.review_status === 'pending' }) };
     }
 
     // Not a repeat → insert a fresh row.
@@ -122,7 +133,7 @@ exports.handler = async function (event) {
     }
     const rows = await ins.json().catch(() => []);
     const id = Array.isArray(rows) && rows[0] ? rows[0].id : null;
-    return { statusCode: 200, body: JSON.stringify({ ok: true, id, store: storeKey, replaced: false }) };
+    return { statusCode: 200, body: JSON.stringify({ ok: true, id, store: storeKey, replaced: false, held: moderate }) };
   } catch (e) {
     return { statusCode: 500, body: JSON.stringify({ ok: false, error: String(e).slice(0, 160) }) };
   }
