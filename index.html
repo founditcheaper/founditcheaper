@@ -972,6 +972,15 @@ function postEmbedHeight() {
   // with the parent's resize, feeds back into an ever-growing loop.
   var sec = EMBED_GRID ? document.querySelector('.layout') : document.querySelector('.picks-outer');
   var h = sec ? Math.ceil(sec.offsetTop + sec.offsetHeight) : Math.ceil(document.documentElement.scrollHeight);
+  // Featured tab: the deal card is absolutely positioned (see _placeDrawerForFeature) and isn't
+  // part of the grid section we measure, so include its bottom or the iframe would clip it.
+  if (EMBED_FEATURE) {
+    var _dr = document.getElementById('productDrawer');
+    if (_dr && _dr.style.display === 'block' && _dr.style.position === 'absolute') {
+      var _db = Math.ceil((parseFloat(_dr.style.top) || 0) + _dr.offsetHeight + 24);
+      if (_db > h) h = _db;
+    }
+  }
   try { parent.postMessage({ ficEmbedHeight: h }, '*'); } catch (e) {}
 }
 function initEmbed() {
@@ -1025,6 +1034,9 @@ function initEmbed() {
       if (!e || !e.data) return;
       // The admin pushes the authoritative featured list; update the Feature buttons to match.
       if (e.data.ficFeatureSet) { FEATURED = (e.data.ficFeatureSet || []).map(String); _featSynced = true; ficRefreshFeatBtns(); }
+      // The admin streams the top of its currently-visible slice of this iframe (it does the
+      // scrolling), so a deal card can open on screen instead of at the bottom of the iframe.
+      if (e.data.ficViewport && typeof e.data.ficViewport.top === 'number') { _featVisibleTop = Math.max(0, e.data.ficViewport.top); }
       // The admin's search box drives the grid.
       if (typeof e.data.ficSearch === 'string') { _onlyDeal = null; try { updateSearch(e.data.ficSearch); } catch (_) {} }
       // A pasted founditcheaper deal link → show just that one deal. Value is a numeric deal
@@ -2691,7 +2703,22 @@ function _afterLoad() {
   // Grid render + deep-link handling. Load the game card's live/prize state first so the
   // in-grid dice card shows the current game on the very first render.
   await loadGameCardInfo();
-  if (EMBED_GRID) { state.sort = 'random'; }   // game-page feed: shuffled each visit so repeat players see fresh deals
+  if (EMBED_FEATURE) {
+    // Admin Featured tab: open the grid pre-filtered to what Erik actually curates from —
+    // today's Amazon deals at 20% off or more. Same filters the site has, just preset (the
+    // filter bar is hidden in this mode). The date picker above the grid controls which day
+    // the featured PINS apply to; it's separate from this grid filter.
+    state.store = 'Amazon';
+    state.minDiscount = 20;
+    var _ctToday = (function () { try { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); } catch (e) { return null; } })();
+    if (_ctToday && allProducts.some(function (p) { return p.addedDay === _ctToday; })) {
+      state.dateAdded = _ctToday;
+      state.dateLabel = (function () { try { return new Date(_ctToday + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch (e) { return _ctToday; } })();
+    } else {
+      applyDefaultDate();   // today's sync hasn't landed yet — fall back to the newest day that has deals
+    }
+  }
+  else if (EMBED_GRID) { state.sort = 'random'; }   // game-page feed: shuffled each visit so repeat players see fresh deals
   else { applyDefaultDate(); }                  // main site: open on the most recent day that has deals
   buildRepeatIndex();   // stamp each deal with how many recent days its product family already ran
   // The interactive grid is ready — drop the static crawl/AI snapshot so shoppers see only it.
@@ -2957,6 +2984,7 @@ async function openDrawer(productId) {
   document.getElementById('productDrawer').style.display = 'block';
   document.body.style.overflow = 'hidden';
   hideDealLoading();
+  if (EMBED_FEATURE) _placeDrawerForFeature(productId);
 
   // Thumbnails: first slot is always the main deal image; the rest come from the gallery.
   // The `images` gallery column is NOT in the bulk grid load (it's ~half of each row), so fetch
@@ -3028,11 +3056,45 @@ function _populateDrawerThumbs(images) {
   thumbRow.style.display = 'flex';
 }
 
+// Admin Featured tab only: the deal card. The site's drawer is position:fixed;bottom:0, which
+// anchors to the bottom of the iframe's viewport — but the admin sizes this iframe to its full
+// content height, so "fixed to the bottom" lands far below the fold, and as more deals lazy-load
+// the iframe grows and the card slides further down (Erik: "it keeps going down, I can't see it").
+// Fix: place the card, absolutely, at the top of the region the admin is CURRENTLY looking at.
+// The admin streams that position in as it scrolls (see _featVisibleTop / ficViewport), so the
+// card lands on screen and stays put — it's tied to the viewport, not to a grid row that can
+// drift down as images above it load.
+var _featVisibleTop = 0;   // top of the admin's visible slice of this iframe, in iframe px
+function _placeDrawerForFeature(id) {
+  var dr = document.getElementById('productDrawer');
+  var ov = document.getElementById('drawerOverlay');
+  if (!dr || !ov) return;
+  var top;
+  if (_featVisibleTop > 0) top = _featVisibleTop + 12;   // real admin: top of the current view
+  else {                                                  // standalone / not yet reported: best effort
+    var sel = (window.CSS && CSS.escape) ? CSS.escape(String(id)) : String(id);
+    var card = document.querySelector('.product-card[data-id="' + sel + '"]');
+    top = card ? (card.getBoundingClientRect().top + (window.pageYOffset || 0)) : (window.pageYOffset || 0) + 12;
+  }
+  top = Math.max(8, Math.round(top));
+  dr.style.position = 'absolute';
+  dr.style.bottom = 'auto';
+  dr.style.top = top + 'px';
+  dr.style.maxHeight = 'none';                 // no bottom-sheet cap; the admin page scrolls to read it
+  ov.style.position = 'absolute';
+  ov.style.top = '0';
+  ov.style.height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) + 'px';
+  document.body.style.overflow = '';           // let the admin scroll the card freely
+  // The iframe height is measured from the grid, not this out-of-flow card — recompute so the
+  // iframe grows enough to show the whole card if it runs past the last row.
+  postEmbedHeight(); setTimeout(postEmbedHeight, 120); setTimeout(postEmbedHeight, 500);
+}
 function closeDrawer() {
   document.getElementById('drawerOverlay').style.display = 'none';
   document.getElementById('productDrawer').style.display = 'none';
   document.body.style.overflow = '';
   currentDrawerProduct = null;
+  if (EMBED_FEATURE) { try { postEmbedHeight(); } catch (e) {} }   // shrink the iframe back down
 }
 
 function switchImg(thumb, src) {
