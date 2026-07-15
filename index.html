@@ -274,6 +274,12 @@
   /* bigger heading + no dead space: "All Filters" spans the full width under the two pills */
   body.simple-mode #resultsCount { font-size: 15.5px; font-weight: 800; color: var(--text); }
   body.simple-mode #filterPanel:not(.open) #filtersToggle { grid-column: 1 / -1; }
+  /* Per-card actions (simple mode): tap card = Amazon; these buttons stay on-card */
+  .card-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 9px; }
+  .card-copy { width: 100%; padding: 8px 6px; background: var(--accent); color: #0a1f33; border: none; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; font-family: 'Inter', sans-serif; letter-spacing: .3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-copy.copied { background: #4ade80; }
+  .card-details { width: 100%; padding: 7px 6px; background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid rgba(255,255,255,0.16); border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; }
+  .card-details:hover { background: rgba(255,255,255,0.1); }
   #simpleMore { grid-column: 1 / -1; margin: 14px 4px 30px; padding: 16px; text-align: center; background: linear-gradient(180deg,#132844,#0d2036); border: 1px solid rgba(245,200,66,0.45); border-radius: 12px; color: var(--accent); font-weight: 800; font-size: 15px; cursor: pointer; font-family: 'Inter', sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
   #simpleMore .sub { font-size: 11px; font-weight: 600; color: #9fb2c9; margin-top: 4px; }
   @keyframes ficFilterPulse {
@@ -1371,6 +1377,26 @@ function copyLink(url, id, btn) {
 function chevron(cls) {
   return '<svg class="' + cls + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
 }
+// Simple-mode card tap: go straight to the retailer (Amazon /deal/<ASIN> interstitial, which opens
+// the app + applies the tag + logs the click; other stores use their stored link). Opens a new tab
+// so the shopper keeps our page. The drawer (full details/share) is a separate button on the card.
+function _goDeal(id, e) {
+  if (e) { try { e.stopPropagation(); } catch (_) {} }
+  var p = (allProducts || []).find(function (x) { return String(x.id) === String(id); });
+  if (!p) return;
+  var url = _dealOutLink(p);
+  try { window.open(url, '_blank', 'noopener'); } catch (_) { window.location.href = url; }
+}
+// Card copy-code button: copy + brief confirm, then restore the original label (so the code stays shown).
+function _copyCardCode(code, btn) {
+  var orig = btn.innerHTML;
+  (navigator.clipboard ? navigator.clipboard.writeText(code) : Promise.reject()).then(function () {
+    btn.innerHTML = '✓ Copied ' + code; btn.classList.add('copied');
+    setTimeout(function () { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1800);
+  }).catch(function () {
+    try { var t = document.createElement('textarea'); t.value = code; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); btn.innerHTML = '✓ Copied ' + code; btn.classList.add('copied'); setTimeout(function () { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1800); } catch (e2) {}
+  });
+}
 
 // ── PICKS RENDER ──────────────────────────────────────────────────────
 function pickGridHtml(items, groupId) {
@@ -1843,7 +1869,10 @@ function cardHtml(p) {
   var storeNames = { 'Amazon':'Amazon', 'Walmart':'Walmart', 'HomeDepot':'Home Depot', 'BestBuy':'Best Buy', 'Lowes':"Lowe's", 'Nike':'Nike', 'Academy':'Academy' };
   var sName = storeNames[p.store] || p.store;
 
-  var html = '<div class="product-card" data-id="' + p.id + '" onclick="openDrawer(\'' + p.id + '\')" style="cursor:pointer">';
+  // Simple mode: a card TAP goes straight to Amazon (cookies the shopper); the drawer with full
+  // details/share is reached via the "See full details" button instead. Elsewhere, tap = drawer.
+  var _cardClick = SIMPLE_MODE ? ('_goDeal(\'' + p.id + '\',event)') : ('openDrawer(\'' + p.id + '\')');
+  var html = '<div class="product-card" data-id="' + p.id + '" onclick="' + _cardClick + '" style="cursor:pointer">';
 
   // Image first with store badge overlaid top-left
   html += '<div style="position:relative;background:#ffffff;overflow:hidden">';
@@ -1859,6 +1888,13 @@ function cardHtml(p) {
   if (p.rating && p.reviews) { html += '<div class="product-stars"><span class="stars-display">★</span><span class="rating-num">' + parseFloat(p.rating).toFixed(1) + ' (' + Number(p.reviews).toLocaleString() + ')</span></div>'; }
   html += (p.code ? '<div class="code-row"><span class="code-label">CODE</span><span class="code-value">' + _fesc(p.code) + '</span></div>' : '');
   html += _cardPriceBlock(p);
+  if (SIMPLE_MODE) {
+    var _sc = String(p.code || '').replace(/[^A-Za-z0-9]/g, '');   // codes are alphanumeric; sanitize for the inline handler
+    html += '<div class="card-actions">';
+    if (_sc) html += '<button type="button" class="card-copy" onclick="event.stopPropagation();_copyCardCode(\'' + _sc + '\',this)">📋 Copy code ' + _fesc(p.code) + '</button>';
+    html += '<button type="button" class="card-details" onclick="event.stopPropagation();openDrawer(\'' + p.id + '\')">See full details</button>';
+    html += '</div>';
+  }
   if (EMBED_FEATURE) html += ficFeatBtn(p);   // admin Featured tab: per-card Feature button
   html += '</div></div>';
   return html;
@@ -1942,7 +1978,7 @@ function resetAndRender() {
   if (!SIMPLE_MODE) {
     count.textContent = filtered.length + ' deal' + (filtered.length !== 1 ? 's' : '') + ' found';
   } else if (!simpleExpanded) {
-    count.textContent = "Today's " + filtered.length + ' best ' + (state.store === 'all' ? '' : _prettyStore(state.store) + ' ') + 'deals';
+    count.textContent = "Today's Top " + filtered.length + ' ' + (state.store === 'all' ? '' : _prettyStore(state.store) + ' ') + 'Deals';
   }
   loadMore(true);
   window.scrollTo(0, savedScroll);
