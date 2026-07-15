@@ -768,13 +768,13 @@ body.bio-mode #bioRoot { display:block !important; }
 .bio-card .bc-amzlink { font-size:13px; font-weight:600; color:#c98a00; text-decoration:none; }
 .bio-card .bc-checked { font-size:10px; font-weight:400; color:#a6afba; }
 /* Tap-to-copy code chip — plain light pill, no busy dashed border */
-.bio-code { display:flex; align-items:center; gap:8px; background:#f4f5f7; border-radius:8px;
-  padding:10px 12px; cursor:pointer; margin-top:auto; }
-/* The code always shows in full (flex:0 0 auto); the "Copy" tag yields/clips if the card is too narrow. */
-.bio-code .bcc-val { font-size:12.5px; font-weight:700; letter-spacing:.3px; color:#222; flex:0 0 auto; white-space:nowrap; }
-.bio-code .bcc-tag { font-size:11px; font-weight:600; color:#8a929c; display:inline-flex; align-items:center; justify-content:flex-end;
-  gap:3px; flex:1 1 0; min-width:0; white-space:nowrap; overflow:hidden; }
-.bio-code .bcc-tag svg { width:13px; height:13px; flex-shrink:0; }
+.bio-code { display:flex; align-items:center; gap:5px; background:#f4f5f7; border-radius:8px;
+  padding:9px 9px; cursor:pointer; margin-top:auto; }
+/* Both must stay whole on narrow phones (8-char codes were getting cut, or "Copy" was).
+   "Copy" is rigid (never clips); the code fills the rest. Sizes tuned so both fit at ~360px. */
+.bio-code .bcc-val { font-size:10.5px; font-weight:700; letter-spacing:0; color:#222; flex:1 1 auto; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bio-code .bcc-tag { font-size:10px; font-weight:600; color:#7a8593; flex:0 0 auto; white-space:nowrap; letter-spacing:.1px; }
 .bio-code.copied { background:#e8f7ee; }
 .bio-code.copied .bcc-tag { color:#1a9c4e; }
 .bio-more { text-align:center; padding:20px 0; }
@@ -1629,7 +1629,7 @@ function bioCardHtml(p) {
     var cc = String(p.code).replace(/[^A-Za-z0-9]/g, '');
     h += '<div class="bio-code" onclick="event.stopPropagation();_copyCode2(\'' + cc + '\',this)" title="Tap to copy">'
        + '<span class="bcc-val">' + _fesc(p.code) + '</span>'
-       + '<span class="bcc-tag">Copy</span></div>';
+       + '<span class="bcc-tag">copy</span></div>';
   }
   h += '</div></div>';
   return h;
