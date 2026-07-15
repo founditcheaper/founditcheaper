@@ -988,6 +988,7 @@ var EMBED = EMBED_PICKS || EMBED_GRID;
 var SIMPLE_MODE = /[?&](v=simple|simple=1)(?:&|$)/.test(location.search) && !EMBED;
 var simpleExpanded = false;
 var SIMPLE_CAP = 25;
+var simpleTopIds = {};   // ids of the curated top 25 — excluded from the "all deals" grid so they don't repeat
 function postEmbedHeight() {
   if (!EMBED) return;
   // Measure the visible section's CONTENT height (picks carousel or deals grid), NOT the
@@ -1897,7 +1898,12 @@ function resetAndRender() {
   if (typeof updateFilterBars === 'function') updateFilterBars();
   var savedScroll = window.scrollY;
   filtered = getFiltered(); page = 0;
-  if (SIMPLE_MODE && !simpleExpanded) filtered = filtered.slice(0, SIMPLE_CAP);   // curated top 30 until "See more"
+  if (SIMPLE_MODE && !simpleExpanded) {
+    filtered = filtered.slice(0, SIMPLE_CAP);                                       // curated top 25 until "See more"
+    simpleTopIds = {}; filtered.forEach(function (p) { simpleTopIds[String(p.id)] = 1; });
+  } else if (SIMPLE_MODE && simpleExpanded) {
+    filtered = filtered.filter(function (p) { return !simpleTopIds[String(p.id)]; });   // "all deals" excludes the top 25
+  }
   if (typeof updateActiveSummary === 'function') updateActiveSummary(filtered.length);
   window.promoShown = false;
   activeGrid().innerHTML = '';
@@ -2222,7 +2228,12 @@ function simpleSeeMore() {
   (fbar || divider).insertAdjacentElement('afterend', g2);
   var host = g2.parentNode;
   ['sentinel', 'loader', 'endMsg', 'noResults'].forEach(function (id) { var el = document.getElementById(id); if (el) host.appendChild(el); });
-  // 4) render the full list into #productGrid2 (top 25 stay put in #productGrid)
+  // 4) the "all deals" section browses EVERYTHING — default it to all stores (pill reads "All
+  //    Stores", not "Amazon"); the curated top 25 stay Amazon above.
+  state.store = 'all';
+  document.querySelectorAll('#storeChips .chip').forEach(function (c) { c.classList.remove('active'); });
+  var _allChip = document.querySelector('#storeChips .chip[data-store="all"]'); if (_allChip) _allChip.classList.add('active');
+  // 5) render the full list into #productGrid2 (top 25 stay put in #productGrid)
   resetAndRender();
   divider.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
