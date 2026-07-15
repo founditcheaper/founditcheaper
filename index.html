@@ -274,10 +274,14 @@
   /* bigger heading + no dead space: "All Filters" spans the full width under the two pills */
   body.simple-mode #resultsCount { font-size: 15.5px; font-weight: 800; color: var(--text); }
   body.simple-mode #filterPanel:not(.open) #filtersToggle { grid-column: 1 / -1; }
-  /* Per-card actions (simple mode): tap card = Amazon; these buttons stay on-card */
+  /* Per-card actions (simple mode): tap card = Amazon; the code chip copies; details = drawer */
   .card-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 9px; }
-  .card-copy { width: 100%; padding: 8px 6px; background: var(--accent); color: #0a1f33; border: none; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; font-family: 'Inter', sans-serif; letter-spacing: .3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .card-copy.copied { background: #4ade80; }
+  .code-copy-row { cursor: pointer; transition: background .15s, border-color .15s; }
+  .code-copy-row:hover { background: rgba(245,200,66,.13); border-color: rgba(245,200,66,.5); }
+  .code-copy-row .code-value { flex: 1 1 0; min-width: 0; letter-spacing: .8px; overflow: hidden; text-overflow: ellipsis; }
+  .code-copy-tag { margin-left: auto; flex-shrink: 0; font-size: 9px; font-weight: 800; letter-spacing: .3px; color: #d9b84a; background: rgba(245,200,66,.16); padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+  .code-copy-row.copied { background: rgba(74,222,128,.14); border-color: rgba(74,222,128,.5); }
+  .code-copy-row.copied .code-copy-tag { color: #0a1f33; background: #4ade80; }
   .card-details { width: 100%; padding: 7px 6px; background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid rgba(255,255,255,0.16); border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; }
   .card-details:hover { background: rgba(255,255,255,0.1); }
   #simpleMore { grid-column: 1 / -1; margin: 14px 4px 30px; padding: 16px; text-align: center; background: linear-gradient(180deg,#132844,#0d2036); border: 1px solid rgba(245,200,66,0.45); border-radius: 12px; color: var(--accent); font-weight: 800; font-size: 15px; cursor: pointer; font-family: 'Inter', sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
@@ -1387,14 +1391,14 @@ function _goDeal(id, e) {
   var url = _dealOutLink(p);
   try { window.open(url, '_blank', 'noopener'); } catch (_) { window.location.href = url; }
 }
-// Card copy-code button: copy + brief confirm, then restore the original label (so the code stays shown).
-function _copyCardCode(code, btn) {
-  var orig = btn.innerHTML;
-  (navigator.clipboard ? navigator.clipboard.writeText(code) : Promise.reject()).then(function () {
-    btn.innerHTML = '✓ Copied ' + code; btn.classList.add('copied');
-    setTimeout(function () { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1800);
-  }).catch(function () {
-    try { var t = document.createElement('textarea'); t.value = code; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); btn.innerHTML = '✓ Copied ' + code; btn.classList.add('copied'); setTimeout(function () { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1800); } catch (e2) {}
+// Tap-to-copy on the card's code chip: copy, flash the "Copy" tag to "✓ Copied", then restore.
+// The code value itself stays visible the whole time.
+function _copyCode2(code, el) {
+  var tag = el.querySelector('.code-copy-tag');
+  var orig = tag ? tag.innerHTML : '';
+  var done = function () { el.classList.add('copied'); if (tag) tag.innerHTML = '✓ Copied'; setTimeout(function () { el.classList.remove('copied'); if (tag) tag.innerHTML = orig; }, 1600); };
+  (navigator.clipboard ? navigator.clipboard.writeText(code) : Promise.reject()).then(done).catch(function () {
+    try { var t = document.createElement('textarea'); t.value = code; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); done(); } catch (e2) {}
   });
 }
 
@@ -1886,14 +1890,18 @@ function cardHtml(p) {
   html += '<div class="product-category">' + _fesc(p.category) + '</div>';
   html += '<div class="product-name">' + _fesc(p.name) + '</div>';
   if (p.rating && p.reviews) { html += '<div class="product-stars"><span class="stars-display">★</span><span class="rating-num">' + parseFloat(p.rating).toFixed(1) + ' (' + Number(p.reviews).toLocaleString() + ')</span></div>'; }
-  html += (p.code ? '<div class="code-row"><span class="code-label">CODE</span><span class="code-value">' + _fesc(p.code) + '</span></div>' : '');
+  if (p.code) {
+    if (SIMPLE_MODE) {
+      // The code chip itself is tap-to-copy (with a "Copy" tag), so there's no separate button.
+      var _cc = String(p.code).replace(/[^A-Za-z0-9]/g, '');
+      html += '<div class="code-row code-copy-row" onclick="event.stopPropagation();_copyCode2(\'' + _cc + '\',this)" title="Tap to copy"><span class="code-value">' + _fesc(p.code) + '</span><span class="code-copy-tag">📋 Copy</span></div>';
+    } else {
+      html += '<div class="code-row"><span class="code-label">CODE</span><span class="code-value">' + _fesc(p.code) + '</span></div>';
+    }
+  }
   html += _cardPriceBlock(p);
   if (SIMPLE_MODE) {
-    var _sc = String(p.code || '').replace(/[^A-Za-z0-9]/g, '');   // codes are alphanumeric; sanitize for the inline handler
-    html += '<div class="card-actions">';
-    if (_sc) html += '<button type="button" class="card-copy" onclick="event.stopPropagation();_copyCardCode(\'' + _sc + '\',this)">📋 Copy code ' + _fesc(p.code) + '</button>';
-    html += '<button type="button" class="card-details" onclick="event.stopPropagation();openDrawer(\'' + p.id + '\')">See full details</button>';
-    html += '</div>';
+    html += '<div class="card-actions"><button type="button" class="card-details" onclick="event.stopPropagation();openDrawer(\'' + p.id + '\')">See full details</button></div>';
   }
   if (EMBED_FEATURE) html += ficFeatBtn(p);   // admin Featured tab: per-card Feature button
   html += '</div></div>';
