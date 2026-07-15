@@ -271,7 +271,6 @@
   /* ── Amazon-first "simple" preview mode (?v=simple) ─────────────────────── */
   #fbtnStoreSimple { display: none; background: var(--accent); color: #0a1f33; border-color: var(--accent); font-weight: 800; }
   body.simple-mode #fbtnStoreSimple { display: inline-flex !important; }
-  body.simple-mode #fbtnDate { display: none !important; }
   #simpleMore { grid-column: 1 / -1; margin: 14px 4px 30px; padding: 16px; text-align: center; background: linear-gradient(180deg,#132844,#0d2036); border: 1px solid rgba(245,200,66,0.45); border-radius: 12px; color: var(--accent); font-weight: 800; font-size: 15px; cursor: pointer; font-family: 'Inter', sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
   #simpleMore .sub { font-size: 11px; font-weight: 600; color: #9fb2c9; margin-top: 4px; }
   @keyframes ficFilterPulse {
@@ -713,8 +712,8 @@
 <div class="filters-top">
   <div class="filter-panel" id="filterPanel">
     <div class="fbar">
-      <button type="button" class="fbar-btn" id="fbtnDate" onclick="toggleDrop('dDate', this, event)">🗓️ <span id="fbtnDateLabel">Date Added</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnStoreSimple" onclick="toggleDrop('dStore', this, event)">🛒 <span id="fbtnStoreSimpleLabel">Amazon</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <button type="button" class="fbar-btn" id="fbtnDate" onclick="toggleDrop('dDate', this, event)">🗓️ <span id="fbtnDateLabel">Date Added</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button class="filters-toggle" id="filtersToggle" onclick="toggleFilterBar()"><span>All Filters</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="chipPromo" onclick="togglePromo(this)">🏷️ Promo Codes Only</button>
       <button type="button" class="fbar-btn" id="fbtnDiscount" onclick="toggleDrop('dDiscount', this, event)">Discount<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
@@ -985,7 +984,7 @@ var EMBED = EMBED_PICKS || EMBED_GRID;
 // that reveals the full grid + filters. Gated behind the flag so the live default is untouched.
 var SIMPLE_MODE = /[?&](v=simple|simple=1)(?:&|$)/.test(location.search) && !EMBED;
 var simpleExpanded = false;
-var SIMPLE_CAP = 30;
+var SIMPLE_CAP = 25;
 function postEmbedHeight() {
   if (!EMBED) return;
   // Measure the visible section's CONTENT height (picks carousel or deals grid), NOT the
@@ -1919,6 +1918,10 @@ function resetAndRender() {
     window.scrollTo(0, savedScroll); return;
   }
   noRes.classList.remove('visible');
+  // Simple mode: the "All Deals" divider is misleading (we're showing a curated few), so hide it
+  // and let the curated count line carry the heading; restore both when expanded / off.
+  var _divLbl = document.querySelector('.section-divider-label');
+  if (_divLbl) _divLbl.style.display = (SIMPLE_MODE && !simpleExpanded) ? 'none' : '';
   count.textContent = (SIMPLE_MODE && !simpleExpanded)
     ? "Today's " + filtered.length + ' best ' + (state.store === 'all' ? '' : _prettyStore(state.store) + ' ') + 'deals'
     : filtered.length + ' deal' + (filtered.length !== 1 ? 's' : '') + ' found';
