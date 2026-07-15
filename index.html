@@ -268,6 +268,12 @@
   .filters-bar-outer { background: transparent; border-bottom: none; }
   .filters-top { width: 100%; padding: 0 0 10px; box-sizing: border-box; }
   .filters-toggle { display: none; }  /* shown only on phones */
+  /* ── Amazon-first "simple" preview mode (?v=simple) ─────────────────────── */
+  #fbtnStoreSimple { display: none; background: var(--accent); color: #0a1f33; border-color: var(--accent); font-weight: 800; }
+  body.simple-mode #fbtnStoreSimple { display: inline-flex !important; }
+  body.simple-mode #fbtnDate { display: none !important; }
+  #simpleMore { grid-column: 1 / -1; margin: 14px 4px 30px; padding: 16px; text-align: center; background: linear-gradient(180deg,#132844,#0d2036); border: 1px solid rgba(245,200,66,0.45); border-radius: 12px; color: var(--accent); font-weight: 800; font-size: 15px; cursor: pointer; font-family: 'Inter', sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+  #simpleMore .sub { font-size: 11px; font-weight: 600; color: #9fb2c9; margin-top: 4px; }
   @keyframes ficFilterPulse {
     0%, 100% { box-shadow: 0 0 2px 0 rgba(245,200,66,0.35); }
     50%      { box-shadow: 0 0 9px 1px rgba(245,200,66,0.85); }
@@ -708,6 +714,7 @@
   <div class="filter-panel" id="filterPanel">
     <div class="fbar">
       <button type="button" class="fbar-btn" id="fbtnDate" onclick="toggleDrop('dDate', this, event)">🗓️ <span id="fbtnDateLabel">Date Added</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <button type="button" class="fbar-btn" id="fbtnStoreSimple" onclick="toggleDrop('dStore', this, event)">🛒 <span id="fbtnStoreSimpleLabel">Amazon</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button class="filters-toggle" id="filtersToggle" onclick="toggleFilterBar()"><span>All Filters</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="chipPromo" onclick="togglePromo(this)">🏷️ Promo Codes Only</button>
       <button type="button" class="fbar-btn" id="fbtnDiscount" onclick="toggleDrop('dDiscount', this, event)">Discount<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
@@ -972,6 +979,13 @@ var EMBED_PICKS = /[?&]embed=picks(?:&|$)/.test(location.search);
 var EMBED_FEATURE = /[?&]embed=feature(?:&|$)/.test(location.search);
 var EMBED_GRID  = /[?&]embed=grid(?:&|$)/.test(location.search) || EMBED_FEATURE;
 var EMBED = EMBED_PICKS || EMBED_GRID;
+// ── SIMPLE / AMAZON-FIRST preview (?v=simple) ─────────────────────────────
+// Opt-in redesign under test: land on a curated top-30 Amazon-only view (mirrors the old
+// simple link-in-bio site), with a prominent store selector and a "See more deals" button
+// that reveals the full grid + filters. Gated behind the flag so the live default is untouched.
+var SIMPLE_MODE = /[?&](v=simple|simple=1)(?:&|$)/.test(location.search) && !EMBED;
+var simpleExpanded = false;
+var SIMPLE_CAP = 30;
 function postEmbedHeight() {
   if (!EMBED) return;
   // Measure the visible section's CONTENT height (picks carousel or deals grid), NOT the
@@ -1874,6 +1888,7 @@ function resetAndRender() {
   if (typeof updateFilterBars === 'function') updateFilterBars();
   var savedScroll = window.scrollY;
   filtered = getFiltered(); page = 0;
+  if (SIMPLE_MODE && !simpleExpanded) filtered = filtered.slice(0, SIMPLE_CAP);   // curated top 30 until "See more"
   if (typeof updateActiveSummary === 'function') updateActiveSummary(filtered.length);
   window.promoShown = false;
   document.getElementById('productGrid').innerHTML = '';
@@ -1904,7 +1919,9 @@ function resetAndRender() {
     window.scrollTo(0, savedScroll); return;
   }
   noRes.classList.remove('visible');
-  count.textContent = filtered.length + ' deal' + (filtered.length !== 1 ? 's' : '') + ' found';
+  count.textContent = (SIMPLE_MODE && !simpleExpanded)
+    ? "Today's " + filtered.length + ' best ' + (state.store === 'all' ? '' : _prettyStore(state.store) + ' ') + 'deals'
+    : filtered.length + ' deal' + (filtered.length !== 1 ? 's' : '') + ' found';
   loadMore(true);
   window.scrollTo(0, savedScroll);
 }
@@ -2128,7 +2145,10 @@ function loadMore(fromFilter) {
     }
     grid.insertAdjacentHTML('beforeend', html);
     page++; loading = false;
-    if (page * PAGE_SIZE >= filtered.length) document.getElementById('endMsg').classList.add('visible');
+    if (page * PAGE_SIZE >= filtered.length) {
+      document.getElementById('endMsg').classList.add('visible');
+      if (SIMPLE_MODE && !simpleExpanded) showSimpleMore();   // curated view ended → offer the full list
+    }
     else if (!EMBED_GRID) requestAnimationFrame(maybeFillViewport);   // keep filling while the sentinel is still near the fold
   }
 
@@ -2154,6 +2174,23 @@ function maybeFillViewport() {
   if (page * PAGE_SIZE >= filtered.length) return;                 // nothing left to load
   var s = document.getElementById('sentinel'); if (!s) return;
   if (s.getBoundingClientRect().top < (window.innerHeight || 0) + 400) loadMore();
+}
+// SIMPLE mode: the "See more deals" tile under the curated 30, and the tap that expands to the
+// full grid + reveals the filter bar so shoppers can pick another store/category themselves.
+function showSimpleMore() {
+  if (document.getElementById('simpleMore')) return;
+  var g = document.getElementById('productGrid'); if (!g) return;
+  var b = document.createElement('div');
+  b.id = 'simpleMore';
+  b.onclick = simpleSeeMore;
+  b.innerHTML = 'See more deals &nbsp;&darr;<div class="sub">other stores, categories &amp; the full list</div>';
+  g.appendChild(b);
+}
+function simpleSeeMore() {
+  simpleExpanded = true;
+  document.body.classList.remove('simple-mode');   // reveal the full filter bar (date + all filters)
+  try { var fp = document.getElementById('filterPanel'); if (fp && !fp.classList.contains('open')) toggleFilterBar(); } catch (e) {}
+  resetAndRender();
 }
 if (!EMBED_GRID) {
   new IntersectionObserver(function(entries) {
@@ -2459,6 +2496,9 @@ function updateFilterBars() {
   // Show the selected date right on the Date button (it's the primary filter on mobile).
   var dlabel = document.getElementById('fbtnDateLabel');
   if (dlabel) dlabel.textContent = (state.dateAdded !== 'all' && state.dateLabel) ? state.dateLabel : 'Date Added';
+  // SIMPLE mode: the store pill (replaces the date pill) shows the current store by name.
+  var sslabel = document.getElementById('fbtnStoreSimpleLabel');
+  if (sslabel) sslabel.textContent = (state.store === 'all') ? 'All Stores' : _prettyStore(state.store);
 }
 function _prettyStore(s) { return ({ HomeDepot: 'Home Depot', BestBuy: 'Best Buy', Lowes: "Lowe's", __other__: 'More stores' })[s] || s; }
 // Small summary of what's currently filtered + how many deals matched.
@@ -2733,6 +2773,7 @@ function _afterLoad() {
   }
   else if (EMBED_GRID) { state.sort = 'random'; }   // game-page feed: shuffled each visit so repeat players see fresh deals
   else { applyDefaultDate(); }                  // main site: open on the most recent day that has deals
+  if (SIMPLE_MODE) { document.body.classList.add('simple-mode'); state.store = 'Amazon'; }   // Amazon-first curated view
   buildRepeatIndex();   // stamp each deal with how many recent days its product family already ran
   // The interactive grid is ready — drop the static crawl/AI snapshot so shoppers see only it.
   var _seo = document.getElementById('seoDeals'); if (_seo && _seo.parentNode) _seo.parentNode.removeChild(_seo);
