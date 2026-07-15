@@ -271,6 +271,9 @@
   /* ── Amazon-first "simple" preview mode (?v=simple) ─────────────────────── */
   #fbtnStoreSimple { display: none; background: var(--accent); color: #0a1f33; border-color: var(--accent); font-weight: 800; }
   body.simple-mode #fbtnStoreSimple { display: inline-flex !important; }
+  /* bigger heading + no dead space: "All Filters" spans the full width under the two pills */
+  body.simple-mode #resultsCount { font-size: 15.5px; font-weight: 800; color: var(--text); }
+  body.simple-mode #filterPanel:not(.open) #filtersToggle { grid-column: 1 / -1; }
   #simpleMore { grid-column: 1 / -1; margin: 14px 4px 30px; padding: 16px; text-align: center; background: linear-gradient(180deg,#132844,#0d2036); border: 1px solid rgba(245,200,66,0.45); border-radius: 12px; color: var(--accent); font-weight: 800; font-size: 15px; cursor: pointer; font-family: 'Inter', sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
   #simpleMore .sub { font-size: 11px; font-weight: 600; color: #9fb2c9; margin-top: 4px; }
   @keyframes ficFilterPulse {
@@ -1883,6 +1886,13 @@ function ficRefreshFeatBtns() {
   }
 }
 
+// SIMPLE mode after "See more": the curated top 25 stay frozen in #productGrid, and the full
+// filterable grid renders into #productGrid2 (below the divider + filters). Everywhere else,
+// and before expansion, this is just #productGrid.
+function activeGrid() {
+  return (SIMPLE_MODE && simpleExpanded && document.getElementById('productGrid2'))
+    ? document.getElementById('productGrid2') : document.getElementById('productGrid');
+}
 function resetAndRender() {
   if (typeof updateFilterBars === 'function') updateFilterBars();
   var savedScroll = window.scrollY;
@@ -1890,7 +1900,7 @@ function resetAndRender() {
   if (SIMPLE_MODE && !simpleExpanded) filtered = filtered.slice(0, SIMPLE_CAP);   // curated top 30 until "See more"
   if (typeof updateActiveSummary === 'function') updateActiveSummary(filtered.length);
   window.promoShown = false;
-  document.getElementById('productGrid').innerHTML = '';
+  activeGrid().innerHTML = '';
   document.getElementById('endMsg').classList.remove('visible');
   document.getElementById('loader').classList.remove('visible');
   var noRes = document.getElementById('noResults');
@@ -1918,13 +1928,16 @@ function resetAndRender() {
     window.scrollTo(0, savedScroll); return;
   }
   noRes.classList.remove('visible');
-  // Simple mode: the "All Deals" divider is misleading (we're showing a curated few), so hide it
-  // and let the curated count line carry the heading; restore both when expanded / off.
-  var _divLbl = document.querySelector('.section-divider-label');
-  if (_divLbl) _divLbl.style.display = (SIMPLE_MODE && !simpleExpanded) ? 'none' : '';
-  count.textContent = (SIMPLE_MODE && !simpleExpanded)
-    ? "Today's " + filtered.length + ' best ' + (state.store === 'all' ? '' : _prettyStore(state.store) + ' ') + 'deals'
-    : filtered.length + ' deal' + (filtered.length !== 1 ? 's' : '') + ' found';
+  // Simple mode: hide the misleading top "All Deals" divider. The count line is the heading for
+  // the fixed top 25 and stays put; once expanded we don't overwrite it (the "All deals" divider
+  // below the 25 heads the full grid instead).
+  var _topDiv = document.getElementById('allDealsAnchor');
+  if (_topDiv) _topDiv.style.display = SIMPLE_MODE ? 'none' : '';
+  if (!SIMPLE_MODE) {
+    count.textContent = filtered.length + ' deal' + (filtered.length !== 1 ? 's' : '') + ' found';
+  } else if (!simpleExpanded) {
+    count.textContent = "Today's " + filtered.length + ' best ' + (state.store === 'all' ? '' : _prettyStore(state.store) + ' ') + 'deals';
+  }
   loadMore(true);
   window.scrollTo(0, savedScroll);
 }
@@ -2138,7 +2151,7 @@ function loadMore(fromFilter) {
   loading = true;
 
   function _renderSlice() {
-    var grid = document.getElementById('productGrid');
+    var grid = activeGrid();
     var slice = filtered.slice(start, start + PAGE_SIZE);
     var html = '';
     for (var i = 0; i < slice.length; i++) html += cardHtml(slice[i]);
@@ -2190,10 +2203,28 @@ function showSimpleMore() {
   g.appendChild(b);
 }
 function simpleSeeMore() {
+  if (simpleExpanded) return;
   simpleExpanded = true;
-  document.body.classList.remove('simple-mode');   // reveal the full filter bar (date + all filters)
+  var tile = document.getElementById('simpleMore'); if (tile) tile.remove();
+  var topGrid = document.getElementById('productGrid');      // the fixed top 25, left untouched
+  // 1) a divider between the curated 25 and the browse-everything section
+  var divider = document.createElement('div');
+  divider.id = 'simpleDivider'; divider.className = 'section-divider'; divider.style.margin = '8px 0 4px';
+  divider.innerHTML = '<div class="section-divider-line"></div><div class="section-divider-label">All deals</div><div class="section-divider-line"></div>';
+  topGrid.insertAdjacentElement('afterend', divider);
+  // 2) move the filter bar down under the line and open it fully (all filters visible)
+  var fbar = document.querySelector('.filters-bar-outer');
+  if (fbar) divider.insertAdjacentElement('afterend', fbar);
   try { var fp = document.getElementById('filterPanel'); if (fp && !fp.classList.contains('open')) toggleFilterBar(); } catch (e) {}
+  document.body.classList.add('simple-expanded');
+  // 3) a second grid for the full, filterable list; move the scroll machinery below it
+  var g2 = document.createElement('div'); g2.className = 'product-grid'; g2.id = 'productGrid2';
+  (fbar || divider).insertAdjacentElement('afterend', g2);
+  var host = g2.parentNode;
+  ['sentinel', 'loader', 'endMsg', 'noResults'].forEach(function (id) { var el = document.getElementById(id); if (el) host.appendChild(el); });
+  // 4) render the full list into #productGrid2 (top 25 stay put in #productGrid)
   resetAndRender();
+  divider.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 if (!EMBED_GRID) {
   new IntersectionObserver(function(entries) {
