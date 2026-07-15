@@ -569,12 +569,14 @@
   .store-badge.hd  { background: rgba(240,90,30,0.2); color: #f87c3a; border: 1px solid rgba(240,90,30,0.35); }
   .store-badge.bby { background: rgba(30,100,220,0.2); color: #6ea8fe; border: 1px solid rgba(30,100,220,0.35); }
   .store-badge.low { background: rgba(0,160,80,0.2); color: #4ade80; border: 1px solid rgba(0,160,80,0.35); }
+  .store-badge.nike { background: rgba(0,0,0,0.4); color: #f5f5f5; border: 1px solid rgba(255,255,255,0.35); }
   .brand-ribbon { padding: 5px 11px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.07); }
   .brand-ribbon.store-Amazon    { background: rgba(245,200,66,0.1);  color: var(--accent);  border-color: rgba(245,200,66,0.18); }
   .brand-ribbon.store-Walmart   { background: rgba(0,120,200,0.15);  color: #60b8f5;        border-color: rgba(0,120,200,0.2); }
   .brand-ribbon.store-HomeDepot { background: rgba(240,90,30,0.15);  color: #f87c3a;        border-color: rgba(240,90,30,0.2); }
   .brand-ribbon.store-BestBuy   { background: rgba(30,100,220,0.15); color: #6ea8fe;        border-color: rgba(30,100,220,0.2); }
   .brand-ribbon.store-Lowes     { background: rgba(0,160,80,0.15);   color: #4ade80;        border-color: rgba(0,160,80,0.2); }
+  .brand-ribbon.store-Nike      { background: rgba(0,0,0,0.3);       color: #f0f0f0;        border-color: rgba(255,255,255,0.22); }
   .product-img { width: 100%; height: auto; aspect-ratio: 3/4; object-fit: contain; background: transparent; display: block; }
   .product-body { padding: 6px 8px; display: flex; flex-direction: column; flex: 1; }
   .product-category { font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 1px; }
@@ -733,6 +735,7 @@
         <button class="chip" data-store="Amazon" onclick="setStore(this,'Amazon')">Amazon</button>
         <button class="chip" data-store="Walmart" onclick="setStore(this,'Walmart')">Walmart</button>
         <button class="chip" data-store="HomeDepot" onclick="setStore(this,'HomeDepot')">Home Depot</button>
+        <button class="chip" data-store="Nike" onclick="setStore(this,'Nike')">Nike</button>
         <!-- Hidden until we actually pull deals for these stores. Re-add when live:
         <button class="chip" data-store="BestBuy" onclick="setStore(this,'BestBuy')">Best Buy</button>
         <button class="chip" data-store="Lowes" onclick="setStore(this,'Lowes')">Lowe's</button>
@@ -1374,7 +1377,7 @@ function pickGridHtml(items, groupId) {
 function updateDealsBanner() {
   var banner = document.getElementById('dealsBanner');
   if (!banner || allProducts.length === 0) return;
-  var snMap = { Amazon:'Amazon', Walmart:'Walmart', HomeDepot:'Home Depot', BestBuy:'Best Buy', Lowes:"Lowe's" };
+  var snMap = { Amazon:'Amazon', Walmart:'Walmart', HomeDepot:'Home Depot', BestBuy:'Best Buy', Lowes:"Lowe's", Nike:'Nike' };
   var seen = {}, storeNames = [];
   allProducts.forEach(function(p) {
     if (!seen[p.store]) { seen[p.store] = 1; storeNames.push(snMap[p.store] || p.store); }
@@ -1461,8 +1464,8 @@ function startPicksAutoScroll() {
 }
 
 function pickCardHtml(item, rank) {
-  var storeMap2 = { 'Amazon':'amz','Walmart':'wmt','HomeDepot':'hd','BestBuy':'bby','Lowes':'low' };
-  var storeNames = { 'Amazon':'Amazon','Walmart':'Walmart','HomeDepot':'Home Depot','BestBuy':'Best Buy','Lowes':"Lowe's" };
+  var storeMap2 = { 'Amazon':'amz','Walmart':'wmt','HomeDepot':'hd','BestBuy':'bby','Lowes':'low','Nike':'nike' };
+  var storeNames = { 'Amazon':'Amazon','Walmart':'Walmart','HomeDepot':'Home Depot','BestBuy':'Best Buy','Lowes':"Lowe's",'Nike':'Nike' };
   var store = item.store || 'Amazon';
   var s = storeMap2[store] || 'amz';
   var sName = storeNames[store] || store;
@@ -1781,8 +1784,8 @@ function getFiltered() {
 function topPickCardHtml(p, rank) {
   var rankColors = { 1:'#f5c842', 2:'#c0c0c0', 3:'#cd7f32', 4:'rgba(255,255,255,0.6)' };
   var rankBg = { 1:'rgba(245,200,66,0.25)', 2:'rgba(192,192,192,0.2)', 3:'rgba(205,127,50,0.2)', 4:'rgba(255,255,255,0.1)' };
-  var storeMap2 = { 'Amazon':'amz','Walmart':'wmt','HomeDepot':'hd','BestBuy':'bby','Lowes':'low' };
-  var storeNames = { 'Amazon':'Amazon','Walmart':'Walmart','HomeDepot':'Home Depot','BestBuy':'Best Buy','Lowes':"Lowe's" };
+  var storeMap2 = { 'Amazon':'amz','Walmart':'wmt','HomeDepot':'hd','BestBuy':'bby','Lowes':'low','Nike':'nike' };
+  var storeNames = { 'Amazon':'Amazon','Walmart':'Walmart','HomeDepot':'Home Depot','BestBuy':'Best Buy','Lowes':"Lowe's",'Nike':'Nike' };
   var s = storeMap2[p.store] || 'amz';
   var sName = storeNames[p.store] || p.store;
 
@@ -1807,10 +1810,10 @@ function topPickCardHtml(p, rank) {
 function cardHtml(p) {
   var storeMap = {
     'Amazon':    { cls: 'amz' }, 'Walmart': { cls: 'wmt' },
-    'HomeDepot': { cls: 'hd'  }, 'BestBuy': { cls: 'bby' }, 'Lowes': { cls: 'low' }
+    'HomeDepot': { cls: 'hd'  }, 'BestBuy': { cls: 'bby' }, 'Lowes': { cls: 'low' }, 'Nike': { cls: 'nike' }
   };
   var s = storeMap[p.store] || { cls: 'amz' };
-  var storeNames = { 'Amazon':'Amazon', 'Walmart':'Walmart', 'HomeDepot':'Home Depot', 'BestBuy':'Best Buy', 'Lowes':"Lowe's" };
+  var storeNames = { 'Amazon':'Amazon', 'Walmart':'Walmart', 'HomeDepot':'Home Depot', 'BestBuy':'Best Buy', 'Lowes':"Lowe's", 'Nike':'Nike' };
   var sName = storeNames[p.store] || p.store;
 
   var html = '<div class="product-card" data-id="' + p.id + '" onclick="openDrawer(\'' + p.id + '\')" style="cursor:pointer">';
@@ -2882,11 +2885,11 @@ async function openDrawer(productId) {
   if (!p) { hideDealLoading(); showDealGone(); return; }
   currentDrawerProduct = p;
 
-  var storeNames = { 'Amazon':'Amazon', 'Walmart':'Walmart', 'HomeDepot':'Home Depot', 'BestBuy':'Best Buy', 'Lowes':"Lowe's" };
-  var storeMap2 = { 'Amazon':'amz', 'Walmart':'wmt', 'HomeDepot':'hd', 'BestBuy':'bby', 'Lowes':'low' };
+  var storeNames = { 'Amazon':'Amazon', 'Walmart':'Walmart', 'HomeDepot':'Home Depot', 'BestBuy':'Best Buy', 'Lowes':"Lowe's", 'Nike':'Nike' };
+  var storeMap2 = { 'Amazon':'amz', 'Walmart':'wmt', 'HomeDepot':'hd', 'BestBuy':'bby', 'Lowes':'low', 'Nike':'nike' };
   var sName = storeNames[p.store] || p.store;
   var sCls = storeMap2[p.store] || 'amz';
-  var untracked = (p.store === 'HomeDepot' || p.store === 'BestBuy' || p.store === 'Lowes');
+  var untracked = (p.store === 'HomeDepot' || p.store === 'BestBuy' || p.store === 'Lowes' || p.store === 'Nike');
 
   var html = '';
 
