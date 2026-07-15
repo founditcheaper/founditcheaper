@@ -748,9 +748,13 @@ body.bio-mode #bioRoot { display:block !important; }
 .bio-section.open .bsh-chev { transform:rotate(180deg); }
 .bio-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
 .bio-section:not(.open) .bio-grid { display:none; }
-/* Deal card — light, flat, small radius */
-.bio-card { background:#fff; border-radius:10px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column;
-  box-shadow:0 1px 3px rgba(0,0,0,.08); }
+/* Open folder = one white panel; the header + the deal grid share it, and each deal is
+   defined by its own border rather than floating as a separate card on the dark bg. */
+.bio-section.open { background:#fff; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.08); overflow:hidden; }
+.bio-section.open .bio-sec-head { background:transparent; box-shadow:none; border-radius:0; }
+.bio-section.open .bio-grid { margin-top:0; padding:0 12px 12px; }
+/* Deal card — light, flat, small radius, outlined by a border */
+.bio-card { background:#fff; border:1px solid #e4e7ec; border-radius:10px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; }
 .bio-card .bc-imgwrap { position:relative; background:#fff; padding:12px 12px 0; }
 .bio-card .bc-img { width:100%; height:148px; object-fit:contain; display:block; }
 .bio-card .bc-store { position:absolute; top:9px; left:9px; background:rgba(30,36,48,.85); color:#fff; font-size:9px; font-weight:600; letter-spacing:.3px; padding:2px 7px; border-radius:4px; text-transform:uppercase; }
@@ -1625,7 +1629,7 @@ function bioCardHtml(p) {
     var cc = String(p.code).replace(/[^A-Za-z0-9]/g, '');
     h += '<div class="bio-code" onclick="event.stopPropagation();_copyCode2(\'' + cc + '\',this)" title="Tap to copy">'
        + '<span class="bcc-val">' + _fesc(p.code) + '</span>'
-       + '<span class="bcc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</span></div>';
+       + '<span class="bcc-tag">Copy</span></div>';
   }
   h += '</div></div>';
   return h;
