@@ -12,6 +12,7 @@ const STORE_KEY = {
   'Best Buy': 'BestBuy', 'BestBuy': 'BestBuy',
   "Lowe's": 'Lowes', 'Lowes': 'Lowes',
   'Nike': 'Nike',
+  'Academy': 'Academy',
   'Walmart': 'Walmart', 'Amazon': 'Amazon',
 };
 

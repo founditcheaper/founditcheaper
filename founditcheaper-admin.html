@@ -664,6 +664,7 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
               <option value="BestBuy">Best Buy</option>
               <option value="Lowes">Lowe's</option>
               <option value="Nike">Nike</option>
+              <option value="Academy">Academy</option>
             </select>
           </div>
           <div style="flex:1;min-width:150px"><label class="field-label">Category</label>
@@ -1163,7 +1164,7 @@ function renderPromoCodeDeals() {
     + _srcChip('__api__', '🤖 API uploads (' + apiN + ')', '#9ae6b4')
     + '</div>';
   // STORE facet — count per store (search + source + day, skip store).
-  var _stNames = { Amazon: 'Amazon', Walmart: 'Walmart', HomeDepot: 'Home Depot', BestBuy: 'Best Buy', Lowes: "Lowe's", Nike: 'Nike' };
+  var _stNames = { Amazon: 'Amazon', Walmart: 'Walmart', HomeDepot: 'Home Depot', BestBuy: 'Best Buy', Lowes: "Lowe's", Nike: 'Nike', Academy: 'Academy' };
   var _stCounts = {}, _stTotal = 0;
   _pcDeals.forEach(function (d) { if (fBase(d) && fSource(d) && fDay(d)) { var s = d.store || 'Other'; _stCounts[s] = (_stCounts[s] || 0) + 1; _stTotal++; } });
   function _stChip(v, label) {
@@ -1171,7 +1172,7 @@ function renderPromoCodeDeals() {
     return '<button class="btn" style="padding:6px 11px;font-size:12px;border:1px solid ' + (on ? '#f5c842' : 'var(--border)') + ';background:' + (on ? 'rgba(245,200,66,0.12)' : 'transparent') + ';color:' + (on ? '#f5c842' : '#cfd8e3') + '" onclick="pcSetStore(\'' + v + '\')">' + label + '</button>';
   }
   var storeRow = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' + _rowLabel('Store') + _stChip('', 'All stores (' + _stTotal + ')');
-  ['Amazon', 'Walmart', 'HomeDepot', 'BestBuy', 'Lowes', 'Nike'].forEach(function (s) { if (_stCounts[s]) storeRow += _stChip(s, _stNames[s] + ' (' + _stCounts[s] + ')'); });
+  ['Amazon', 'Walmart', 'HomeDepot', 'BestBuy', 'Lowes', 'Nike', 'Academy'].forEach(function (s) { if (_stCounts[s]) storeRow += _stChip(s, _stNames[s] + ' (' + _stCounts[s] + ')'); });
   storeRow += '</div>';
   // STATUS facet — Live / Pending / Flagged (the review queue).
   function _chip(v, label, color) {
