@@ -692,6 +692,97 @@
   })();
 </script>
 
+<style id="bioStyles">
+/* ── LINK-IN-BIO layout (faithful copy of the old joylink page) ───────────── */
+body.bio-mode { background:#2e313d; }
+/* Hide the whole normal site; show only the bio root. */
+body.bio-mode > header,
+body.bio-mode > .filters-bar-outer,
+body.bio-mode > .picks-outer,
+body.bio-mode > .section-divider,
+body.bio-mode > .layout,
+body.bio-mode > footer,
+body.bio-mode > .site-footer { display:none !important; }
+body.bio-mode #bioRoot { display:block !important; }
+#bioRoot { font-family:'Inter','Segoe UI',system-ui,sans-serif; color:#e9edf3; }
+#bioRoot * { box-sizing:border-box; }
+.bio-topbar { display:flex; align-items:center; justify-content:space-between; padding:16px 18px; }
+.bio-topbar .bt-name { font-size:22px; font-weight:800; color:#fff; letter-spacing:-.3px; }
+.bio-burger { background:none; border:0; padding:6px; cursor:pointer; display:flex; flex-direction:column; gap:5px; }
+.bio-burger span { width:26px; height:2.5px; background:#fff; border-radius:2px; display:block; }
+.bio-wrap { max-width:600px; margin:0 auto; padding:0 16px 60px; }
+.bio-profile { text-align:center; padding:8px 0 4px; }
+.bio-avatar { width:132px; height:132px; border-radius:50%; object-fit:cover; margin:0 auto 16px; display:block; background:#0a1f33; }
+.bio-name { font-size:30px; font-weight:800; color:#fff; display:inline-flex; align-items:center; gap:8px; justify-content:center; }
+.bio-check { width:26px; height:26px; flex-shrink:0; }
+.bio-desc { font-size:16.5px; line-height:1.55; color:#c7d0dc; max-width:520px; margin:14px auto 0; }
+.bio-socials { display:flex; align-items:center; justify-content:center; gap:22px; margin:22px 0 8px; }
+.bio-socials a { color:#fff; display:inline-flex; opacity:.95; }
+.bio-socials svg { width:26px; height:26px; }
+/* Big tappable tiles */
+.bio-tile { display:flex; align-items:center; gap:14px; background:#fff; color:#0f1b2d; border-radius:16px;
+  padding:20px 20px; margin:16px 0; text-decoration:none; box-shadow:0 6px 20px rgba(0,0,0,.22); cursor:pointer; }
+.bio-tile .bt-ico { width:52px; height:52px; border-radius:50%; background:#eef0f4; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.bio-tile .bt-ico svg { width:24px; height:24px; color:#0f1b2d; }
+.bio-tile .bt-mid { flex:1; text-align:center; }
+.bio-tile .bt-title { font-size:19px; font-weight:800; }
+.bio-tile .bt-sub { font-size:14px; color:#5b6b80; margin-top:2px; }
+.bio-tile .bt-arrow { width:40px; height:40px; border-radius:50%; background:#eef0f4; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:18px; color:#0f1b2d; }
+.bio-tile.bio-img-tile { padding:0; overflow:hidden; }
+.bio-tile.bio-img-tile img { width:88px; height:88px; object-fit:cover; flex-shrink:0; }
+.bio-tile.bio-img-tile .bt-title { padding:0 8px; }
+/* Search box */
+.bio-search { display:flex; align-items:center; gap:10px; background:#fff; border-radius:14px; padding:15px 18px; margin:16px 0; box-shadow:0 6px 20px rgba(0,0,0,.22); }
+.bio-search svg { width:20px; height:20px; color:#8a97a8; flex-shrink:0; }
+.bio-search input { flex:1; border:0; outline:0; font-size:16px; color:#0f1b2d; background:none; }
+.bio-search .bs-go { width:30px; height:30px; border-radius:50%; background:#eef0f4; color:#5b6b80; border:0; font-size:15px; cursor:pointer; flex-shrink:0; }
+/* Collapsible date section */
+.bio-section { margin:16px 0; }
+.bio-sec-head { display:flex; align-items:center; justify-content:space-between; background:#fff; color:#0f1b2d;
+  border-radius:16px; padding:22px 22px; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.22); text-align:center; }
+.bio-sec-head .bsh-mid { flex:1; }
+.bio-sec-head .bsh-title { font-size:20px; font-weight:800; }
+.bio-sec-head .bsh-sub { font-size:14px; color:#5b6b80; margin-top:2px; }
+.bio-sec-head .bsh-chev { width:22px; height:22px; color:#0f1b2d; transition:transform .2s; flex-shrink:0; }
+.bio-section.open .bsh-chev { transform:rotate(180deg); }
+.bio-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+.bio-section:not(.open) .bio-grid { display:none; }
+/* Deal card */
+.bio-card { background:#fff; border-radius:16px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column;
+  box-shadow:0 5px 16px rgba(0,0,0,.20); }
+.bio-card .bc-imgwrap { position:relative; background:#fff; padding:14px 14px 0; }
+.bio-card .bc-img { width:100%; height:150px; object-fit:contain; display:block; }
+.bio-card .bc-store { position:absolute; top:10px; left:10px; background:rgba(15,27,45,.9); color:#fff; font-size:9px; font-weight:800; letter-spacing:.4px; padding:2px 7px; border-radius:5px; text-transform:uppercase; }
+.bio-card .bc-body { padding:12px 14px 14px; display:flex; flex-direction:column; gap:8px; flex:1; }
+.bio-card .bc-name { font-size:15px; font-weight:700; color:#0f1b2d; line-height:1.3; height:2.6em; overflow:hidden;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.bio-card .bc-off { align-self:flex-start; background:#eef0f4; color:#33414f; font-size:12px; font-weight:800; padding:5px 10px; border-radius:8px; }
+.bio-card .bc-price { display:flex; align-items:baseline; gap:8px; }
+.bio-card .bc-now { font-size:22px; font-weight:800; color:#0f1b2d; }
+.bio-card .bc-was { font-size:14px; color:#8a97a8; text-decoration:line-through; }
+.bio-card .bc-amzlink { font-size:13px; font-weight:800; color:#c98a00; text-decoration:none; }
+.bio-card .bc-checked { font-size:10px; color:#93a0b0; }
+/* Tap-to-copy code chip */
+.bio-code { display:flex; align-items:center; gap:8px; background:#f3f4f7; border:1px dashed #cfd6e0; border-radius:10px;
+  padding:11px 12px; cursor:pointer; margin-top:auto; }
+/* The code always shows in full (flex:0 0 auto); the "Copy" tag yields/clips if the card is too narrow. */
+.bio-code .bcc-val { font-size:12.5px; font-weight:800; letter-spacing:.3px; color:#0f1b2d; flex:0 0 auto; white-space:nowrap; }
+.bio-code .bcc-tag { font-size:11px; font-weight:800; color:#5b6b80; display:inline-flex; align-items:center; justify-content:flex-end;
+  gap:3px; flex:1 1 0; min-width:0; white-space:nowrap; overflow:hidden; }
+.bio-code .bcc-tag svg { width:13px; height:13px; flex-shrink:0; }
+.bio-code.copied { background:#e8f7ee; border-color:#8fdca9; }
+.bio-code.copied .bcc-tag { color:#1a9c4e; }
+.bio-more { text-align:center; padding:22px 0; }
+.bio-more button { background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.2); border-radius:12px; padding:14px 26px; font-size:15px; font-weight:700; cursor:pointer; }
+.bio-empty { text-align:center; color:#9fb0c2; padding:30px 10px; font-size:15px; }
+.bio-footer { text-align:center; padding:34px 0 10px; color:#8ea3bd; font-size:13px; }
+.bio-footer .bf-disc { color:#f5c842; font-weight:700; margin-bottom:8px; }
+@media (min-width:560px){ .bio-avatar{width:150px;height:150px;} }
+</style>
+
+<!-- LINK-IN-BIO layout root — hidden unless body.bio-mode; renderBio() fills it. -->
+<div id="bioRoot" style="display:none"></div>
+
 <header>
 <div class="header-inner">
   <div class="header-row1">
@@ -999,6 +1090,19 @@ var SIMPLE_MODE = /[?&](v=simple|simple=1)(?:&|$)/.test(location.search) && !EMB
 var simpleExpanded = false;
 var SIMPLE_CAP = 25;
 var simpleTopIds = {};   // ids of the curated top 25 — excluded from the "all deals" grid so they don't repeat
+
+// ── LINK-IN-BIO layout (?v=bio, or admin setting site_layout=bio) ─────────────
+// A faithful copy of the old joylink link-in-bio page: dark profile header (logo,
+// name, bio, socials), a Deal Finder tile + search, then collapsible per-day
+// sections of simple 2-column deal cards with tap-to-copy promo codes. Wired to our
+// own live Supabase deals (the thing joylink could never do). It's a whole-page
+// alternate layout Erik can switch on from the admin panel; ?v=bio previews it and
+// ?v=default / ?v=simple force it off regardless of the saved setting.
+var _vparam = (location.search.match(/[?&]v=([a-z0-9]+)/i) || [])[1] || '';
+var BIO_MODE = (_vparam.toLowerCase() === 'bio') && !EMBED;
+var BIO_CAP_PER_DAY = 20;   // 20 deals per day folder
+var BIO_MAX_DAYS = 5;       // the 5 most recent dates, one folder each
+var _bioSearching = false;
 function postEmbedHeight() {
   if (!EMBED) return;
   // Measure the visible section's CONTENT height (picks carousel or deals grid), NOT the
@@ -1394,12 +1498,171 @@ function _goDeal(id, e) {
 // Tap-to-copy on the card's code chip: copy, flash the "Copy" tag to "✓ Copied", then restore.
 // The code value itself stays visible the whole time.
 function _copyCode2(code, el) {
-  var tag = el.querySelector('.code-copy-tag');
+  var tag = el.querySelector('.code-copy-tag, .bcc-tag');
   var orig = tag ? tag.innerHTML : '';
   var done = function () { el.classList.add('copied'); if (tag) tag.innerHTML = '✓ Copied'; setTimeout(function () { el.classList.remove('copied'); if (tag) tag.innerHTML = orig; }, 1600); };
   (navigator.clipboard ? navigator.clipboard.writeText(code) : Promise.reject()).then(done).catch(function () {
     try { var t = document.createElement('textarea'); t.value = code; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); done(); } catch (e2) {}
   });
+}
+
+// ── LINK-IN-BIO layout render ─────────────────────────────────────────────
+// Builds a faithful copy of the old joylink page from our own live deals.
+var BIO_STORE_NAMES = { 'Amazon':'Amazon', 'Walmart':'Walmart', 'HomeDepot':'Home Depot', 'BestBuy':'Best Buy', 'Lowes':"Lowe's", 'Nike':'Nike', 'Academy':'Academy' };
+function _bioSocials() {
+  var s = [
+    ['https://www.instagram.com/founditcheaper1', 'Instagram', '<rect x="2" y="2" width="20" height="20" rx="5.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.5" fill="currentColor"/>'],
+    ['https://www.tiktok.com/@founditcheaper', 'TikTok', '<path fill="currentColor" d="M16.5 3c.3 2.2 1.6 3.7 3.8 3.9V9.3c-1.3.1-2.5-.3-3.8-1v5.9c0 3.4-2.6 5.8-5.8 5.3-2.6-.4-4.3-2.6-4-5.2.3-2.4 2.4-4.1 4.9-3.9v2.5c-.4-.1-.8-.1-1.2 0-1 .2-1.7 1-1.6 2 .1 1 .9 1.7 1.9 1.7 1.1 0 1.9-.8 1.9-2V3h3.7z"/>'],
+    ['mailto:deals@founditcheaper.net', 'Email', '<rect x="2.5" y="4.5" width="19" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 6l9 7 9-7" fill="none" stroke="currentColor" stroke-width="2"/>'],
+    ['https://www.facebook.com/groups/1061659365178472', 'Facebook', '<path fill="currentColor" d="M14 8.5V7c0-.8.5-1 1-1h1.5V3H14c-2.2 0-3.5 1.4-3.5 3.7v1.8H8V11h2.5v9H14v-9h2.3l.4-2.5H14z"/>'],
+    ['https://twitter.com/founditcheaper1', 'X', '<path fill="currentColor" d="M17.5 3h3l-6.6 7.5L21.5 21h-5.9l-4.3-5.6L6.3 21H3.2l7-8L2.9 3h6l3.9 5.1L17.5 3zm-1 16h1.6L7.6 4.7H5.9L16.5 19z"/>'],
+    ['https://youtube.com/@founditcheaper8227', 'YouTube', '<rect x="2.5" y="5.5" width="19" height="13" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path fill="currentColor" d="M10 9l5 3-5 3z"/>']
+  ];
+  return '<div class="bio-socials">' + s.map(function (x) {
+    return '<a href="' + x[0] + '" target="_blank" rel="noopener" aria-label="' + x[1] + '"><svg viewBox="0 0 24 24">' + x[2] + '</svg></a>';
+  }).join('') + '</div>';
+}
+var BIO_CHECK_SVG = '<svg class="bio-check" viewBox="0 0 24 24"><path fill="#3897f0" d="M12 1.6l2.6 1.9 3.2-.1 1 3.1 2.6 1.9-1 3.1 1 3.1-2.6 1.9-1 3.1-3.2-.1L12 22.4l-2.6-1.9-3.2.1-1-3.1L2.6 15.6l1-3.1-1-3.1L5.2 7.5l1-3.1 3.2.1L12 1.6z"/><path fill="#fff" d="M10.6 14.6l-2.2-2.2-1.3 1.3 3.5 3.5 6-6-1.3-1.3z"/></svg>';
+function renderBio() {
+  var root = document.getElementById('bioRoot');
+  if (!root) return;
+  var html = '';
+  html += '<div class="bio-topbar"><div class="bt-name">founditcheaper</div>'
+        + '<button class="bio-burger" onclick="openMenu()" aria-label="Menu"><span></span><span></span><span></span></button></div>';
+  html += '<div class="bio-wrap">';
+  html += '<div class="bio-profile">'
+        + '<img class="bio-avatar" src="/assets/logo.png" alt="founditcheaper">'
+        + '<div class="bio-name">founditcheaper ' + BIO_CHECK_SVG + '</div>'
+        + '<div class="bio-desc">Deals Can Expire at Anytime / As an Amazon Associate I earn a small commission from qualifying purchases at no extra cost to you.</div>'
+        + _bioSocials()
+        + '</div>';
+  // Deal Finder tile → focuses the search box (our own deep search lives there)
+  html += '<div class="bio-tile" onclick="bioFocusSearch()">'
+        + '<div class="bt-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>'
+        + '<div class="bt-mid"><div class="bt-title">Use the Deal Finder</div><div class="bt-sub">Search thousands of deals</div></div>'
+        + '<div class="bt-arrow">&#8250;</div></div>';
+  // Search box
+  html += '<div class="bio-search">'
+        + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
+        + '<input id="bioSearchInput" type="text" placeholder="Search for specific deals" oninput="bioSearch(this.value)">'
+        + '<button class="bs-go" onclick="bioFocusSearch()">&#8250;</button></div>';
+  html += '<div id="bioSections"></div>';
+  html += '<div class="bio-footer"><div class="bf-disc">Deals can expire at any time.</div>'
+        + 'founditcheaper.net · <a href="https://instagram.com/founditcheaper1" target="_blank" rel="noopener" style="color:#b9c7da">@founditcheaper1</a></div>';
+  html += '</div>';
+  root.innerHTML = html;
+  bioRenderSections();
+}
+function _bioDateLabel(dk) {
+  try { return new Date(dk + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' }); }
+  catch (e) { return dk; }
+}
+function _bioDayGroups() {
+  var groups = {}, order = [];
+  (allProducts || []).forEach(function (p) {
+    if (p.store !== 'Amazon') return;        // Amazon-only folders
+    var dk = p.addedDay; if (!dk) return;
+    if (!groups[dk]) { groups[dk] = []; order.push(dk); }
+    groups[dk].push(p);
+  });
+  order.sort(function (a, b) { return a < b ? 1 : (a > b ? -1 : 0); });   // newest day first
+  return { groups: groups, order: order };
+}
+function _bioSortDay(items) {
+  // Promo-code deals first (the draw), then biggest discount.
+  return items.slice().sort(function (a, b) {
+    var ac = (a.code && a.code.trim()) ? 1 : 0, bc = (b.code && b.code.trim()) ? 1 : 0;
+    if (ac !== bc) return bc - ac;
+    return (b.off || 0) - (a.off || 0);
+  });
+}
+var _bioDayCache = {};   // i -> that day's sorted items, so collapsed sections render lazily on first open
+function bioRenderSections() {
+  var wrap = document.getElementById('bioSections'); if (!wrap) return;
+  var g = _bioDayGroups();
+  if (!g.order.length) { wrap.innerHTML = '<div class="bio-empty">No deals yet. Check back soon.</div>'; return; }
+  _bioDayCache = {};
+  var html = '';
+  g.order.slice(0, BIO_MAX_DAYS).forEach(function (dk, i) {
+    var items = _bioSortDay(g.groups[dk]).slice(0, BIO_CAP_PER_DAY);
+    _bioDayCache[i] = items;
+    var open = i === 0;   // today's section open, older days collapsed (matches the old page)
+    // Only the open (today) section renders its cards now; collapsed days fill in on first tap
+    // so we don't build 200+ cards/images upfront.
+    var grid = open ? items.map(bioCardHtml).join('') : '';
+    html += '<div class="bio-section' + (open ? ' open' : '') + '" id="biosec-' + i + '">'
+          + '<div class="bio-sec-head" onclick="bioToggleSection(' + i + ')"><div class="bsh-mid">'
+          + '<div class="bsh-title">' + _bioDateLabel(dk) + ' Deals</div><div class="bsh-sub">Click to open</div></div>'
+          + '<svg class="bsh-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>'
+          + '<div class="bio-grid" data-filled="' + (open ? '1' : '0') + '">' + grid + '</div></div>';
+    if (i === 0) {   // "Want tomorrow's deals?" tile right after today, like the old page
+      html += '<a class="bio-tile" href="https://founditcheaper.beehiiv.com/" target="_blank" rel="noopener">'
+            + '<div class="bt-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M3 6l9 7 9-7"/></svg></div>'
+            + '<div class="bt-mid"><div class="bt-title">Want tomorrow\'s deals?</div><div class="bt-sub">Free daily email</div></div>'
+            + '<div class="bt-arrow">&#8599;</div></a>';
+    }
+  });
+  wrap.innerHTML = html;
+}
+function bioCardHtml(p) {
+  var sName = BIO_STORE_NAMES[p.store] || p.store || '';
+  var h = '<div class="bio-card" onclick="_goDeal(\'' + p.id + '\',event)">';
+  h += '<div class="bc-imgwrap"><img class="bc-img" loading="lazy" src="' + _fesc(p.img) + '" alt="' + _fesc(p.name) + '" onerror="this.style.opacity=0">'
+     + '<span class="bc-store">' + _fesc(sName) + '</span></div>';
+  h += '<div class="bc-body"><div class="bc-name">' + _fesc(p.name) + '</div>';
+  var stale = _priceStale(p);
+  if (!stale && p.off) h += '<div class="bc-off">' + p.off + '% OFF</div>';
+  if (stale) {
+    h += '<div class="bc-price"><a class="bc-amzlink" href="' + _dealOutLink(p) + '" target="_blank" rel="noopener nofollow sponsored" onclick="event.stopPropagation()">See price on Amazon &rarr;</a></div>';
+  } else {
+    h += '<div class="bc-price"><span class="bc-now">$' + money(p.price) + '</span>'
+       + (p.was && p.was > p.price ? '<span class="bc-was">$' + money(p.was) + '</span>' : '') + '</div>';
+    var lbl = priceCheckedLabel(p.priceCheckedAt);
+    if (lbl) h += '<div class="bc-checked">Price checked ' + lbl + '</div>';
+  }
+  if (p.code) {
+    var cc = String(p.code).replace(/[^A-Za-z0-9]/g, '');
+    h += '<div class="bio-code" onclick="event.stopPropagation();_copyCode2(\'' + cc + '\',this)" title="Tap to copy">'
+       + '<span class="bcc-val">' + _fesc(p.code) + '</span>'
+       + '<span class="bcc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</span></div>';
+  }
+  h += '</div></div>';
+  return h;
+}
+function bioToggleSection(i) {
+  var el = document.getElementById('biosec-' + i);
+  if (!el) return;
+  var grid = el.querySelector('.bio-grid');
+  if (grid && grid.getAttribute('data-filled') === '0' && _bioDayCache[i]) {
+    grid.innerHTML = _bioDayCache[i].map(bioCardHtml).join('');   // lazy-build this day's cards on first open
+    grid.setAttribute('data-filled', '1');
+  }
+  el.classList.toggle('open');
+}
+function bioFocusSearch() {
+  var el = document.getElementById('bioSearchInput');
+  if (!el) return;
+  try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+  setTimeout(function () { try { el.focus(); } catch (e) {} }, 300);
+}
+function bioSearch(v) {
+  var q = (v || '').trim().toLowerCase();
+  var wrap = document.getElementById('bioSections'); if (!wrap) return;
+  if (!q) { _bioSearching = false; bioRenderSections(); return; }
+  _bioSearching = true;
+  var matches = (allProducts || []).filter(function (p) {
+    if (p.store !== 'Amazon') return false;
+    var hay = ((p.name || '') + ' ' + (p.brandName || '') + ' ' + (p.category || '')).toLowerCase();
+    return hay.indexOf(q) >= 0;
+  });
+  matches = _bioSortDay(matches).slice(0, 60);
+  var html = '<div class="bio-section open"><div class="bio-sec-head" style="cursor:default"><div class="bsh-mid">'
+    + '<div class="bsh-title">' + matches.length + ' result' + (matches.length !== 1 ? 's' : '') + '</div>'
+    + '<div class="bsh-sub">for &ldquo;' + _fesc(v) + '&rdquo;</div></div></div>'
+    + (matches.length ? '<div class="bio-grid">' + matches.map(bioCardHtml).join('') + '</div>'
+                      : '<div class="bio-empty">Nothing matches that. Try another word.</div>')
+    + '</div>';
+  wrap.innerHTML = html;
 }
 
 // ── PICKS RENDER ──────────────────────────────────────────────────────
@@ -2730,11 +2993,11 @@ function _afterLoad() {
   var allPromise = _gridPage(0, true);
   // Front-page display toggle (admin: hide_top_picks) — fetched in parallel, resolved
   // before the carousel renders so we either draw it or skip straight to the grid.
-  var settingsPromise = _sb.from('settings').select('key,value').in('key', ['hide_top_picks', 'hide_deals_banner', 'pinned_deals', 'featured_by_day', 'top_value_order']);
+  var settingsPromise = _sb.from('settings').select('key,value').in('key', ['hide_top_picks', 'hide_deals_banner', 'pinned_deals', 'featured_by_day', 'top_value_order', 'site_layout']);
 
   // ── PHASE 1: carousel renders as soon as picks arrive ─────────────────
   try {
-    try { var _sres = await settingsPromise; if (_sres && _sres.data) _sres.data.forEach(function (r) { if (r.key === 'hide_top_picks' && r.value === '1') HIDE_PICKS = true; if (r.key === 'hide_deals_banner' && r.value === '1') HIDE_BANNER = true; if (r.key === 'pinned_deals') { try { var _pa = JSON.parse(r.value || '[]'); if (Array.isArray(_pa)) PINNED = _pa.map(String); } catch (e2) {} } if (r.key === 'featured_by_day') { try { var _fb = JSON.parse(r.value || '{}'); if (_fb && typeof _fb === 'object' && !Array.isArray(_fb)) { PINNED_BY_DAY = {}; Object.keys(_fb).forEach(function (k) { if (Array.isArray(_fb[k])) PINNED_BY_DAY[k] = _fb[k].map(String); }); } } catch (e5) {} } if (r.key === 'top_value_order') { try { var _tv = JSON.parse(r.value || '[]'); if (Array.isArray(_tv)) DAILY_TOP = _tv.map(String); } catch (e4) {} } }); } catch (e) {}
+    try { var _sres = await settingsPromise; if (_sres && _sres.data) _sres.data.forEach(function (r) { if (r.key === 'hide_top_picks' && r.value === '1') HIDE_PICKS = true; if (r.key === 'hide_deals_banner' && r.value === '1') HIDE_BANNER = true; if (r.key === 'pinned_deals') { try { var _pa = JSON.parse(r.value || '[]'); if (Array.isArray(_pa)) PINNED = _pa.map(String); } catch (e2) {} } if (r.key === 'featured_by_day') { try { var _fb = JSON.parse(r.value || '{}'); if (_fb && typeof _fb === 'object' && !Array.isArray(_fb)) { PINNED_BY_DAY = {}; Object.keys(_fb).forEach(function (k) { if (Array.isArray(_fb[k])) PINNED_BY_DAY[k] = _fb[k].map(String); }); } } catch (e5) {} } if (r.key === 'top_value_order') { try { var _tv = JSON.parse(r.value || '[]'); if (Array.isArray(_tv)) DAILY_TOP = _tv.map(String); } catch (e4) {} } if (r.key === 'site_layout' && r.value === 'bio' && !_vparam) BIO_MODE = true; }); } catch (e) {}
     var picksRes = await picksPromise;
     if (picksRes.data && picksRes.data.length > 0) {
       // Group rows by active_date (query is already sorted newest-first by date then rank)
@@ -2866,6 +3129,9 @@ function _afterLoad() {
   buildRepeatIndex();   // stamp each deal with how many recent days its product family already ran
   // The interactive grid is ready — drop the static crawl/AI snapshot so shoppers see only it.
   var _seo = document.getElementById('seoDeals'); if (_seo && _seo.parentNode) _seo.parentNode.removeChild(_seo);
+  // LINK-IN-BIO layout: render the alternate page and stop — the normal grid/banner/carousel
+  // below are hidden by body.bio-mode and don't need to run.
+  if (BIO_MODE) { document.body.classList.add('bio-mode'); try { renderBio(); } catch (e) {} fadeIntroOut(); return; }
   resetAndRender();
   fadeIntroOut();   // grid is on screen now — drop the first-paint splash
   // A wide desktop's first screen can be short enough that nothing triggers the next page.
