@@ -2035,18 +2035,22 @@ function getFiltered() {
   // Admin Featured tab: a pasted deal link narrows the grid to that single deal.
   if (_onlyDeal) return (allProducts || []).filter(function (d) { return String(d.id) === _onlyDeal; });
   var f = allProducts.filter(function(p) {
+    // Expiry always applies: a seller-set end date that has passed hides the deal instantly
+    // (a cleanup job also removes the row; this makes it disappear the moment it lapses).
+    if (p.endsAt && new Date(p.endsAt).getTime() < Date.now()) return false;
+    // A search looks across EVERYTHING on the site — every store, day, category, and
+    // discount level — ignoring all active filters. A shopper hunting an item from
+    // yesterday's video has to find it even though the site lands on today + Amazon.
+    if (state.search) {
+      var q = state.search.toLowerCase();
+      var hay = (p.name + ' ' + p.brandName + ' ' + p.category + ' ' + p.store + ' ' + (p.code || '')).toLowerCase();
+      return hay.indexOf(q) !== -1;
+    }
     if (state.promoOnly && !p.code) return false;
     if (state.store === '__other__') { if (KNOWN_STORES[p.store]) return false; }
     else if (state.store !== 'all' && p.store !== state.store) return false;
     if (state.category !== 'all' && p.category !== state.category) return false;
-    // A search looks across ALL days (ignore the day filter) — so it only comes up empty on a
-    // genuine miss, not just because the item is from an earlier day than today's default.
-    if (state.dateAdded !== 'all' && !state.search && p.addedDay !== state.dateAdded) return false;
-    if (state.search) {
-      var q = state.search.toLowerCase();
-      var hay = (p.name + ' ' + p.brandName + ' ' + p.category + ' ' + p.store + ' ' + (p.code || '')).toLowerCase();
-      if (hay.indexOf(q) === -1) return false;
-    }
+    if (state.dateAdded !== 'all' && p.addedDay !== state.dateAdded) return false;
     if (p.off < state.minDiscount) return false;
     if (state_minPrice > 0 && p.price < state_minPrice) return false;
     if (state.maxPrice > 0 && p.price > state.maxPrice) return false;
@@ -2063,9 +2067,6 @@ function getFiltered() {
     }
     // Verified Lowest: only deals flagged as at/near their 30-day low
     if (state.verifiedOnly && !p.verifiedLow) return false;
-    // Expiry: a seller-set end date that has passed hides the deal instantly (a cleanup
-    // job also removes the row; this makes it disappear the moment it lapses).
-    if (p.endsAt && new Date(p.endsAt).getTime() < Date.now()) return false;
     return true;
   });
   if (state.sort === 'value') {
