@@ -1983,8 +1983,10 @@ function valueScore(p) {
 // landing view. The moment a shopper sorts, searches, or filters, order goes fully natural.
 // (The auto date pick is ignored here so a pinned promo shows even if it isn't from today.)
 function isDefaultView() {
+  // 'Amazon' is now the landing default (conversion test), so it counts as a default view too —
+  // otherwise Featured pins + the daily Top-Value rotation silently switch off on first load.
   return state.sort === 'value' && !state.search
-      && state.store === 'all' && state.category === 'all'
+      && (state.store === 'all' || state.store === 'Amazon') && state.category === 'all'
       && !state.brandOnly && !state.promoOnly && !state.verifiedOnly;
 }
 // Daily rotation: float the server-picked Top-Value set (DAILY_TOP) to the top of the value
