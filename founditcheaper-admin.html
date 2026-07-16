@@ -1323,7 +1323,7 @@ function renderPinPanel() {
   }).join('');
   els.forEach(function (el) { el.innerHTML = head + rows; });
 }
-var PIN_MAX = 10;   // how many deals can be featured at the top
+// No cap on how many deals can be featured — Erik features as many as he wants (2026-07-16).
 // Push the current featured list to the Featured-tab grid iframe so its buttons/badges match.
 function syncFeatureFrame() {
   var f = document.getElementById('featureFrame');
@@ -1332,7 +1332,6 @@ function syncFeatureFrame() {
 function featureDeal(id) {
   id = String(id);
   if (_pinned.indexOf(id) !== -1) return;
-  if (_pinned.length >= PIN_MAX) { showToast('Top spots are full (' + PIN_MAX + '). Remove one first.'); syncFeatureFrame(); return; }
   _pinned.push(id); savePins(); renderPinPanel(); renderPromoCodeDeals(); syncFeatureFrame();
 }
 function unfeatureDeal(id) {

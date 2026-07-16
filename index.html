@@ -1225,7 +1225,7 @@ var HIDE_BANNER = false;
 // (paid placements). Applied only on the pristine landing view — see applyPins().
 var PINNED = [];               // legacy flat list (pre-date-scoping); used only if featured_by_day is absent
 var PINNED_BY_DAY = null;      // { "YYYY-MM-DD": [ids] } — featured deals shown ONLY on that day's view
-var PIN_MAX = 10;              // how many featured/pinned deals show at the very top
+// No cap on featured/pinned deals — every id the admin features shows at the top (2026-07-16).
 // top_value_order: the server-picked set of deals that rotate at the top of the Top Value
 // sort each day (8-day no-repeat, set by promote-top-picks). Floated to the top on the
 // default view, BELOW any manual Featured/pinned deals. See applyDailyTop().
@@ -2019,7 +2019,7 @@ function applyPins(list) {
   var allById = {};
   (allProducts || []).forEach(function (d) { allById[String(d.id)] = d; });
   var seen = {}, pinned = [];
-  ids.slice(0, PIN_MAX).forEach(function (id) {
+  ids.forEach(function (id) {
     id = String(id);
     if (allById[id] && !seen[id]) { seen[id] = true; pinned.push(allById[id]); }
   });

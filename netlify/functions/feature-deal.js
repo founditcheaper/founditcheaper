@@ -14,9 +14,7 @@
 //   action : "feature" (default) or "unfeature"
 //
 // Featured are date-scoped: featured_by_day = { "YYYY-MM-DD": [ids...] }. Each day's
-// set shows only on that day's view of the grid. Max 10 per day, deduped.
-
-const PIN_MAX = 10;
+// set shows only on that day's view of the grid. No per-day cap (removed 2026-07-16), deduped.
 
 function centralToday() {
   // en-CA gives YYYY-MM-DD; America/Chicago matches the frontend's day keys.
@@ -63,10 +61,7 @@ exports.handler = async function (event) {
     if (action === 'unfeature') {
       ids = ids.filter(id => id !== dealId);
     } else {
-      if (ids.indexOf(dealId) === -1) {
-        if (ids.length >= PIN_MAX) return { statusCode: 409, body: JSON.stringify({ error: `Day is full (${PIN_MAX}). Unfeature one first.`, date, featured: ids }) };
-        ids.push(dealId);
-      }
+      if (ids.indexOf(dealId) === -1) ids.push(dealId);
     }
     if (ids.length) map[date] = ids; else delete map[date];
 
