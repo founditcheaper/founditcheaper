@@ -112,7 +112,7 @@
     #filterPanel.open .filters-toggle .fbar-chev { transform: rotate(180deg); }
     /* Expanded: rename happens in JS; make the button pulse yellow so it's obviously the "close" control */
     #filterPanel.open .filters-toggle { color: #0a1f33; background: var(--accent); border-color: var(--accent); animation: ficFilterPulse 1.3s ease-in-out infinite; }
-    #filterPanel:not(.open) .fbar-btn:not(#fbtnDate) { display: none; }
+    #filterPanel:not(.open) .fbar-btn:not(#fbtnDate):not(#fbtnStoreSimple) { display: none; }
     #filterPanel:not(.open) .active-filters { display: none !important; }
   }
 
@@ -268,12 +268,14 @@
   .filters-bar-outer { background: transparent; border-bottom: none; }
   .filters-top { width: 100%; padding: 0 0 10px; box-sizing: border-box; }
   .filters-toggle { display: none; }  /* shown only on phones */
-  /* ── Amazon-first "simple" preview mode (?v=simple) ─────────────────────── */
-  #fbtnStoreSimple { display: none; background: var(--accent); color: #0a1f33; border-color: var(--accent); font-weight: 800; }
-  body.simple-mode #fbtnStoreSimple { display: inline-flex !important; }
+  /* ── Amazon-first store pill (live default + ?v=simple) ─────────────────── */
+  /* The always-visible gold "Amazon" pill is the store control; the panel's plain "Store"
+     button is redundant with it, so hide that one. */
+  #fbtnStoreSimple { background: var(--accent); color: #0a1f33; border-color: var(--accent); font-weight: 800; }
+  #fbtnStore { display: none; }
   /* bigger heading + no dead space: "All Filters" spans the full width under the two pills */
   body.simple-mode #resultsCount { font-size: 15.5px; font-weight: 800; color: var(--text); }
-  body.simple-mode #filterPanel:not(.open) #filtersToggle { grid-column: 1 / -1; }
+  #filterPanel:not(.open) #filtersToggle { grid-column: 1 / -1; }
   /* Per-card actions (simple mode): tap card = Amazon; the code chip copies; details = drawer */
   .card-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 9px; }
   .code-copy-row { cursor: pointer; transition: background .15s, border-color .15s; }
@@ -821,17 +823,17 @@ body.bio-mode #bioRoot { display:block !important; }
 <div class="filters-top">
   <div class="filter-panel" id="filterPanel">
     <div class="fbar">
-      <button type="button" class="fbar-btn" id="fbtnStoreSimple" onclick="toggleDrop('dStore', this, event)">🛒 <span id="fbtnStoreSimpleLabel">Amazon</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
-      <button type="button" class="fbar-btn" id="fbtnDate" onclick="toggleDrop('dDate', this, event)">🗓️ <span id="fbtnDateLabel">Date Added</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <button type="button" class="fbar-btn" id="fbtnStoreSimple" onclick="toggleDrop('dStore', this, event)"><span id="fbtnStoreSimpleLabel">Amazon</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <button type="button" class="fbar-btn" id="fbtnDate" onclick="toggleDrop('dDate', this, event)"><span id="fbtnDateLabel">Date Added</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button class="filters-toggle" id="filtersToggle" onclick="toggleFilterBar()"><span>All Filters</span><svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
-      <button type="button" class="fbar-btn" id="chipPromo" onclick="togglePromo(this)">🏷️ Promo Codes Only</button>
+      <button type="button" class="fbar-btn" id="chipPromo" onclick="togglePromo(this)">Promo Codes Only</button>
       <button type="button" class="fbar-btn" id="fbtnDiscount" onclick="toggleDrop('dDiscount', this, event)">Discount<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnStore" onclick="toggleDrop('dStore', this, event)">Store<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnCategory" onclick="toggleDrop('dCategory', this, event)">Category<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnPrice" onclick="toggleDrop('dPrice', this, event)">Price Range<svg class="fbar-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <button type="button" class="fbar-btn" id="fbtnBrand" onclick="toggleBrand()">Name Brands Only</button>
       <!-- Verified Lowest button hidden until price history accrues (~Aug 2026). Backend tracker still runs. Re-add: <button type="button" class="fbar-btn" id="fbtnVerified" onclick="toggleVerified(this)" title="Only deals at their lowest price in the last 30 days.">✅ Verified Lowest</button> -->
-      <button type="button" class="fbar-btn active" id="fbtnInflated" onclick="toggleInflated(this)" title="On by default. Hides no-name brands discounted over 65% (unless the original price was under $25), the fake-markdown zone. Real brands still show, up to 90%.">🚫 Remove Inflated Discounts</button>
+      <button type="button" class="fbar-btn active" id="fbtnInflated" onclick="toggleInflated(this)" title="On by default. Hides no-name brands discounted over 65% (unless the original price was under $25), the fake-markdown zone. Real brands still show, up to 90%.">Remove Inflated Discounts</button>
       <button type="button" class="fbar-btn fbar-clear" onclick="clearFilters()">Clear all filters</button>
     </div>
     <div class="active-filters" id="activeFilters"></div>
@@ -3130,7 +3132,7 @@ function _afterLoad() {
     }
   }
   else if (EMBED_GRID) { state.sort = 'random'; }   // game-page feed: shuffled each visit so repeat players see fresh deals
-  else { applyDefaultDate(); }                  // main site: open on the most recent day that has deals
+  else { applyDefaultDate(); state.store = 'Amazon'; }   // main site: newest day, Amazon-first default (conversion test)
   if (SIMPLE_MODE) { document.body.classList.add('simple-mode'); state.store = 'Amazon'; }   // Amazon-first curated view
   buildRepeatIndex();   // stamp each deal with how many recent days its product family already ran
   // The interactive grid is ready — drop the static crawl/AI snapshot so shoppers see only it.
