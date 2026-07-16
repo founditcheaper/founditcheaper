@@ -854,12 +854,12 @@ body.bio-mode #bioRoot { display:block !important; }
         <button class="chip active" data-store="all" onclick="setStore(this,'all')">All</button>
         <button class="chip" data-store="Amazon" onclick="setStore(this,'Amazon')">Amazon</button>
         <button class="chip" data-store="Walmart" onclick="setStore(this,'Walmart')">Walmart</button>
+        <button class="chip" data-store="__other__" onclick="setStore(this,'__other__')">More stores</button>
+        <!-- Folded into "More stores" 2026-07-16 (also add the key back to KNOWN_STORES to re-wire):
         <button class="chip" data-store="HomeDepot" onclick="setStore(this,'HomeDepot')">Home Depot</button>
         <button class="chip" data-store="Nike" onclick="setStore(this,'Nike')">Nike</button>
         <button class="chip" data-store="Academy" onclick="setStore(this,'Academy')">Academy</button>
         <button class="chip" data-store="Lowes" onclick="setStore(this,'Lowes')">Lowe's</button>
-        <button class="chip" data-store="__other__" onclick="setStore(this,'__other__')">More stores</button>
-        <!-- Hidden until we actually pull deals for these stores. Re-add when live:
         <button class="chip" data-store="BestBuy" onclick="setStore(this,'BestBuy')">Best Buy</button>
         -->
       </div>
@@ -2027,10 +2027,12 @@ function applyPins(list) {
   var natural = list.filter(function (d) { return !seen[String(d.id)]; });
   return pinned.concat(natural);
 }
-// Stores we wire individually (own chip/badge/maps). The "More stores" filter (data-store
-// "__other__") shows every deal whose store isn't one of these — the catch-all bucket for
-// one-off retailers imported under their real name.
-var KNOWN_STORES = { Amazon: 1, Walmart: 1, HomeDepot: 1, BestBuy: 1, Lowes: 1, Nike: 1, Academy: 1 };
+// Stores with their OWN filter chip. The "More stores" filter (data-store "__other__")
+// shows every deal whose store isn't one of these. Simplified 2026-07-16 per Erik: only
+// Amazon and Walmart get chips — Home Depot, Nike, Academy, Lowe's, Best Buy, and every
+// one-off retailer all fall under "More stores". (Deal rows KEEP their real store value
+// and per-store card badges; only the filter grouping changed.)
+var KNOWN_STORES = { Amazon: 1, Walmart: 1 };
 function getFiltered() {
   // Admin Featured tab: a pasted deal link narrows the grid to that single deal.
   if (_onlyDeal) return (allProducts || []).filter(function (d) { return String(d.id) === _onlyDeal; });
