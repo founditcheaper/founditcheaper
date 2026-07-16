@@ -2992,16 +2992,22 @@ function _afterLoad() {
   // Separate queries — no JS deduplication needed
   var picksPromise = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', true)
                        .order('active_date', { ascending: false }).order('rank');
-  // Grid page fetch. Supabase caps each query at 1000 rows, so we page through the
-  // rest below (id is a stable tiebreaker). review_status='live' hides moderation-held
-  // deals (pending/flagged); if that column doesn't exist yet, the caller retries
-  // without the filter so nothing breaks before the SQL is run.
-  function _gridPage(from, useReview) {
+  // Grid page fetch — KEYSET pagination on id (unique + stable). Supabase caps each query
+  // at 1000 rows; the old offset paging over (active_date desc, rank, id) silently skipped
+  // rows — NULL ranks made the order unstable and concurrent inserts shifted range() pages,
+  // so the loop hit a short page mid-catalog and stopped at ~5k of ~9k deals. That hid
+  // thousands of deals from the grid/search AND broke featured pins for any hidden deal.
+  // Paging .gt('id', last) can't skip or repeat rows no matter what writes land mid-fetch;
+  // the client re-sorts everything after load, so fetch order doesn't matter.
+  // review_status='live' hides moderation-held deals (pending/flagged); if that column
+  // doesn't exist yet, the caller retries without the filter so nothing breaks.
+  function _gridPage(afterId, useReview) {
     var q = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', false);
     if (useReview) q = q.eq('review_status', 'live');
-    return q.order('active_date', { ascending: false }).order('rank').order('id').range(from, from + 999);
+    if (afterId != null) q = q.gt('id', afterId);
+    return q.order('id', { ascending: true }).limit(1000);
   }
-  var allPromise = _gridPage(0, true);
+  var allPromise = _gridPage(null, true);
   // Front-page display toggle (admin: hide_top_picks) — fetched in parallel, resolved
   // before the carousel renders so we either draw it or skip straight to the grid.
   var settingsPromise = _sb.from('settings').select('key,value').in('key', ['hide_top_picks', 'hide_deals_banner', 'pinned_deals', 'featured_by_day', 'top_value_order', 'site_layout']);
@@ -3068,21 +3074,19 @@ function _afterLoad() {
   try {
     var _useReview = true;
     var allRes = await allPromise;
-    if (allRes && allRes.error) { _useReview = false; allRes = await _gridPage(0, false); }   // column not there yet
+    if (allRes && allRes.error) { _useReview = false; allRes = await _gridPage(null, false); }   // column not there yet
     var _rows = (allRes && allRes.data) ? allRes.data.slice() : [];
-    // Page through the rest. Supabase returns at most 1000 rows per request, so a
-    // single query only ever loaded the newest ~1000 of ~2500 deals — meaning every
-    // filter (category, store, discount, promo…) silently missed the other ~1500.
-    // Keep fetching 1000 at a time until we've got them all (safety cap 6000).
-    if (_rows.length === 1000) {
-      var _from = 1000, _CAP = 6000;
-      while (_from < _CAP) {
-        var _pg = await _gridPage(_from, _useReview);
-        if (_pg.error || !_pg.data || _pg.data.length === 0) break;
-        _rows = _rows.concat(_pg.data);
-        if (_pg.data.length < 1000) break;
-        _from += 1000;
-      }
+    // Page through the rest with the id cursor. With a unique ascending cursor a short
+    // page really is the end of the catalog (unlike the old offset paging, which could
+    // hit a short page mid-catalog and silently stop). Backstop cap far above any real
+    // catalog size so a runaway loop is impossible.
+    var _pageLen = _rows.length, _pages = 1, _PAGE_CAP = 40;   // 40 pages = 40k rows
+    while (_pageLen === 1000 && _pages < _PAGE_CAP) {
+      var _pg = await _gridPage(_rows[_rows.length - 1].id, _useReview);
+      if (_pg.error || !_pg.data || _pg.data.length === 0) break;
+      _rows = _rows.concat(_pg.data);
+      _pageLen = _pg.data.length;
+      _pages++;
     }
     if (_rows.length > 0) {
       var _raw = _rows.map(function(d) {
@@ -3100,13 +3104,23 @@ function _afterLoad() {
           // images (gallery) intentionally NOT loaded in bulk — openDrawer fetches them on demand.
         };
       });
-      // Dedup color/size variants: keep one per base name. Highest discount wins,
-      // but never let a plain deal knock out a promo-code one (codes are the draw).
+      // Dedup color/size variants: keep one per base name. A FEATURED deal always survives
+      // (repeats relist under a new id — if Erik features the new listing, the older sibling
+      // must not swallow it, or the pin silently no-ops). Then: promo-code deals beat plain
+      // ones (codes are the draw), and highest discount wins.
+      var _featIds = {};
+      try {
+        (PINNED || []).forEach(function (id) { _featIds[String(id)] = 1; });
+        if (PINNED_BY_DAY) Object.keys(PINNED_BY_DAY).forEach(function (k) { (PINNED_BY_DAY[k] || []).forEach(function (id) { _featIds[String(id)] = 1; }); });
+      } catch (e) {}
       var _bestByKey = {};
       _raw.forEach(function(p) {
         var key = _baseNameKey(p.name);
         var cur = _bestByKey[key];
         if (!cur) { _bestByKey[key] = p; return; }
+        var pFeat = !!_featIds[p.id], curFeat = !!_featIds[cur.id];
+        if (pFeat && !curFeat) { _bestByKey[key] = p; return; }
+        if (!pFeat && curFeat) return;
         var pPromo = !!(p.code && p.code.trim()), curPromo = !!(cur.code && cur.code.trim());
         if (pPromo && !curPromo) { _bestByKey[key] = p; return; }
         if (!pPromo && curPromo) return;
