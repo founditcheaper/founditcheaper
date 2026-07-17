@@ -26,6 +26,9 @@ exports.handler = async function (event) {
   if (body.hideTopPicks != null) updates.push(['hide_top_picks', body.hideTopPicks ? '1' : '0']);
   // Site display: hide the "We found X deals" bar so the page opens straight to All Deals.
   if (body.hideDealsBanner != null) updates.push(['hide_deals_banner', body.hideDealsBanner ? '1' : '0']);
+  // Whole-site layout: 'bio' serves the link-in-bio layout to everyone; anything else = the
+  // normal deals layout. Backup switch — only ever 'bio' or 'default'.
+  if (body.siteLayout != null) updates.push(['site_layout', body.siteLayout === 'bio' ? 'bio' : 'default']);
   // Featured placements, ordered deal ids pinned to the top of All Deals (max 10, deduped).
   if (body.pinnedDeals != null) {
     const arr = Array.isArray(body.pinnedDeals) ? body.pinnedDeals : [];

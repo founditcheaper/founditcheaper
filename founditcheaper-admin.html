@@ -608,6 +608,14 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
           <label class="switch"><input type="checkbox" id="bannerEnabled" onchange="setBannerEnabled(this.checked)"><span class="switch-slider"></span></label>
         </div>
       </div>
+      <div class="settings-card" style="border-color:rgba(245,200,66,0.35)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+          <div><div class="settings-title" style="margin-bottom:2px">Link-in-bio layout <span style="font-size:10px;font-weight:800;color:#0a1f33;background:var(--accent);padding:2px 7px;border-radius:999px;letter-spacing:.5px;vertical-align:middle">BACKUP</span></div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.6"><strong>Off</strong> = the normal deals site (current). <strong>On</strong> = the whole site switches to the simple link-in-bio layout (profile, tiles, day folders) for <strong>everyone</strong>. This is a backup layout — leave it off unless you want to flip the entire site over. You can always preview it first at <span style="color:var(--accent)">founditcheaper.net/?v=bio</span>.</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="bioLayoutEnabled" onchange="setBioLayout(this.checked)"><span class="switch-slider"></span></label>
+        </div>
+      </div>
     </div>
 
     <!-- TAB: FEATURED — the live All Deals grid with a Feature button on each card -->
@@ -2146,6 +2154,7 @@ async function loadSettings() {
     applyTabVisibility();
     if (_pcDeals && _pcDeals.length) renderPromoCodeDeals();   // reflect the flag on already-rendered cards
     if (document.getElementById('bannerEnabled')) document.getElementById('bannerEnabled').checked = (m.hide_deals_banner !== '1');   // ON = bar shown
+    if (document.getElementById('bioLayoutEnabled')) document.getElementById('bioLayoutEnabled').checked = (m.site_layout === 'bio');   // ON = whole site is bio layout
     // Featured deals are date-scoped. Load featured_by_day; if only the legacy flat list exists,
     // migrate it into today's bucket so nothing is lost.
     try {
@@ -2662,6 +2671,17 @@ async function saveHideBanner(on) {
     var res = await fetch('/.netlify/functions/save-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, hideDealsBanner: !!on }) });
     var d = await res.json();
     showToast(d.ok ? (on ? '"We found X deals" bar hidden' : 'Deals bar showing again') : 'Save failed' + (d.error ? ': ' + d.error : ''));
+  } catch (e) { showToast('Network error'); }
+}
+// Whole-site layout switch. On = serve the link-in-bio layout to everyone; off = normal site.
+async function setBioLayout(on) {
+  if (on && !confirm('Switch the ENTIRE live site to the link-in-bio layout for every visitor? (You can flip this back off anytime.)')) {
+    var el = document.getElementById('bioLayoutEnabled'); if (el) el.checked = false; return;
+  }
+  try {
+    var res = await fetch('/.netlify/functions/save-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: sessionPass, siteLayout: on ? 'bio' : 'default' }) });
+    var d = await res.json();
+    showToast(d.ok ? (on ? 'Site switched to the link-in-bio layout' : 'Site back to the normal layout') : 'Save failed' + (d.error ? ': ' + d.error : ''));
   } catch (e) { showToast('Network error'); }
 }
 async function generatePicksNow() {
