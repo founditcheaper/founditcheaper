@@ -1314,24 +1314,29 @@ function _dealById(id) { id = String(id); for (var i = 0; i < _pcDeals.length; i
 function renderPinPanel() {
   var els = document.querySelectorAll('.pin-panel'); if (!els.length) return;
   var head = '<div style="font-weight:800;color:#f5c842;font-size:13px;margin-bottom:2px">📌 Featured for ' + _featureDate + '</div>'
-    + '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">These show at the very top of the site ONLY on ' + _featureDate + ', in this order. Type a spot number and press Enter to jump a deal there, or use the arrows. Change the date above to feature for a different day.</div>';
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">These show at the very top of the site ONLY on ' + _featureDate + ', in this order. To reorder, type a spot number in the box and press Enter (or click Move). Change the date above to feature for a different day.</div>';
   var body;
   if (!_pinned.length) { body = '<div style="font-size:12px;color:var(--muted)">Nothing featured — the site shows all deals in their natural order.</div>'; els.forEach(function (el) { el.innerHTML = head + body; }); return; }
   var rows = _pinned.map(function (id, i) {
     var d = _dealById(id);
     var img = (d && d.img) ? '<img src="' + d.img + '" style="width:34px;height:34px;object-fit:contain;background:#fff;border-radius:5px;flex-shrink:0" onerror="this.style.display=\'none\'">' : '';
     var name = d ? d.name : 'Deal #' + id + ' (not on this list)';
-    var up = i > 0 ? '<button class="abtn" style="width:auto;padding:5px 9px" onclick="moveFeatured(' + i + ',-1)" title="Move up">▲</button>' : '';
-    var dn = i < _pinned.length - 1 ? '<button class="abtn" style="width:auto;padding:5px 9px" onclick="moveFeatured(' + i + ',1)" title="Move down">▼</button>' : '';
-    var spot = '<input type="number" min="1" max="' + _pinned.length + '" value="' + (i + 1) + '"'
-      + ' onchange="jumpFeatured(' + i + ', this.value)" onkeydown="if(event.key===\'Enter\'){this.blur();}" onclick="this.select()"'
-      + ' title="Type a spot and press Enter to move this deal there"'
-      + ' style="width:40px;flex-shrink:0;text-align:center;font-weight:900;color:#f5c842;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.35);border-radius:6px;padding:5px 2px;font-family:Inter,sans-serif;font-size:13px;-moz-appearance:textfield">';
-    return '<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid rgba(255,255,255,0.07)">'
+    // Spot number box + a clean "Move" button (replaced the old ▲▼ arrows). Type a spot,
+    // then press Enter or click Move. onmousedown/preventDefault keeps the typed value from
+    // being lost to a blur before the click reads it.
+    var spot = '<div style="display:flex;align-items:center;gap:5px;flex-shrink:0">'
+      + '<input type="number" min="1" max="' + _pinned.length + '" value="' + (i + 1) + '"'
+      + ' onkeydown="if(event.key===\'Enter\'){jumpFeatured(' + i + ', this.value)}" onclick="this.select()"'
+      + ' title="Type a spot, then Enter or Move"'
+      + ' style="width:42px;text-align:center;font-weight:900;color:#f5c842;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.35);border-radius:6px;padding:6px 2px;font-family:Inter,sans-serif;font-size:13px;-moz-appearance:textfield">'
+      + '<button onmousedown="event.preventDefault()" onclick="jumpFeatured(' + i + ', this.previousElementSibling.value)"'
+      + ' title="Move to the typed spot"'
+      + ' style="cursor:pointer;padding:6px 12px;border-radius:6px;border:1px solid rgba(245,200,66,0.45);background:rgba(245,200,66,0.14);color:#f5c842;font-family:Inter,sans-serif;font-size:12px;font-weight:800">Move</button>'
+      + '</div>';
+    return '<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid rgba(255,255,255,0.07)">'
       + spot + img
       + '<div style="flex:1;min-width:0;font-size:13px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</div>'
-      + '<div style="display:flex;gap:5px;flex-shrink:0">' + up + dn
-      + '<button class="abtn abtn-red" style="width:auto;padding:5px 9px" onclick="unfeatureDeal(\'' + id + '\')" title="Remove from featured">✕</button></div></div>';
+      + '<button class="abtn abtn-red" style="width:auto;padding:6px 10px;flex-shrink:0" onclick="unfeatureDeal(\'' + id + '\')" title="Remove from featured">✕</button></div>';
   }).join('');
   els.forEach(function (el) { el.innerHTML = head + rows; });
 }
