@@ -1113,6 +1113,17 @@ var BIO_MODE = (_vparam.toLowerCase() === 'bio') && !EMBED;
 var BIO_CAP_PER_DAY = 20;   // 20 deals per day folder
 var BIO_MAX_DAYS = 5;       // the 5 most recent dates, one folder each
 var _bioSearching = false;
+
+// ── INSTANT / fast-featured landing (?v=instant) ──────────────────────────────
+// Kills the loading wait: on landing we fetch ONLY the ~20 featured deals (one tiny
+// Supabase query) and paint them right away, instead of pulling all ~9k deals first.
+// "See more deals" at the bottom then loads the full catalog on demand. Compliant —
+// data is still fetched live client-side (never baked into the crawlable HTML, which
+// Amazon's license forbids). Rides on the SIMPLE_MODE render path (Amazon-first curated
+// view + the "See more" continuation), just with lazy data loading.
+var INSTANT_MODE = (_vparam.toLowerCase() === 'instant') && !EMBED;
+var INSTANT_CAP = 20;
+var _instantFullLoaded = false;
 function postEmbedHeight() {
   if (!EMBED) return;
   // Measure the visible section's CONTENT height (picks carousel or deals grid), NOT the
@@ -2055,7 +2066,10 @@ function getFiltered() {
     if (state.store === '__other__') { if (KNOWN_STORES[p.store]) return false; }
     else if (state.store !== 'all' && p.store !== state.store) return false;
     if (state.category !== 'all' && p.category !== state.category) return false;
-    if (state.dateAdded !== 'all' && p.addedDay !== state.dateAdded) return false;
+    // INSTANT mode pre-scopes its fetch (today's featured + top-up), and "See more" browses
+    // every day — so skip the per-day filter here. state.dateAdded stays 'today' only so the
+    // featured pins resolve (applyPins keys off it); the pill still reads today's date.
+    if (state.dateAdded !== 'all' && !INSTANT_MODE && p.addedDay !== state.dateAdded) return false;
     if (p.off < state.minDiscount) return false;
     if (state_minPrice > 0 && p.price < state_minPrice) return false;
     if (state.maxPrice > 0 && p.price > state.maxPrice) return false;
@@ -2491,7 +2505,9 @@ function loadMore(fromFilter) {
     grid.insertAdjacentHTML('beforeend', html);
     page++; loading = false;
     if (page * PAGE_SIZE >= filtered.length) {
-      document.getElementById('endMsg').classList.add('visible');
+      // In the curated top view the "See more deals" tile is the CTA, so don't also show the
+      // contradictory "you've seen all the deals" end message.
+      if (!(SIMPLE_MODE && !simpleExpanded)) document.getElementById('endMsg').classList.add('visible');
       if (SIMPLE_MODE && !simpleExpanded) showSimpleMore();   // curated view ended → offer the full list
     }
     else if (!EMBED_GRID) requestAnimationFrame(maybeFillViewport);   // keep filling while the sentinel is still near the fold
@@ -2531,8 +2547,19 @@ function showSimpleMore() {
   b.innerHTML = 'See more deals &nbsp;&darr;<div class="sub">other stores, categories &amp; the full list</div>';
   g.appendChild(b);
 }
-function simpleSeeMore() {
+async function simpleSeeMore() {
   if (simpleExpanded) return;
+  // INSTANT mode only fetched the ~20 featured deals up front. "See more" is where the full
+  // catalog finally loads — do it now (once), then expand into the full filterable grid.
+  if (INSTANT_MODE && !_instantFullLoaded) {
+    var _t = document.getElementById('simpleMore');
+    if (_t) _t.innerHTML = 'Loading all deals &hellip;<div class="sub">pulling the full list</div>';
+    try {
+      var _all = await _fetchAllDeals();
+      if (_all && _all.length) { allProducts = _dedupFeaturedAware(_all.map(_mapDealRow)); buildRepeatIndex(); }
+    } catch (e) {}
+    _instantFullLoaded = true;
+  }
   simpleExpanded = true;
   var tile = document.getElementById('simpleMore'); if (tile) tile.remove();
   var topGrid = document.getElementById('productGrid');      // the fixed top 25, left untouched
@@ -2963,6 +2990,116 @@ function _afterLoad() {
   }
 }
 
+// Columns the grid/cards/filters/sort use — shared by the main load and the instant path.
+// NOT select('*'): halves egress (the big `images` gallery loads lazily in openDrawer) and
+// keeps internal/PII columns (submitter_email, flag_reason, …) off every visitor.
+var _DEAL_COLS = 'id,name,store,category,brand,brand_name,price,was,off,rating,reviews,img,url,first_seen,created_at,active_date,code,verified_low,ends_at,price_checked_at,price_unavailable';
+
+// One raw Supabase row → the deal object the grid/cards use.
+function _mapDealRow(d) {
+  return {
+    id: String(d.id), name: d.name, store: d.store, category: d.category || 'General',
+    brand: d.brand, brandName: d.brand_name || '', price: d.price, was: d.was,
+    off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
+    rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
+    found: formatFound(d.first_seen || d.created_at, d.active_date), addedDay: _addedDayOf(d), code: d.code || null,
+    priceCheckedAt: d.price_checked_at || d.created_at || d.first_seen, priceUnavailable: !!d.price_unavailable,
+    _ts: (function(){ var t = d.first_seen || d.created_at || d.active_date; var n = t ? new Date(t).getTime() : 0; return isNaN(n) ? 0 : n; })(),
+    verifiedLow: !!d.verified_low, endsAt: d.ends_at || null, _jit: Math.random()
+  };
+}
+// Dedup color/size variants to one survivor per base name. A FEATURED deal always survives
+// (repeats relist under a new id; the newly-featured listing must not be swallowed by an older
+// sibling or the pin no-ops). Then promo-code deals beat plain ones, and highest discount wins.
+function _dedupFeaturedAware(raw) {
+  var featIds = {};
+  try {
+    (PINNED || []).forEach(function (id) { featIds[String(id)] = 1; });
+    if (PINNED_BY_DAY) Object.keys(PINNED_BY_DAY).forEach(function (k) { (PINNED_BY_DAY[k] || []).forEach(function (id) { featIds[String(id)] = 1; }); });
+  } catch (e) {}
+  var best = {};
+  raw.forEach(function (p) {
+    var key = _baseNameKey(p.name), cur = best[key];
+    if (!cur) { best[key] = p; return; }
+    var pFeat = !!featIds[p.id], curFeat = !!featIds[cur.id];
+    if (pFeat && !curFeat) { best[key] = p; return; }
+    if (!pFeat && curFeat) return;
+    var pPromo = !!(p.code && p.code.trim()), curPromo = !!(cur.code && cur.code.trim());
+    if (pPromo && !curPromo) { best[key] = p; return; }
+    if (!pPromo && curPromo) return;
+    if (p.off > cur.off) best[key] = p;
+  });
+  return Object.values(best);
+}
+// Keyset page of grid deals (is_top_pick=false), id cursor — see the note in loadFromSupabase.
+function _gridPageG(afterId, useReview) {
+  var q = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', false);
+  if (useReview) q = q.eq('review_status', 'live');
+  if (afterId != null) q = q.gt('id', afterId);
+  return q.order('id', { ascending: true }).limit(1000);
+}
+// Fetch the WHOLE grid catalog (all pages). Used by "See more deals" in instant mode.
+async function _fetchAllDeals() {
+  var useReview = true, res = await _gridPageG(null, true);
+  if (res && res.error) { useReview = false; res = await _gridPageG(null, false); }
+  var rows = (res && res.data) ? res.data.slice() : [];
+  var len = rows.length, pages = 1;
+  while (len === 1000 && pages < 40) {
+    var pg = await _gridPageG(rows[rows.length - 1].id, useReview);
+    if (pg.error || !pg.data || pg.data.length === 0) break;
+    rows = rows.concat(pg.data); len = pg.data.length; pages++;
+  }
+  return rows;
+}
+var _CENTRAL_TODAY = function () { try { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); } catch (e) { return null; } };
+// INSTANT landing: fetch only the ~20 featured deals and paint immediately; the full catalog
+// loads later via "See more deals". Rides the SIMPLE_MODE render path for the curated look.
+async function initInstant() {
+  document.body.classList.add('simple-mode');
+  SIMPLE_MODE = true;   // reuse the Amazon-first curated view + "See more" continuation
+  // 1) settings we need up front (featured list + banner flag)
+  try {
+    var s = await _sb.from('settings').select('key,value').in('key', ['featured_by_day', 'pinned_deals', 'hide_deals_banner', 'top_value_order']);
+    if (s && s.data) s.data.forEach(function (r) {
+      if (r.key === 'featured_by_day') { try { var fb = JSON.parse(r.value || '{}'); if (fb && typeof fb === 'object' && !Array.isArray(fb)) { PINNED_BY_DAY = {}; Object.keys(fb).forEach(function (k) { if (Array.isArray(fb[k])) PINNED_BY_DAY[k] = fb[k].map(String); }); } } catch (e) {} }
+      else if (r.key === 'pinned_deals') { try { var pa = JSON.parse(r.value || '[]'); if (Array.isArray(pa)) PINNED = pa.map(String); } catch (e) {} }
+      else if (r.key === 'hide_deals_banner' && r.value === '1') HIDE_BANNER = true;
+      else if (r.key === 'top_value_order') { try { var tv = JSON.parse(r.value || '[]'); if (Array.isArray(tv)) DAILY_TOP = tv.map(String); } catch (e) {} }
+    });
+  } catch (e) {}
+  // 2) today's featured ids, then fetch those rows + a small Amazon top-up to reach ~20
+  var today = _CENTRAL_TODAY();
+  var featIds = (PINNED_BY_DAY && today && Array.isArray(PINNED_BY_DAY[today])) ? PINNED_BY_DAY[today].slice() : [];
+  // Source: today's featured pins + the server's curated Top-Value set (DAILY_TOP) + a recent
+  // Amazon pool as backstop. Order the pool by RECENCY, not discount — "highest discount first"
+  // front-loads no-name junk that the Remove-Inflated filter then culls (only ~20% survive),
+  // whereas recent deals survive the cull ~1:1. getFiltered then value-sorts and slices.
+  var _idSet = {};
+  featIds.forEach(function (id) { _idSet[String(id)] = 1; });
+  (DAILY_TOP || []).forEach(function (id) { _idSet[String(id)] = 1; });
+  var _ids = Object.keys(_idSet);
+  var rows = [];
+  try {
+    if (_ids.length) { var ir = await _sb.from('deals').select(_DEAL_COLS).in('id', _ids); if (ir && ir.data) rows = ir.data.slice(); }
+    var pq = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', false).eq('review_status', 'live').eq('store', 'Amazon');
+    var pr = await pq.order('created_at', { ascending: false }).limit(90);
+    if (pr && pr.error) { pr = await _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', false).eq('store', 'Amazon').order('created_at', { ascending: false }).limit(90); }
+    if (pr && pr.data) rows = rows.concat(pr.data);
+  } catch (e) {}
+  allProducts = _dedupFeaturedAware(rows.map(_mapDealRow));
+  // 3) Amazon-first, today
+  state.store = 'Amazon';
+  if (today && allProducts.some(function (p) { return p.addedDay === today; })) {
+    state.dateAdded = today;
+    state.dateLabel = (function () { try { return new Date(today + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch (e) { return today; } })();
+  } else { applyDefaultDate(); }
+  buildRepeatIndex();
+  var _seo = document.getElementById('seoDeals'); if (_seo && _seo.parentNode) _seo.parentNode.removeChild(_seo);
+  resetAndRender();     // SIMPLE path shows up to SIMPLE_CAP and appends the "See more deals" tile
+  fadeIntroOut();
+  try { updateDealsBanner(); } catch (e) {}
+}
+
 // Load picks (is_top_pick=true) and grid deals (is_top_pick=false) in parallel
 (async function loadFromSupabase() {
   if (SUPABASE_URL === 'YOUR_SUPABASE_URL') { _afterLoad(); return; }
@@ -2988,13 +3125,12 @@ function _afterLoad() {
     else _openShared();
   }
 
-  // Only the columns the grid/cards/filters/sort actually use — NOT select('*'). This roughly
-  // halves egress (the big `images` gallery column is loaded lazily when a deal is opened, see
-  // openDrawer) and stops shipping internal/PII columns (submitter_email, flag_reason, etc.) to
-  // every visitor.
-  var _DEAL_COLS = 'id,name,store,category,brand,brand_name,price,was,off,rating,reviews,img,url,first_seen,created_at,active_date,code,verified_low,ends_at,price_checked_at,price_unavailable';
+  // INSTANT landing (?v=instant): paint ~20 featured deals from a tiny query and stop here —
+  // the heavy full-catalog pull below is skipped until the visitor clicks "See more deals".
+  if (INSTANT_MODE) { await initInstant(); return; }
 
-  // Separate queries — no JS deduplication needed
+  // _DEAL_COLS + _gridPageG (keyset paging) are defined at top level and shared with the
+  // instant path. The picks query uses the same column set.
   var picksPromise = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', true)
                        .order('active_date', { ascending: false }).order('rank');
   // Grid page fetch — KEYSET pagination on id (unique + stable). Supabase caps each query
@@ -3094,44 +3230,8 @@ function _afterLoad() {
       _pages++;
     }
     if (_rows.length > 0) {
-      var _raw = _rows.map(function(d) {
-        return {
-          id: String(d.id), name: d.name, store: d.store, category: d.category || 'General',
-          brand: d.brand, brandName: d.brand_name || '', price: d.price, was: d.was,
-          off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
-          rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
-          found: formatFound(d.first_seen || d.created_at, d.active_date), addedDay: _addedDayOf(d), code: d.code || null,
-          priceCheckedAt: d.price_checked_at || d.created_at || d.first_seen, priceUnavailable: !!d.price_unavailable,
-          _ts: (function(){ var t = d.first_seen || d.created_at || d.active_date; var n = t ? new Date(t).getTime() : 0; return isNaN(n) ? 0 : n; })(),  // for the "newest" sort
-          verifiedLow: !!d.verified_low,   // at/near its 30-day low (set by the price-tracking job)
-          endsAt: d.ends_at || null,       // seller-set expiry — deal is hidden once this passes
-          _jit: Math.random(),   // stable per-load jitter so the Top Value sort interleaves stores
-          // images (gallery) intentionally NOT loaded in bulk — openDrawer fetches them on demand.
-        };
-      });
-      // Dedup color/size variants: keep one per base name. A FEATURED deal always survives
-      // (repeats relist under a new id — if Erik features the new listing, the older sibling
-      // must not swallow it, or the pin silently no-ops). Then: promo-code deals beat plain
-      // ones (codes are the draw), and highest discount wins.
-      var _featIds = {};
-      try {
-        (PINNED || []).forEach(function (id) { _featIds[String(id)] = 1; });
-        if (PINNED_BY_DAY) Object.keys(PINNED_BY_DAY).forEach(function (k) { (PINNED_BY_DAY[k] || []).forEach(function (id) { _featIds[String(id)] = 1; }); });
-      } catch (e) {}
-      var _bestByKey = {};
-      _raw.forEach(function(p) {
-        var key = _baseNameKey(p.name);
-        var cur = _bestByKey[key];
-        if (!cur) { _bestByKey[key] = p; return; }
-        var pFeat = !!_featIds[p.id], curFeat = !!_featIds[cur.id];
-        if (pFeat && !curFeat) { _bestByKey[key] = p; return; }
-        if (!pFeat && curFeat) return;
-        var pPromo = !!(p.code && p.code.trim()), curPromo = !!(cur.code && cur.code.trim());
-        if (pPromo && !curPromo) { _bestByKey[key] = p; return; }
-        if (!pPromo && curPromo) return;
-        if (p.off > cur.off) _bestByKey[key] = p;
-      });
-      allProducts = Object.values(_bestByKey);
+      // Map rows → deal objects and dedup variants (featured survive) — shared helpers.
+      allProducts = _dedupFeaturedAware(_rows.map(_mapDealRow));
     }
   } catch (e) {}
 
