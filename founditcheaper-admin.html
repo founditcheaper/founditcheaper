@@ -1314,7 +1314,7 @@ function _dealById(id) { id = String(id); for (var i = 0; i < _pcDeals.length; i
 function renderPinPanel() {
   var els = document.querySelectorAll('.pin-panel'); if (!els.length) return;
   var head = '<div style="font-weight:800;color:#f5c842;font-size:13px;margin-bottom:2px">📌 Featured for ' + _featureDate + '</div>'
-    + '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">These show at the very top of the site ONLY on ' + _featureDate + ', in this order. Change the date above to feature for a different day. Up to 10.</div>';
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">These show at the very top of the site ONLY on ' + _featureDate + ', in this order. Type a spot number and press Enter to jump a deal there, or use the arrows. Change the date above to feature for a different day.</div>';
   var body;
   if (!_pinned.length) { body = '<div style="font-size:12px;color:var(--muted)">Nothing featured — the site shows all deals in their natural order.</div>'; els.forEach(function (el) { el.innerHTML = head + body; }); return; }
   var rows = _pinned.map(function (id, i) {
@@ -1323,8 +1323,12 @@ function renderPinPanel() {
     var name = d ? d.name : 'Deal #' + id + ' (not on this list)';
     var up = i > 0 ? '<button class="abtn" style="width:auto;padding:5px 9px" onclick="moveFeatured(' + i + ',-1)" title="Move up">▲</button>' : '';
     var dn = i < _pinned.length - 1 ? '<button class="abtn" style="width:auto;padding:5px 9px" onclick="moveFeatured(' + i + ',1)" title="Move down">▼</button>' : '';
+    var spot = '<input type="number" min="1" max="' + _pinned.length + '" value="' + (i + 1) + '"'
+      + ' onchange="jumpFeatured(' + i + ', this.value)" onkeydown="if(event.key===\'Enter\'){this.blur();}" onclick="this.select()"'
+      + ' title="Type a spot and press Enter to move this deal there"'
+      + ' style="width:40px;flex-shrink:0;text-align:center;font-weight:900;color:#f5c842;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.35);border-radius:6px;padding:5px 2px;font-family:Inter,sans-serif;font-size:13px;-moz-appearance:textfield">';
     return '<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid rgba(255,255,255,0.07)">'
-      + '<span style="font-weight:900;color:#f5c842;width:20px;flex-shrink:0">' + (i + 1) + '</span>' + img
+      + spot + img
       + '<div style="flex:1;min-width:0;font-size:13px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</div>'
       + '<div style="display:flex;gap:5px;flex-shrink:0">' + up + dn
       + '<button class="abtn abtn-red" style="width:auto;padding:5px 9px" onclick="unfeatureDeal(\'' + id + '\')" title="Remove from featured">✕</button></div></div>';
@@ -1351,6 +1355,20 @@ function moveFeatured(i, dir) {
   var j = i + dir; if (j < 0 || j >= _pinned.length) return;
   var t = _pinned[i]; _pinned[i] = _pinned[j]; _pinned[j] = t;
   savePins(); renderPinPanel(); syncFeatureFrame();
+}
+// Jump the deal at index `from` to a 1-based spot the user typed. Clamps to the list,
+// no-ops (and just re-renders to reset the box) on same-spot or bad input.
+function jumpFeatured(from, toPos) {
+  from = parseInt(from, 10);
+  var n = _pinned.length;
+  var to = parseInt(toPos, 10);
+  if (isNaN(from) || from < 0 || from >= n || isNaN(to)) { renderPinPanel(); return; }
+  to = Math.max(1, Math.min(n, to)) - 1;   // clamp into range, to 0-based
+  if (to === from) { renderPinPanel(); return; }
+  var item = _pinned.splice(from, 1)[0];
+  _pinned.splice(to, 0, item);
+  savePins(); renderPinPanel(); syncFeatureFrame();
+  showToast('Moved to spot ' + (to + 1));
 }
 async function savePins() {
   _pinnedByDay[_featureDate] = _pinned;
