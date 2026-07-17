@@ -1965,7 +1965,10 @@ function deleteItem(idx) {
   renderDeals();
   showToast('Deal removed');
 }
-function removeDeal(idx) { deleteItem(idx); }
+// NOTE: do NOT define a second removeDeal(idx) here. The real remover is the async
+// removeDeal(id, asin, btn) up in the Promo-Codes section — a duplicate name here would
+// hoist over it and silently break the "Remove" button. The Top-Picks card deletes via
+// deleteItem(idx) directly.
 
 function undoRemove() { undoHistory(); }
 
