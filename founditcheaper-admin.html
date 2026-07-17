@@ -173,6 +173,11 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
 .add-brand-input { flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 7px 10px; color: var(--text); font-size: 12px; font-family: 'Inter', sans-serif; outline: none; }
 
 /* TOAST */
+  /* Featured spot-number box: hide the browser's default up/down spinner (rendered as an
+     ugly white block in Chrome/Samsung) in every browser. Reorder via type-a-spot + Enter/Move. */
+  .feat-spot { -webkit-appearance: textfield; -moz-appearance: textfield; appearance: textfield; }
+  .feat-spot::-webkit-outer-spin-button,
+  .feat-spot::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
   .abtn { padding: 14px 8px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: Inter,sans-serif; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.07); color: #fff; text-align: center; display: block; width: 100%; }
   .abtn:active { opacity: 0.75; }
   .abtn-gold { background: rgba(245,200,66,0.12); border-color: rgba(245,200,66,0.35); color: #f5c842; }
@@ -1325,10 +1330,10 @@ function renderPinPanel() {
     // then press Enter or click Move. onmousedown/preventDefault keeps the typed value from
     // being lost to a blur before the click reads it.
     var spot = '<div style="display:flex;align-items:center;gap:5px;flex-shrink:0">'
-      + '<input type="number" min="1" max="' + _pinned.length + '" value="' + (i + 1) + '"'
+      + '<input type="number" min="1" max="' + _pinned.length + '" value="' + (i + 1) + '" class="feat-spot"'
       + ' onkeydown="if(event.key===\'Enter\'){jumpFeatured(' + i + ', this.value)}" onclick="this.select()"'
       + ' title="Type a spot, then Enter or Move"'
-      + ' style="width:42px;text-align:center;font-weight:900;color:#f5c842;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.35);border-radius:6px;padding:6px 2px;font-family:Inter,sans-serif;font-size:13px;-moz-appearance:textfield">'
+      + ' style="width:42px;text-align:center;font-weight:900;color:#f5c842;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.35);border-radius:6px;padding:6px 2px;font-family:Inter,sans-serif;font-size:13px">'
       + '<button onmousedown="event.preventDefault()" onclick="jumpFeatured(' + i + ', this.previousElementSibling.value)"'
       + ' title="Move to the typed spot"'
       + ' style="cursor:pointer;padding:6px 12px;border-radius:6px;border:1px solid rgba(245,200,66,0.45);background:rgba(245,200,66,0.14);color:#f5c842;font-family:Inter,sans-serif;font-size:12px;font-weight:800">Move</button>'
