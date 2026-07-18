@@ -2311,7 +2311,11 @@ function resetAndRender() {
   if (!SIMPLE_MODE) {
     count.textContent = filtered.length + ' deal' + (filtered.length !== 1 ? 's' : '') + ' found';
   } else if (!simpleExpanded) {
-    count.textContent = "Today's Top " + filtered.length + ' ' + (state.store === 'all' ? '' : _prettyStore(state.store) + ' ') + 'Deals';
+    // "Today's" only when the date really is today; a picked past day shows that date instead.
+    var _dPart = (state.dateAdded === 'all') ? ''
+      : (state.dateAdded === _CENTRAL_TODAY() ? "Today's " : ((state.dateLabel || '') + ' '));
+    var _sPart = (state.store === 'all') ? '' : _prettyStore(state.store) + ' ';
+    count.textContent = _dPart + 'Top ' + filtered.length + ' ' + _sPart + 'Deals';
   }
   loadMore(true);
   window.scrollTo(0, savedScroll);
