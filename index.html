@@ -2311,11 +2311,9 @@ function resetAndRender() {
   if (!SIMPLE_MODE) {
     count.textContent = filtered.length + ' deal' + (filtered.length !== 1 ? 's' : '') + ' found';
   } else if (!simpleExpanded) {
-    // "Today's" only when the date really is today; a picked past day shows that date instead.
-    var _dPart = (state.dateAdded === 'all') ? ''
-      : (state.dateAdded === _CENTRAL_TODAY() ? "Today's " : ((state.dateLabel || '') + ' '));
+    // No date in the heading (it changes with the date picker, which read wrong) — just the store.
     var _sPart = (state.store === 'all') ? '' : _prettyStore(state.store) + ' ';
-    count.textContent = _dPart + 'Top ' + filtered.length + ' ' + _sPart + 'Deals';
+    count.textContent = 'Top ' + filtered.length + ' ' + _sPart + 'Deals';
   }
   loadMore(true);
   window.scrollTo(0, savedScroll);
