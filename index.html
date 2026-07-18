@@ -274,7 +274,9 @@
   #fbtnStoreSimple { background: var(--accent); color: #0a1f33; border-color: var(--accent); font-weight: 800; }
   #fbtnStore { display: none; }
   /* bigger heading + no dead space: "All Filters" spans the full width under the two pills */
-  body.simple-mode #resultsCount { font-size: 15.5px; font-weight: 800; color: var(--text); }
+  body.simple-mode #resultsCount { font-weight: 800; color: var(--text); line-height: 1.1; }
+  body.simple-mode #resultsCount .rc-top { display: block; font-size: 20px; }
+  body.simple-mode #resultsCount .rc-sub { display: block; font-size: 20px; }
   #filterPanel:not(.open) #filtersToggle { grid-column: 1 / -1; }
   /* Per-card actions (simple mode): tap card = Amazon; the code chip copies; details = drawer */
   .card-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 9px; }
@@ -2311,9 +2313,9 @@ function resetAndRender() {
   if (!SIMPLE_MODE) {
     count.textContent = filtered.length + ' deal' + (filtered.length !== 1 ? 's' : '') + ' found';
   } else if (!simpleExpanded) {
-    // No date in the heading (it changes with the date picker, which read wrong) — just the store.
+    // Stacked heading: "Top 20" over "<Store> Deals". No date (it read wrong with the picker).
     var _sPart = (state.store === 'all') ? '' : _prettyStore(state.store) + ' ';
-    count.textContent = 'Top ' + filtered.length + ' ' + _sPart + 'Deals';
+    count.innerHTML = '<span class="rc-top">Top ' + filtered.length + '</span><span class="rc-sub">' + _sPart + 'Deals</span>';
   }
   loadMore(true);
   window.scrollTo(0, savedScroll);
