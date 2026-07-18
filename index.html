@@ -3316,6 +3316,7 @@ async function initInstant() {
   state.dateLabel = _fmtDayLabel(effDate);
   buildDateChips(effDate);   // rebuild the day chips starting at the effective day (drop an empty "today")
   buildRepeatIndex();
+  try { await loadGameCardInfo(); } catch (e) {}   // so the in-grid game card shows the LIVE game (the normal load does this; instant returns early and would otherwise show it "not live")
   var _seo = document.getElementById('seoDeals'); if (_seo && _seo.parentNode) _seo.parentNode.removeChild(_seo);
   resetAndRender();     // SIMPLE path shows up to SIMPLE_CAP and appends the "See more deals" tile
   fadeIntroOut();
