@@ -2807,8 +2807,13 @@ function setCategory(el, cat) {
 function buildDateChips() {
   var host = document.getElementById('dateChips');
   if (!host) return;
-  var out = ['<button class="chip active" data-day="all" onclick="setDate(this,\'all\',\'\')">Any time</button>'];
-  for (var i = 0; i < 7; i++) {
+  // Instant view: no "Any time" (loading every day doesn't fit the curated top-20 — that's
+  // what "See more deals" is for) and one extra day so the grid stays even on mobile.
+  var out = [];
+  var days = 7;
+  if (INSTANT_MODE) { days = 8; }
+  else { out.push('<button class="chip active" data-day="all" onclick="setDate(this,\'all\',\'\')">Any time</button>'); }
+  for (var i = 0; i < days; i++) {
     var dt  = new Date(Date.now() - i * 86400000);
     var key = dt.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });   // YYYY-MM-DD
     var lbl = dt.toLocaleDateString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric' });   // e.g. "Jul 5"
