@@ -2614,27 +2614,8 @@ var _instantRescoping = false;
 async function _instantRescope() {
   if (_instantRescoping) return;
   _instantRescoping = true;
-  var store = state.store, date = state.dateAdded;
-  var featIds = (PINNED_BY_DAY && date && date !== 'all' && Array.isArray(PINNED_BY_DAY[date])) ? PINNED_BY_DAY[date].slice() : [];
-  var idSet = {}; featIds.forEach(function (id) { idSet[String(id)] = 1; });
-  if (store === 'Amazon' || store === 'all') (DAILY_TOP || []).forEach(function (id) { idSet[String(id)] = 1; });
-  var ids = Object.keys(idSet);
-  var rows = [];
-  try {
-    if (ids.length) { var ir = await _sb.from('deals').select(_DEAL_COLS).in('id', ids); if (ir && ir.data) rows = ir.data.slice(); }
-    var q = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', false).eq('review_status', 'live');
-    if (store && store !== 'all' && store !== '__other__') q = q.eq('store', store);
-    if (date && date !== 'all') q = q.eq('active_date', date);
-    var pr = await q.order('created_at', { ascending: false }).limit(120);
-    if (pr && pr.error) {
-      var q2 = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', false);
-      if (store && store !== 'all' && store !== '__other__') q2 = q2.eq('store', store);
-      if (date && date !== 'all') q2 = q2.eq('active_date', date);
-      pr = await q2.order('created_at', { ascending: false }).limit(120);
-    }
-    if (pr && pr.data) rows = rows.concat(pr.data);
-  } catch (e) {}
-  if (rows.length) { allProducts = _dedupFeaturedAware(rows.map(_mapDealRow)); buildRepeatIndex(); }
+  var pool = await _instantScopedPool(state.store, state.dateAdded);   // that store+day, Amazon-clean, fresh
+  if (pool && pool.length) { allProducts = pool; buildRepeatIndex(); }
   _instantRescoping = false;
   resetAndRender();
 }
@@ -3176,6 +3157,35 @@ async function _fetchAllDeals() {
   return rows;
 }
 var _CENTRAL_TODAY = function () { try { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); } catch (e) { return null; } };
+// The curated preview pool for a given store + day: that day's featured pins + that day's deals
+// for the store, ordered by recency (not discount — "highest discount first" front-loads the
+// no-name junk the Remove-Inflated filter culls). STRICTLY the chosen store + FRESH prices:
+// a non-Amazon featured pin or a stale (>24h "See price on Amazon") deal doesn't belong in a
+// "Today's Top Amazon Deals" preview, so both are filtered out here (featured filtered too, so
+// applyPins can't sneak an off-store pin past the store filter).
+async function _instantScopedPool(store, date) {
+  var featIds = (PINNED_BY_DAY && date && date !== 'all' && Array.isArray(PINNED_BY_DAY[date])) ? PINNED_BY_DAY[date].slice() : [];
+  var rows = [];
+  try {
+    if (featIds.length) { var ir = await _sb.from('deals').select(_DEAL_COLS).in('id', featIds); if (ir && ir.data) rows = ir.data.slice(); }
+    var q = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', false).eq('review_status', 'live');
+    if (store && store !== 'all' && store !== '__other__') q = q.eq('store', store);
+    if (date && date !== 'all') q = q.eq('active_date', date);
+    var pr = await q.order('created_at', { ascending: false }).limit(150);
+    if (pr && pr.error) {
+      var q2 = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', false);
+      if (store && store !== 'all' && store !== '__other__') q2 = q2.eq('store', store);
+      if (date && date !== 'all') q2 = q2.eq('active_date', date);
+      pr = await q2.order('created_at', { ascending: false }).limit(150);
+    }
+    if (pr && pr.data) rows = rows.concat(pr.data);
+  } catch (e) {}
+  return _dedupFeaturedAware(rows.map(_mapDealRow)).filter(function (p) {
+    if (store && store !== 'all' && store !== '__other__' && p.store !== store) return false;
+    if (_priceStale(p)) return false;   // no >24h / "See price on Amazon" items in the curated preview
+    return true;
+  });
+}
 // INSTANT landing: fetch only the ~20 featured deals and paint immediately; the full catalog
 // loads later via "See more deals". Rides the SIMPLE_MODE render path for the curated look.
 async function initInstant() {
@@ -3192,26 +3202,9 @@ async function initInstant() {
       else if (r.key === 'top_value_order') { try { var tv = JSON.parse(r.value || '[]'); if (Array.isArray(tv)) DAILY_TOP = tv.map(String); } catch (e) {} }
     });
   } catch (e) {}
-  // 2) today's featured ids, then fetch those rows + a small Amazon top-up to reach ~20
+  // 2) today's Amazon curated pool (featured + autofill, Amazon-only, fresh prices)
   var today = _CENTRAL_TODAY();
-  var featIds = (PINNED_BY_DAY && today && Array.isArray(PINNED_BY_DAY[today])) ? PINNED_BY_DAY[today].slice() : [];
-  // Source: today's featured pins + the server's curated Top-Value set (DAILY_TOP) + a recent
-  // Amazon pool as backstop. Order the pool by RECENCY, not discount — "highest discount first"
-  // front-loads no-name junk that the Remove-Inflated filter then culls (only ~20% survive),
-  // whereas recent deals survive the cull ~1:1. getFiltered then value-sorts and slices.
-  var _idSet = {};
-  featIds.forEach(function (id) { _idSet[String(id)] = 1; });
-  (DAILY_TOP || []).forEach(function (id) { _idSet[String(id)] = 1; });
-  var _ids = Object.keys(_idSet);
-  var rows = [];
-  try {
-    if (_ids.length) { var ir = await _sb.from('deals').select(_DEAL_COLS).in('id', _ids); if (ir && ir.data) rows = ir.data.slice(); }
-    var pq = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', false).eq('review_status', 'live').eq('store', 'Amazon');
-    var pr = await pq.order('created_at', { ascending: false }).limit(90);
-    if (pr && pr.error) { pr = await _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', false).eq('store', 'Amazon').order('created_at', { ascending: false }).limit(90); }
-    if (pr && pr.data) rows = rows.concat(pr.data);
-  } catch (e) {}
-  allProducts = _dedupFeaturedAware(rows.map(_mapDealRow));
+  allProducts = await _instantScopedPool('Amazon', today);
   // 3) Amazon-first, today
   state.store = 'Amazon';
   if (today && allProducts.some(function (p) { return p.addedDay === today; })) {
