@@ -286,6 +286,10 @@
   .code-copy-row.copied .code-copy-tag { color: #0a1f33; background: #4ade80; }
   .card-details { width: 100%; padding: 7px 6px; background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid rgba(255,255,255,0.16); border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; }
   .card-details:hover { background: rgba(255,255,255,0.1); }
+  .card-share { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 6px; background: rgba(255,255,255,0.06); color: var(--text-soft); border: 1px solid rgba(255,255,255,0.16); border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; }
+  .card-share svg { width: 13px; height: 13px; }
+  .card-share:hover { background: rgba(255,255,255,0.1); }
+  .card-share.shared { background: rgba(74,222,128,.16); border-color: rgba(74,222,128,.5); color: #4ade80; }
   #simpleMore { grid-column: 1 / -1; margin: 14px 4px 30px; padding: 16px; text-align: center; background: linear-gradient(180deg,#132844,#0d2036); border: 1px solid rgba(245,200,66,0.45); border-radius: 12px; color: var(--accent); font-weight: 800; font-size: 15px; cursor: pointer; font-family: 'Inter', sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
   #simpleMore .sub { font-size: 11px; font-weight: 600; color: #9fb2c9; margin-top: 4px; }
   @keyframes ficFilterPulse {
@@ -1516,6 +1520,19 @@ function _goDeal(id, e) {
   var url = _dealOutLink(p);
   try { window.open(url, '_blank', 'noopener'); } catch (_) { window.location.href = url; }
 }
+// Share a card's deal: the ?deal= link opens the deal CARD for whoever receives it. On mobile
+// this opens the native share sheet (pick Facebook, Messages, …); on desktop it copies the link.
+function _shareCardDeal(id, el) {
+  var url = window.location.origin + window.location.pathname + '?deal=' + id;   // pathname is "/", so no ?v= flag rides along
+  if (navigator.share) { navigator.share({ url: url }).catch(function () {}); return; }
+  var done = function () {
+    var orig = el.innerHTML; el.classList.add('shared'); el.innerHTML = '✓ Link copied';
+    setTimeout(function () { el.classList.remove('shared'); el.innerHTML = orig; }, 1600);
+  };
+  (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(done).catch(function () {
+    try { var t = document.createElement('textarea'); t.value = url; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); done(); } catch (e2) {}
+  });
+}
 // Tap-to-copy on the card's code chip: copy, flash the "Copy" tag to "✓ Copied", then restore.
 // The code value itself stays visible the whole time.
 function _copyCode2(code, el) {
@@ -2166,9 +2183,12 @@ function cardHtml(p) {
   var storeNames = { 'Amazon':'Amazon', 'Walmart':'Walmart', 'HomeDepot':'Home Depot', 'BestBuy':'Best Buy', 'Lowes':"Lowe's", 'Nike':'Nike', 'Academy':'Academy' };
   var sName = storeNames[p.store] || p.store;
 
-  // Simple mode: a card TAP goes straight to Amazon (cookies the shopper); the drawer with full
-  // details/share is reached via the "See full details" button instead. Elsewhere, tap = drawer.
-  var _cardClick = SIMPLE_MODE ? ('_goDeal(\'' + p.id + '\',event)') : ('openDrawer(\'' + p.id + '\')');
+  // Simple/instant mode: a PROMO-code card taps open the deal card (so they can see + copy the
+  // code before buying); a plain card taps straight to Amazon (cookies the shopper — no card
+  // needed). Everywhere else, tap = drawer.
+  var _cardClick = SIMPLE_MODE
+    ? (p.code ? ('openDrawer(\'' + p.id + '\')') : ('_goDeal(\'' + p.id + '\',event)'))
+    : ('openDrawer(\'' + p.id + '\')');
   var html = '<div class="product-card" data-id="' + p.id + '" onclick="' + _cardClick + '" style="cursor:pointer">';
 
   // Image first with store badge overlaid top-left
@@ -2194,7 +2214,11 @@ function cardHtml(p) {
   }
   html += _cardPriceBlock(p);
   if (SIMPLE_MODE) {
-    html += '<div class="card-actions"><button type="button" class="card-details" onclick="event.stopPropagation();openDrawer(\'' + p.id + '\')">See full details</button></div>';
+    // Every card gets a small Share control (grab/send the ?deal= link). Promo cards already
+    // open the full card on tap; plain cards tap through to Amazon, so this is their only
+    // path to a shareable link.
+    html += '<div class="card-actions"><button type="button" class="card-share" onclick="event.stopPropagation();_shareCardDeal(\'' + p.id + '\',this)" title="Share this deal">'
+      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>Share</button></div>';
   }
   if (EMBED_FEATURE) html += ficFeatBtn(p);   // admin Featured tab: per-card Feature button
   html += '</div></div>';
@@ -3057,6 +3081,7 @@ var _CENTRAL_TODAY = function () { try { return new Date().toLocaleDateString('e
 async function initInstant() {
   document.body.classList.add('simple-mode');
   SIMPLE_MODE = true;   // reuse the Amazon-first curated view + "See more" continuation
+  SIMPLE_CAP = INSTANT_CAP;   // show an even 20 (not 25) so the 2-column grid ends flush
   // 1) settings we need up front (featured list + banner flag)
   try {
     var s = await _sb.from('settings').select('key,value').in('key', ['featured_by_day', 'pinned_deals', 'hide_deals_banner', 'top_value_order']);
