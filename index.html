@@ -3009,6 +3009,10 @@ function updateFilterBars() {
   // SIMPLE mode: the store pill (replaces the date pill) shows the current store by name.
   var sslabel = document.getElementById('fbtnStoreSimpleLabel');
   if (sslabel) sslabel.textContent = (state.store === 'all') ? 'All Stores' : _prettyStore(state.store);
+  // Keep the dropdown CHIPS' highlighted option in sync with the real filter, so opening the
+  // Date/Store dropdown shows what's actually selected (e.g. "Jul 17"), not the default chip.
+  document.querySelectorAll('#dateChips .chip').forEach(function (c) { c.classList.toggle('active', c.getAttribute('data-day') === state.dateAdded); });
+  document.querySelectorAll('#storeChips .chip').forEach(function (c) { c.classList.toggle('active', c.getAttribute('data-store') === state.store); });
 }
 function _prettyStore(s) { return ({ HomeDepot: 'Home Depot', BestBuy: 'Best Buy', Lowes: "Lowe's", __other__: 'More stores' })[s] || s; }
 // Small summary of what's currently filtered + how many deals matched.
