@@ -818,8 +818,8 @@ body.bio-mode #bioRoot { display:block !important; }
   <div class="header-row2">
     <div class="header-search-wrap">
       <div class="header-search-inner">
-        <svg style="width:14px;height:14px;color:var(--muted);flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="searchInput" class="header-search-input" placeholder="Search deals, brands, products…" oninput="updateSearch(this.value)">
+        <svg onclick="submitSearch(document.getElementById('searchInput').value)" style="width:14px;height:14px;color:var(--muted);flex-shrink:0;cursor:pointer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" class="header-search-input" placeholder="Search deals, brands, products…" oninput="_searchTyping(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();submitSearch(this.value)}">
         <button class="search-clear" id="searchClear" onclick="clearSearch()" style="display:none">✕</button>
       </div>
     </div>
@@ -2234,10 +2234,11 @@ function cardHtml(p) {
     html += '<div class="code-row"><span class="code-label">CODE</span><span class="code-value">' + _fesc(p.code) + '</span></div>';
   }
   html += _cardPriceBlock(p);
-  if (SIMPLE_MODE) {
+  if (SIMPLE_MODE || INSTANT_MODE) {
     // Every card gets a small Share control (grab/send the ?deal= link). Promo cards already
     // open the full card on tap; plain cards tap through to Amazon, so this is their only
-    // path to a shareable link.
+    // path to a shareable link. Kept on the graduated grid too (after a search/See-more), so
+    // the Share button doesn't vanish when the instant view expands to the full catalog.
     html += '<div class="card-actions"><button type="button" class="card-share" onclick="event.stopPropagation();_shareCardDeal(\'' + p.id + '\',this)" title="Share this deal">'
       + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>Share</button></div>';
   }
@@ -2760,6 +2761,18 @@ function stepPrice(which, delta) {
   updateDualPrice();
 }
 
+function _searchTyping(val) {
+  // While typing, only toggle the clear (✕) button. The search does NOT run until the user
+  // submits (Enter or the magnifier icon) — otherwise the instant view starts loading the whole
+  // catalog mid-word, which is jarring. See submitSearch / updateSearch.
+  var sc = document.getElementById('searchClear'); if (sc) sc.style.display = val ? 'flex' : 'none';
+}
+function submitSearch(val) {
+  // Fired on Enter or the magnifier click. Empty query → just clear back to the normal view.
+  val = (val || '').trim();
+  if (!val) { clearSearch(); return; }
+  updateSearch(val);
+}
 function updateSearch(val) {
   // In the instant preview a search must hit the WHOLE catalog, not the loaded 20 — graduate
   // to the full grid first, applying the query across everything.
