@@ -2575,8 +2575,8 @@ function showSimpleMore() {
   var g = document.getElementById('productGrid'); if (!g) return;
   var b = document.createElement('div');
   b.id = 'simpleMore';
-  // Instant preview graduates to the full grid; the older ?v=simple keeps its continuation.
-  b.onclick = INSTANT_MODE ? function () { instantGraduate({ store: 'all' }); } : simpleSeeMore;
+  // Instant preview graduates to the full grid (all stores); ?v=simple keeps its continuation.
+  b.onclick = INSTANT_MODE ? function () { instantGraduate({ broaden: true }); } : simpleSeeMore;
   b.innerHTML = 'See more deals &nbsp;&darr;<div class="sub">other stores, categories &amp; the full list</div>';
   g.appendChild(b);
 }
@@ -2600,12 +2600,43 @@ async function instantGraduate(opts) {
   simpleExpanded = true;
   document.body.classList.remove('simple-mode');
   var more = document.getElementById('simpleMore'); if (more) more.remove();
-  state.dateAdded = 'all';        // browse every day now, not just today
-  if (opts.store) state.store = opts.store;
+  state.dateAdded = 'all';        // browse every day now
+  if (opts.broaden) state.store = 'all';   // "See more deals" opens up every store; narrow filters (discount/category/…) are kept
   if (typeof opts.then === 'function') { try { opts.then(); } catch (e) {} }
   resetAndRender();
   fadeIntroOut();
   try { window.scrollTo(0, 0); } catch (e) {}
+}
+// INSTANT preview: re-fetch a fresh curated ~20 for the CURRENT store + date (e.g. the shopper
+// picked July 16, or Walmart). Small query, stays in the fast preview — does NOT load the whole
+// catalog. That only happens on "See more deals"/search/All-stores.
+var _instantRescoping = false;
+async function _instantRescope() {
+  if (_instantRescoping) return;
+  _instantRescoping = true;
+  var store = state.store, date = state.dateAdded;
+  var featIds = (PINNED_BY_DAY && date && date !== 'all' && Array.isArray(PINNED_BY_DAY[date])) ? PINNED_BY_DAY[date].slice() : [];
+  var idSet = {}; featIds.forEach(function (id) { idSet[String(id)] = 1; });
+  if (store === 'Amazon' || store === 'all') (DAILY_TOP || []).forEach(function (id) { idSet[String(id)] = 1; });
+  var ids = Object.keys(idSet);
+  var rows = [];
+  try {
+    if (ids.length) { var ir = await _sb.from('deals').select(_DEAL_COLS).in('id', ids); if (ir && ir.data) rows = ir.data.slice(); }
+    var q = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', false).eq('review_status', 'live');
+    if (store && store !== 'all' && store !== '__other__') q = q.eq('store', store);
+    if (date && date !== 'all') q = q.eq('active_date', date);
+    var pr = await q.order('created_at', { ascending: false }).limit(120);
+    if (pr && pr.error) {
+      var q2 = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', false);
+      if (store && store !== 'all' && store !== '__other__') q2 = q2.eq('store', store);
+      if (date && date !== 'all') q2 = q2.eq('active_date', date);
+      pr = await q2.order('created_at', { ascending: false }).limit(120);
+    }
+    if (pr && pr.data) rows = rows.concat(pr.data);
+  } catch (e) {}
+  if (rows.length) { allProducts = _dedupFeaturedAware(rows.map(_mapDealRow)); buildRepeatIndex(); }
+  _instantRescoping = false;
+  resetAndRender();
 }
 async function simpleSeeMore() {
   if (simpleExpanded) return;
@@ -2755,7 +2786,14 @@ function setStore(el, store) {
   // Click the already-selected store again → toggle back to All.
   if (store !== 'all' && state.store === store) { store = 'all'; el = document.querySelector('#storeChips .chip[data-store="all"]'); }
   document.querySelectorAll('#storeChips .chip').forEach(function(c) { c.classList.remove('active'); });
-  if (el) el.classList.add('active'); state.store = store; resetAndRender();
+  if (el) el.classList.add('active'); state.store = store;
+  if (INSTANT_MODE && SIMPLE_MODE) {
+    // A single store (Amazon/Walmart) → re-fetch that store's top ~20 for the current date and
+    // stay in the fast preview. "All stores"/"More stores" span the whole catalog → load it.
+    if (store === 'Amazon' || store === 'Walmart') { _instantRescope(); return; }
+    instantGraduate({}); return;
+  }
+  resetAndRender();
 }
 function setCategory(el, cat) {
   // Click the already-selected category again → toggle back to All.
@@ -2784,6 +2822,12 @@ function setDate(el, day, label) {
   document.querySelectorAll('#dateChips .chip').forEach(function(c) { c.classList.remove('active'); });
   if (el) el.classList.add('active');
   state.dateAdded = day; state.dateLabel = (day === 'all' ? '' : label);
+  if (INSTANT_MODE && SIMPLE_MODE) {
+    // A specific day → re-fetch that day's top ~20 (featured + autofill) and stay in the preview.
+    // "Any time" spans every day → load the whole catalog.
+    if (day !== 'all') { _instantRescope(); return; }
+    instantGraduate({}); return;
+  }
   resetAndRender();
 }
 // On first load, default the date filter to the MOST RECENT day that actually has deals.
@@ -2886,12 +2930,6 @@ function clearFilters() {
 
 // Phones only: show/hide the whole filter bar behind the "Filters" button.
 function toggleFilterBar() {
-  // Instant preview: opening All Filters means "let me filter everything" — graduate to the
-  // full grid first, then open the panel so the filters act on the whole catalog.
-  if (INSTANT_MODE && SIMPLE_MODE) {
-    instantGraduate({ then: function () { var fp = document.getElementById('filterPanel'); if (fp && !fp.classList.contains('open')) toggleFilterBar(); } });
-    return;
-  }
   var p = document.getElementById('filterPanel');
   var t = document.getElementById('filtersToggle');
   if (!p) return;
@@ -2907,12 +2945,6 @@ function toggleFilterBar() {
 // Open/close a single filter dropdown (tap a name to expand its options).
 function toggleDrop(id, btn, evt) {
   if (evt) evt.stopPropagation();
-  // Instant preview: tapping the Amazon/date pill means they want to filter — graduate to the
-  // full grid first, then reopen the tapped dropdown so their pick applies across everything.
-  if (INSTANT_MODE && SIMPLE_MODE) {
-    instantGraduate({ then: function () { toggleDrop(id, btn, null); } });
-    return;
-  }
   var target = document.getElementById(id);
   if (!target) return;
   var willOpen = !target.classList.contains('open');
