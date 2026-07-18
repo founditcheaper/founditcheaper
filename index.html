@@ -1131,6 +1131,9 @@ var INSTANT_MODE = (_vparam.toLowerCase() === 'instant') && !EMBED;
 var INSTANT_CAP = 20;
 var _instantFullLoaded = false;
 var _instantGrad = false;   // guards the one-time graduate-to-full-grid transition
+// The LANDING preview (current/default day) is weighted ~80% promo-code deals. A user who
+// re-scopes to a past day turns this off (that day shows as-is).
+var _instantPromoBias = false;
 function postEmbedHeight() {
   if (!EMBED) return;
   // Measure the visible section's CONTENT height (picks carousel or deals grid), NOT the
@@ -2147,6 +2150,9 @@ function getFiltered() {
       for (var i = 0; i < pool.length; i++) { if (recent.indexOf(pool[i]._ck) === -1) { idx = i; break; } }
       out.push(pool.splice(idx, 1)[0]);
     }
+    // Landing preview: weight the top ~80% toward promo-code deals (before pins/daily-top so
+    // featured still win the very top). Only the default day — a user-picked day stays as-is.
+    if (INSTANT_MODE && SIMPLE_MODE && !simpleExpanded && _instantPromoBias) out = _promoBiasOrder(out);
     // Manual Featured deals win the very top; the daily-rotated Top-Value set fills in below them.
     return applyPins(applyDailyTop(out));
   }
@@ -2624,7 +2630,8 @@ var _instantRescoping = false;
 async function _instantRescope() {
   if (_instantRescoping) return;
   _instantRescoping = true;
-  var pool = await _instantScopedPool(state.store, state.dateAdded);   // that store+day, Amazon-clean, fresh
+  _instantPromoBias = false;   // a user-picked day/store shows as-is (no promo weighting)
+  var pool = await _instantScopedPool(state.store, state.dateAdded, false);   // that store+day, Amazon-clean, fresh
   if (pool && pool.length) { allProducts = pool; buildRepeatIndex(); }
   _instantRescoping = false;
   resetAndRender();
@@ -3183,7 +3190,7 @@ var _CENTRAL_TODAY = function () { try { return new Date().toLocaleDateString('e
 // a non-Amazon featured pin or a stale (>24h "See price on Amazon") deal doesn't belong in a
 // "Today's Top Amazon Deals" preview, so both are filtered out here (featured filtered too, so
 // applyPins can't sneak an off-store pin past the store filter).
-async function _instantScopedPool(store, date) {
+async function _instantScopedPool(store, date, promoBias) {
   var featIds = (PINNED_BY_DAY && date && date !== 'all' && Array.isArray(PINNED_BY_DAY[date])) ? PINNED_BY_DAY[date].slice() : [];
   var rows = [];
   try {
@@ -3199,12 +3206,41 @@ async function _instantScopedPool(store, date) {
       pr = await q2.order('created_at', { ascending: false }).limit(150);
     }
     if (pr && pr.data) rows = rows.concat(pr.data);
+    // Promo-weighted landing: promo-code deals are ~3% of a day's imports, so the recency pull
+    // above catches only a handful. Pull the day's CODED deals explicitly so the ~80% promo mix
+    // has enough to draw from.
+    if (promoBias) {
+      var cq = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', false).eq('review_status', 'live').not('code', 'is', null);
+      if (store && store !== 'all' && store !== '__other__') cq = cq.eq('store', store);
+      if (date && date !== 'all') cq = cq.eq('active_date', date);
+      var cr = await cq.order('created_at', { ascending: false }).limit(120);
+      if (cr && cr.error) {
+        var cq2 = _sb.from('deals').select(_DEAL_COLS).eq('is_top_pick', false).not('code', 'is', null);
+        if (store && store !== 'all' && store !== '__other__') cq2 = cq2.eq('store', store);
+        if (date && date !== 'all') cq2 = cq2.eq('active_date', date);
+        cr = await cq2.order('created_at', { ascending: false }).limit(120);
+      }
+      if (cr && cr.data) rows = rows.concat(cr.data);
+    }
   } catch (e) {}
   return _dedupFeaturedAware(rows.map(_mapDealRow)).filter(function (p) {
     if (store && store !== 'all' && store !== '__other__' && p.store !== store) return false;
     if (_priceStale(p)) return false;   // no >24h / "See price on Amazon" items in the curated preview
     return true;
   });
+}
+// Reorder a value-sorted list so ~80% of the head are promo-code deals (4 coded : 1 plain),
+// keeping each group's value order. Used only on the landing preview. No-op if either group empty.
+function _promoBiasOrder(list) {
+  var coded = [], plain = [];
+  list.forEach(function (p) { (p.code && String(p.code).trim() ? coded : plain).push(p); });
+  if (!coded.length || !plain.length) return list;
+  var out = [], ci = 0, pi = 0;
+  while (ci < coded.length || pi < plain.length) {
+    for (var k = 0; k < 4 && ci < coded.length; k++) out.push(coded[ci++]);
+    if (pi < plain.length) out.push(plain[pi++]);
+  }
+  return out;
 }
 // Most recent day (on or before `onOrBefore`) that actually has deals for the store — used to
 // fall back when today's deals haven't been uploaded yet (e.g. just after midnight).
@@ -3246,10 +3282,11 @@ async function initInstant() {
   //    day that has deals so the preview is never blank.
   var today = _CENTRAL_TODAY();
   var effDate = today;
-  allProducts = await _instantScopedPool('Amazon', today);
+  _instantPromoBias = true;   // landing view is promo-weighted (~80%)
+  allProducts = await _instantScopedPool('Amazon', today, true);
   if (!allProducts.length) {
     var fb = await _instantMostRecentDay('Amazon', today);
-    if (fb && fb !== today) { effDate = fb; allProducts = await _instantScopedPool('Amazon', fb); }
+    if (fb && fb !== today) { effDate = fb; allProducts = await _instantScopedPool('Amazon', fb, true); }
   }
   // 3) Amazon-first, on the effective day
   state.store = 'Amazon';
