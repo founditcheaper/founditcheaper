@@ -2204,13 +2204,9 @@ function cardHtml(p) {
   html += '<div class="product-name">' + _fesc(p.name) + '</div>';
   if (p.rating && p.reviews) { html += '<div class="product-stars"><span class="stars-display">★</span><span class="rating-num">' + parseFloat(p.rating).toFixed(1) + ' (' + Number(p.reviews).toLocaleString() + ')</span></div>'; }
   if (p.code) {
-    if (SIMPLE_MODE) {
-      // The code chip itself is tap-to-copy (with a "Copy" tag), so there's no separate button.
-      var _cc = String(p.code).replace(/[^A-Za-z0-9]/g, '');
-      html += '<div class="code-row code-copy-row" onclick="event.stopPropagation();_copyCode2(\'' + _cc + '\',this)" title="Tap to copy"><span class="code-value">' + _fesc(p.code) + '</span><span class="code-copy-tag">📋 Copy</span></div>';
-    } else {
-      html += '<div class="code-row"><span class="code-label">CODE</span><span class="code-value">' + _fesc(p.code) + '</span></div>';
-    }
+    // Just show the code on the grid — no per-chip copy. Tapping a promo card opens the deal
+    // card, where the Copy Code button lives, so a copy affordance here would be redundant.
+    html += '<div class="code-row"><span class="code-label">CODE</span><span class="code-value">' + _fesc(p.code) + '</span></div>';
   }
   html += _cardPriceBlock(p);
   if (SIMPLE_MODE) {
