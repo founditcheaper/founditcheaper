@@ -2789,7 +2789,7 @@ function setCategory(el, cat) {
 // Build the "Date Added" chips for the last 7 days (today + previous 6), labelled in
 // Central time so they line up with how deals are dated. Rebuilt on load so the days
 // are always current.
-function buildDateChips() {
+function buildDateChips(startDate) {
   var host = document.getElementById('dateChips');
   if (!host) return;
   // Instant view: no "Any time" (loading every day doesn't fit the curated top-20 — that's
@@ -2798,8 +2798,12 @@ function buildDateChips() {
   var days = 7;
   if (INSTANT_MODE) { days = 8; }
   else { out.push('<button class="chip active" data-day="all" onclick="setDate(this,\'all\',\'\')">Any time</button>'); }
+  // Start from `startDate` (the most recent day that actually HAS deals) if given, else today.
+  // So on an empty "today" (e.g. just after midnight) the list starts at the previous day —
+  // an empty current date is never listed until its deals land.
+  var baseMs = startDate ? new Date(startDate + 'T12:00:00Z').getTime() : Date.now();
   for (var i = 0; i < days; i++) {
-    var dt  = new Date(Date.now() - i * 86400000);
+    var dt  = new Date(baseMs - i * 86400000);
     var key = dt.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });   // YYYY-MM-DD
     var lbl = dt.toLocaleDateString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric' });   // e.g. "Jul 5"
     out.push('<button class="chip" data-day="' + key + '" onclick="setDate(this,\'' + key + '\',\'' + lbl + '\')">' + lbl + '</button>');
@@ -3239,6 +3243,7 @@ async function initInstant() {
   state.store = 'Amazon';
   state.dateAdded = effDate;
   state.dateLabel = _fmtDayLabel(effDate);
+  buildDateChips(effDate);   // rebuild the day chips starting at the effective day (drop an empty "today")
   buildRepeatIndex();
   var _seo = document.getElementById('seoDeals'); if (_seo && _seo.parentNode) _seo.parentNode.removeChild(_seo);
   resetAndRender();     // SIMPLE path shows up to SIMPLE_CAP and appends the "See more deals" tile
