@@ -1128,6 +1128,7 @@ var _bioSearching = false;
 var INSTANT_MODE = (_vparam.toLowerCase() === 'instant') && !EMBED;
 var INSTANT_CAP = 20;
 var _instantFullLoaded = false;
+var _instantGrad = false;   // guards the one-time graduate-to-full-grid transition
 function postEmbedHeight() {
   if (!EMBED) return;
   // Measure the visible section's CONTENT height (picks carousel or deals grid), NOT the
@@ -2094,10 +2095,10 @@ function getFiltered() {
     if (state.store === '__other__') { if (KNOWN_STORES[p.store]) return false; }
     else if (state.store !== 'all' && p.store !== state.store) return false;
     if (state.category !== 'all' && p.category !== state.category) return false;
-    // INSTANT mode pre-scopes its fetch (today's featured + top-up), and "See more" browses
-    // every day — so skip the per-day filter here. state.dateAdded stays 'today' only so the
-    // featured pins resolve (applyPins keys off it); the pill still reads today's date.
-    if (state.dateAdded !== 'all' && !INSTANT_MODE && p.addedDay !== state.dateAdded) return false;
+    // The instant PREVIEW pre-scopes its fetch (today's featured + top-up), so skip the per-day
+    // filter there. Once graduated to the full grid (SIMPLE_MODE off) the date filter works
+    // normally again. Preview keeps dateAdded='today' only so featured pins resolve (applyPins).
+    if (state.dateAdded !== 'all' && !(INSTANT_MODE && SIMPLE_MODE) && p.addedDay !== state.dateAdded) return false;
     if (p.off < state.minDiscount) return false;
     if (state_minPrice > 0 && p.price < state_minPrice) return false;
     if (state.maxPrice > 0 && p.price > state.maxPrice) return false;
@@ -2574,9 +2575,37 @@ function showSimpleMore() {
   var g = document.getElementById('productGrid'); if (!g) return;
   var b = document.createElement('div');
   b.id = 'simpleMore';
-  b.onclick = simpleSeeMore;
+  // Instant preview graduates to the full grid; the older ?v=simple keeps its continuation.
+  b.onclick = INSTANT_MODE ? function () { instantGraduate({ store: 'all' }); } : simpleSeeMore;
   b.innerHTML = 'See more deals &nbsp;&darr;<div class="sub">other stores, categories &amp; the full list</div>';
   g.appendChild(b);
+}
+// INSTANT: the moment a shopper filters, searches, opens All Filters, or taps "See more deals",
+// leave the 20-deal preview and become the NORMAL full grid — load the whole catalog (with the
+// loading screen), turn off the curated slicing, and render the real filterable grid so their
+// filter/search runs across everything. Without this, the filters would only touch the loaded 20.
+async function instantGraduate(opts) {
+  opts = opts || {};
+  if (_instantGrad) return;
+  _instantGrad = true;
+  if (!_instantFullLoaded) {
+    showBigLoader('Loading all deals');
+    try {
+      var rows = await _fetchAllDeals();
+      if (rows && rows.length) { allProducts = _dedupFeaturedAware(rows.map(_mapDealRow)); buildRepeatIndex(); }
+    } catch (e) {}
+    _instantFullLoaded = true;
+  }
+  SIMPLE_MODE = false;            // stop slicing to 20 + the preview card behavior → normal grid
+  simpleExpanded = true;
+  document.body.classList.remove('simple-mode');
+  var more = document.getElementById('simpleMore'); if (more) more.remove();
+  state.dateAdded = 'all';        // browse every day now, not just today
+  if (opts.store) state.store = opts.store;
+  if (typeof opts.then === 'function') { try { opts.then(); } catch (e) {} }
+  resetAndRender();
+  fadeIntroOut();
+  try { window.scrollTo(0, 0); } catch (e) {}
 }
 async function simpleSeeMore() {
   if (simpleExpanded) return;
@@ -2698,6 +2727,14 @@ function stepPrice(which, delta) {
 }
 
 function updateSearch(val) {
+  // In the instant preview a search must hit the WHOLE catalog, not the loaded 20 — graduate
+  // to the full grid first, applying the query across everything.
+  if (INSTANT_MODE && SIMPLE_MODE) {
+    state.search = (val || '').trim();
+    var sc = document.getElementById('searchClear'); if (sc) sc.style.display = val ? 'flex' : 'none';
+    instantGraduate({});
+    return;
+  }
   state.search = val.trim();
   document.getElementById('searchClear').style.display = val ? 'flex' : 'none';
   resetAndRender();
@@ -2849,6 +2886,12 @@ function clearFilters() {
 
 // Phones only: show/hide the whole filter bar behind the "Filters" button.
 function toggleFilterBar() {
+  // Instant preview: opening All Filters means "let me filter everything" — graduate to the
+  // full grid first, then open the panel so the filters act on the whole catalog.
+  if (INSTANT_MODE && SIMPLE_MODE) {
+    instantGraduate({ then: function () { var fp = document.getElementById('filterPanel'); if (fp && !fp.classList.contains('open')) toggleFilterBar(); } });
+    return;
+  }
   var p = document.getElementById('filterPanel');
   var t = document.getElementById('filtersToggle');
   if (!p) return;
@@ -2864,6 +2907,12 @@ function toggleFilterBar() {
 // Open/close a single filter dropdown (tap a name to expand its options).
 function toggleDrop(id, btn, evt) {
   if (evt) evt.stopPropagation();
+  // Instant preview: tapping the Amazon/date pill means they want to filter — graduate to the
+  // full grid first, then reopen the tapped dropdown so their pick applies across everything.
+  if (INSTANT_MODE && SIMPLE_MODE) {
+    instantGraduate({ then: function () { toggleDrop(id, btn, null); } });
+    return;
+  }
   var target = document.getElementById(id);
   if (!target) return;
   var willOpen = !target.classList.contains('open');
