@@ -3230,15 +3230,27 @@ async function _instantScopedPool(store, date, promoBias) {
   });
 }
 // Reorder a value-sorted list so ~80% of the head are promo-code deals (4 coded : 1 plain),
-// keeping each group's value order. Used only on the landing preview. No-op if either group empty.
+// keeping each group's value order BUT spreading categories so the top doesn't clump into a few
+// (e.g. all women's clothing/beauty, which carry the biggest codes). Landing preview only.
 function _promoBiasOrder(list) {
   var coded = [], plain = [];
   list.forEach(function (p) { (p.code && String(p.code).trim() ? coded : plain).push(p); });
   if (!coded.length || !plain.length) return list;
-  var out = [], ci = 0, pi = 0;
-  while (ci < coded.length || pi < plain.length) {
-    for (var k = 0; k < 4 && ci < coded.length; k++) out.push(coded[ci++]);
-    if (pi < plain.length) out.push(plain[pi++]);
+  var out = [], SPREAD = 3, CAP = 2, used = {};
+  function catOf(p) { return p._ck || p.category || '?'; }
+  // Pick the next item that (1) isn't the same category as the last few placed AND is under the
+  // per-category cap, then relax to just-under-cap, then take the front. CAP=2 keeps any one
+  // category (e.g. women's clothing/beauty) from taking over the top 20.
+  function pick(pool) {
+    var recent = out.slice(-SPREAD).map(catOf), i, ck;
+    for (i = 0; i < pool.length; i++) { ck = catOf(pool[i]); if (recent.indexOf(ck) === -1 && (used[ck] || 0) < CAP) return take(pool, i); }
+    for (i = 0; i < pool.length; i++) { ck = catOf(pool[i]); if ((used[ck] || 0) < CAP) return take(pool, i); }
+    return take(pool, 0);
+  }
+  function take(pool, i) { var p = pool.splice(i, 1)[0]; var ck = catOf(p); used[ck] = (used[ck] || 0) + 1; return p; }
+  while (coded.length || plain.length) {
+    for (var k = 0; k < 4 && coded.length; k++) out.push(pick(coded));
+    if (plain.length) out.push(pick(plain));
   }
   return out;
 }
