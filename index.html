@@ -3276,8 +3276,24 @@ async function initInstant() {
     else _openShared();
   }
 
-  // INSTANT landing (?v=instant): paint ~20 featured deals from a tiny query and stop here —
-  // the heavy full-catalog pull below is skipped until the visitor clicks "See more deals".
+  // ── Which layout does a plain visit (no ?v=) get? ──────────────────────────
+  // Instant is the live DEFAULT now. The admin `site_layout` setting can override it:
+  //   'bio'     → the link-in-bio layout
+  //   'classic' → the original full grid (escape hatch)
+  //   anything else / unset / 'instant' / 'default' → the instant view
+  // A ?v= flag always wins over the setting (so ?v=classic / ?v=default preview the old grid).
+  if (!_vparam && !EMBED) {
+    try {
+      var _lr = await _sb.from('settings').select('value').eq('key', 'site_layout').limit(1);
+      var _lv = (_lr && _lr.data && _lr.data[0]) ? String(_lr.data[0].value) : '';
+      if (_lv === 'bio') { BIO_MODE = true; INSTANT_MODE = false; }
+      else if (_lv === 'classic') { INSTANT_MODE = false; }   // explicit opt-out to the old grid
+      else { INSTANT_MODE = true; }
+    } catch (e) { INSTANT_MODE = true; }   // default to instant even if the settings read fails
+  }
+
+  // INSTANT landing: paint ~20 featured deals from a tiny query and stop here — the heavy
+  // full-catalog pull below is skipped until the visitor clicks "See more deals".
   if (INSTANT_MODE) { await initInstant(); return; }
 
   // _DEAL_COLS + _gridPageG (keyset paging) are defined at top level and shared with the
