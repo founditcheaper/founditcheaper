@@ -3190,6 +3190,25 @@ async function _instantScopedPool(store, date) {
     return true;
   });
 }
+// Most recent day (on or before `onOrBefore`) that actually has deals for the store — used to
+// fall back when today's deals haven't been uploaded yet (e.g. just after midnight).
+async function _instantMostRecentDay(store, onOrBefore) {
+  try {
+    var q = _sb.from('deals').select('active_date').eq('is_top_pick', false).eq('review_status', 'live');
+    if (store && store !== 'all' && store !== '__other__') q = q.eq('store', store);
+    if (onOrBefore) q = q.lte('active_date', onOrBefore);
+    var r = await q.order('active_date', { ascending: false }).limit(1);
+    if (r && r.error) {
+      var q2 = _sb.from('deals').select('active_date').eq('is_top_pick', false);
+      if (store && store !== 'all' && store !== '__other__') q2 = q2.eq('store', store);
+      if (onOrBefore) q2 = q2.lte('active_date', onOrBefore);
+      r = await q2.order('active_date', { ascending: false }).limit(1);
+    }
+    if (r && r.data && r.data[0] && r.data[0].active_date) return String(r.data[0].active_date).slice(0, 10);
+  } catch (e) {}
+  return null;
+}
+function _fmtDayLabel(d) { try { return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch (e) { return d; } }
 // INSTANT landing: fetch only the ~20 featured deals and paint immediately; the full catalog
 // loads later via "See more deals". Rides the SIMPLE_MODE render path for the curated look.
 async function initInstant() {
@@ -3206,15 +3225,20 @@ async function initInstant() {
       else if (r.key === 'top_value_order') { try { var tv = JSON.parse(r.value || '[]'); if (Array.isArray(tv)) DAILY_TOP = tv.map(String); } catch (e) {} }
     });
   } catch (e) {}
-  // 2) today's Amazon curated pool (featured + autofill, Amazon-only, fresh prices)
+  // 2) today's Amazon curated pool (featured + autofill, Amazon-only, fresh prices). If today's
+  //    deals haven't been uploaded yet (e.g. just after midnight), fall back to the most recent
+  //    day that has deals so the preview is never blank.
   var today = _CENTRAL_TODAY();
+  var effDate = today;
   allProducts = await _instantScopedPool('Amazon', today);
-  // 3) Amazon-first, today
+  if (!allProducts.length) {
+    var fb = await _instantMostRecentDay('Amazon', today);
+    if (fb && fb !== today) { effDate = fb; allProducts = await _instantScopedPool('Amazon', fb); }
+  }
+  // 3) Amazon-first, on the effective day
   state.store = 'Amazon';
-  if (today && allProducts.some(function (p) { return p.addedDay === today; })) {
-    state.dateAdded = today;
-    state.dateLabel = (function () { try { return new Date(today + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch (e) { return today; } })();
-  } else { applyDefaultDate(); }
+  state.dateAdded = effDate;
+  state.dateLabel = _fmtDayLabel(effDate);
   buildRepeatIndex();
   var _seo = document.getElementById('seoDeals'); if (_seo && _seo.parentNode) _seo.parentNode.removeChild(_seo);
   resetAndRender();     // SIMPLE path shows up to SIMPLE_CAP and appends the "See more deals" tile
