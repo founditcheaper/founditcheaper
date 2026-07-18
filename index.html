@@ -1492,6 +1492,17 @@ function fadeIntroOut() {
   el.classList.add('gone');
   setTimeout(function () { el.style.display = 'none'; }, 500);
 }
+// Bring the loading splash BACK (e.g. while "See more deals" pulls the full ~8k catalog).
+// fadeIntroOut() can then hide it again once the grid is ready.
+function showBigLoader(msg) {
+  var el = document.getElementById('introLoader'); if (!el) return;
+  el._gone = false;
+  el.style.display = 'flex';
+  // reflow so the opacity transition runs from 0 → 1 when we remove .gone
+  void el.offsetHeight;
+  el.classList.remove('gone');
+  var sub = el.querySelector('.intro-sub'); if (sub && msg) sub.textContent = msg;
+}
 setTimeout(fadeIntroOut, 9000);   // safety net
 function copyCode(code, btn) {
   navigator.clipboard.writeText(code).then(function() {
@@ -2572,8 +2583,9 @@ async function simpleSeeMore() {
   // INSTANT mode only fetched the ~20 featured deals up front. "See more" is where the full
   // catalog finally loads — do it now (once), then expand into the full filterable grid.
   if (INSTANT_MODE && !_instantFullLoaded) {
-    var _t = document.getElementById('simpleMore');
-    if (_t) _t.innerHTML = 'Loading all deals &hellip;<div class="sub">pulling the full list</div>';
+    // The full ~8k catalog is the heavy pull — bring the loading screen back over it, then
+    // fade it once the expanded grid is rendered (at the end of this function).
+    showBigLoader('Loading all deals');
     try {
       var _all = await _fetchAllDeals();
       if (_all && _all.length) { allProducts = _dedupFeaturedAware(_all.map(_mapDealRow)); buildRepeatIndex(); }
@@ -2605,7 +2617,9 @@ async function simpleSeeMore() {
   var _allChip = document.querySelector('#storeChips .chip[data-store="all"]'); if (_allChip) _allChip.classList.add('active');
   // 5) render the full list into #productGrid2 (top 25 stay put in #productGrid)
   resetAndRender();
-  divider.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // full grid is on screen now — drop the "Loading all deals" splash (no-op if it wasn't shown)
+  if (INSTANT_MODE) { fadeIntroOut(); divider.scrollIntoView({ block: 'start' }); }
+  else divider.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 if (!EMBED_GRID) {
   new IntersectionObserver(function(entries) {
