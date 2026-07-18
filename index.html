@@ -2286,6 +2286,12 @@ function resetAndRender() {
   var _ft = document.querySelector('.filters-top'), _rb = document.querySelector('.results-bar');
   if (_ft) _ft.style.display = ''; if (_rb) _rb.style.display = '';
   if (filtered.length === 0) {
+    // Instant preview: a filter combo (e.g. a category/price with nothing in the ~20 pool)
+    // emptied it — load the whole catalog and apply the filter rather than a dead-end "no
+    // deals match". Only when data is loaded and we're not already graduating.
+    if (INSTANT_MODE && SIMPLE_MODE && !simpleExpanded && !_instantGrad && (allProducts || []).length > 0) {
+      instantGraduate({}); window.scrollTo(0, savedScroll); return;
+    }
     // Hidden test: on an empty SEARCH (not just a filter combo), offer a deep Amazon search
     // instead of a dead end. Everyone else still sees the normal message.
     if (FINDER_ON && state.search && allProducts.length > 0) {
@@ -2765,6 +2771,9 @@ function clearSearch() {
 function togglePromo(el) {
   state.promoOnly = !state.promoOnly;
   el.classList.toggle('active', state.promoOnly);
+  // "Promo Codes Only" means "show me all promo deals" — the ~20 preview pool carries few/no
+  // codes, so filter the WHOLE catalog (graduate), like search/store do.
+  if (INSTANT_MODE && SIMPLE_MODE) { instantGraduate({}); return; }
   resetAndRender();
 }
 function setStore(el, store) {
@@ -2878,16 +2887,19 @@ function toggleBrand() {
   state.brandOnly = !state.brandOnly;
   var b = document.getElementById('fbtnBrand');
   if (b) b.classList.toggle('active', state.brandOnly);
+  if (INSTANT_MODE && SIMPLE_MODE) { instantGraduate({}); return; }   // whole-catalog subset filter
   resetAndRender();
 }
 function toggleInflated(el) {
   state.hideInflated = !state.hideInflated;
   if (el) el.classList.toggle('active', state.hideInflated);
+  if (INSTANT_MODE && SIMPLE_MODE) { instantGraduate({}); return; }   // re-evaluates the whole catalog
   resetAndRender();
 }
 function toggleVerified(el) {
   state.verifiedOnly = !state.verifiedOnly;
   if (el) el.classList.toggle('active', state.verifiedOnly);
+  if (INSTANT_MODE && SIMPLE_MODE) { instantGraduate({}); return; }   // whole-catalog subset filter
   resetAndRender();
 }
 function sortDeals(v) { state.sort = v; resetAndRender(); }
