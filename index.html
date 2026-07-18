@@ -2150,9 +2150,14 @@ function getFiltered() {
       for (var i = 0; i < pool.length; i++) { if (recent.indexOf(pool[i]._ck) === -1) { idx = i; break; } }
       out.push(pool.splice(idx, 1)[0]);
     }
-    // Landing preview: weight the top ~80% toward promo-code deals (before pins/daily-top so
-    // featured still win the very top). Only the default day — a user-picked day stays as-is.
-    if (INSTANT_MODE && SIMPLE_MODE && !simpleExpanded && _instantPromoBias) out = _promoBiasOrder(out);
+    // Landing preview: skew MALE (audience is male, blue-collar) by sinking women's-skewing
+    // deals to the bottom, then weight the top ~80% toward promo-code deals. Only the default
+    // day — a user-picked day stays as-is.
+    if (INSTANT_MODE && SIMPLE_MODE && !simpleExpanded && _instantPromoBias) {
+      var _nonFem = [], _fem = [];
+      out.forEach(function (p) { (_femSkew(p) ? _fem : _nonFem).push(p); });
+      out = _promoBiasOrder(_nonFem).concat(_promoBiasOrder(_fem));
+    }
     // Manual Featured deals win the very top; the daily-rotated Top-Value set fills in below them.
     return applyPins(applyDailyTop(out));
   }
@@ -3232,6 +3237,11 @@ async function _instantScopedPool(store, date, promoBias) {
 // Reorder a value-sorted list so ~80% of the head are promo-code deals (4 coded : 1 plain),
 // keeping each group's value order BUT spreading categories so the top doesn't clump into a few
 // (e.g. all women's clothing/beauty, which carry the biggest codes). Landing preview only.
+// Rough "skews female" detector for a MALE blue-collar audience — pushes women's clothing /
+// beauty / jewelry out of the promo-weighted LANDING top. Directional, not perfect. (The
+// `dress(?! shirt|pant|shoe)` negative lookahead keeps men's "dress shirt/pants" out of it.)
+var _FEM_RE = /\b(women'?s?|woman'?s?|ladies|girls?'?|feminine|gown|skirt|blouse|leggings?|jeggings?|romper|jumpsuit|bodysuit|camisole|tunic|kimono|bras?|bralette|panties|panty|lingerie|thong|shapewear|makeup|make-?up|cosmetics?|lipstick|lip ?gloss|lip ?liner|lip ?stain|mascara|eyeliner|eye ?shadow|eyelash|lashes|eyebrow|concealer|contour|highlighter|setting ?spray|nail ?(polish|lamp|kit|art|glue|tip)|press[- ]?on ?nail|manicure|pedicure|skincare|serum|moisturiz|anti[- ]?aging|wrinkle|cellulite|facial|derma ?roller|jade ?roller|gua ?sha|purse|handbag|clutch|crossbody|satchel|earrings?|necklace|bracelet|anklet|choker|heels|wedges|stiletto|perfume|tampon|menstrual|feminine ?hygiene|curling ?(wand|iron)|hair ?(dryer|straighten|curl|clip|extension)|straightener|flat ?iron|epilator|\bwig\b|bikini|swimsuit|maternity|nursing ?(bra|pad)|sports ?bra|dress(?! ?(shirt|pant|shoe|sock)))\b/i;
+function _femSkew(p) { return _FEM_RE.test(p.name || ''); }
 function _promoBiasOrder(list) {
   var coded = [], plain = [];
   list.forEach(function (p) { (p.code && String(p.code).trim() ? coded : plain).push(p); });
