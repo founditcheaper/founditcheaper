@@ -2194,7 +2194,7 @@ function getFiltered() {
       out = _promoBiasOrder(_nonFem).concat(_promoBiasOrder(_fem));
     }
     // Manual Featured deals win the very top; the daily-rotated Top-Value set fills in below them.
-    return applyPins(applyDailyTop(out));
+    return _pinInstantTop(applyPins(applyDailyTop(out)));
   }
   f.sort(function(a, b) {
     if (state.sort === 'random') return a._jit - b._jit;   // fresh shuffle each page load (_jit is per-load)
@@ -2205,7 +2205,7 @@ function getFiltered() {
     if (state.sort === 'price-desc') return b.price - a.price;
     return 0;
   });
-  return f;
+  return _pinInstantTop(f);
 }
 
 function topPickCardHtml(p, rank) {
@@ -2664,6 +2664,22 @@ async function instantGraduate(opts) {
   fadeIntroOut();
   try { window.scrollTo(0, 0); } catch (e) {}
 }
+// Keep the curated landing top-N pinned to the top after a WHOLE-SITE filter (promo/brand/
+// inflated/verified) graduates the grid. Without this, clicking e.g. "Promo Codes Only" replaced
+// the curated top-20 with the entire filtered catalog and the original top-20 were lost. Now:
+// snapshot them the moment such a filter graduates, then pin the ones that STILL pass the active
+// filter to the front (in curated order); the rest of the matching catalog shows below, deduped.
+var _instantTopIds = null;
+function _snapshotInstantTop() { _instantTopIds = (filtered || []).map(function (p) { return String(p.id); }); }
+function _pinInstantTop(list) {
+  if (!_instantTopIds || !_instantTopIds.length || state.search) return list;   // search shows everything, no pin
+  var pinSet = {}; _instantTopIds.forEach(function (id) { pinSet[id] = 1; });
+  var byId = {}; list.forEach(function (p) { byId[String(p.id)] = p; });
+  var head = [];
+  _instantTopIds.forEach(function (id) { if (byId[id]) head.push(byId[id]); });   // curated order, only those still matching
+  var rest = list.filter(function (p) { return !pinSet[String(p.id)]; });
+  return head.concat(rest);
+}
 // INSTANT preview: re-fetch a fresh curated ~20 for the CURRENT store + date (e.g. the shopper
 // picked July 16, or Walmart). Small query, stays in the fast preview — does NOT load the whole
 // catalog. That only happens on "See more deals"/search/All-stores.
@@ -2671,6 +2687,7 @@ var _instantRescoping = false;
 async function _instantRescope() {
   if (_instantRescoping) return;
   _instantRescoping = true;
+  _instantTopIds = null;   // new curated set for the picked store/day; drop the old pin
   _instantPromoBias = false;   // a user-picked day/store shows as-is (no promo weighting)
   var pool = await _instantScopedPool(state.store, state.dateAdded, false);   // that store+day, Amazon-clean, fresh
   if (pool && pool.length) { allProducts = pool; buildRepeatIndex(); }
@@ -2809,6 +2826,7 @@ function submitSearch(val) {
   updateSearch(val);
 }
 function updateSearch(val) {
+  _instantTopIds = null;   // a search shows the whole site; drop any pinned curated top-20
   // In the instant preview a search must hit the WHOLE catalog, not the loaded 20 — graduate
   // to the full grid first, applying the query across everything.
   if (INSTANT_MODE && SIMPLE_MODE) {
@@ -2832,8 +2850,9 @@ function togglePromo(el) {
   state.promoOnly = !state.promoOnly;
   el.classList.toggle('active', state.promoOnly);
   // "Promo Codes Only" means "show me all promo deals" — the ~20 preview pool carries few/no
-  // codes, so filter the WHOLE catalog (graduate), like search/store do.
-  if (INSTANT_MODE && SIMPLE_MODE) { instantGraduate({}); return; }
+  // codes, so filter the WHOLE catalog (graduate), like search/store do. Snapshot the curated
+  // top-20 first so they stay pinned at the top (filtered), with the rest of the promo deals below.
+  if (INSTANT_MODE && SIMPLE_MODE) { _snapshotInstantTop(); instantGraduate({}); return; }
   resetAndRender();
 }
 function setStore(el, store) {
@@ -2947,25 +2966,26 @@ function toggleBrand() {
   state.brandOnly = !state.brandOnly;
   var b = document.getElementById('fbtnBrand');
   if (b) b.classList.toggle('active', state.brandOnly);
-  if (INSTANT_MODE && SIMPLE_MODE) { instantGraduate({}); return; }   // whole-catalog subset filter
+  if (INSTANT_MODE && SIMPLE_MODE) { _snapshotInstantTop(); instantGraduate({}); return; }   // whole-catalog subset filter
   resetAndRender();
 }
 function toggleInflated(el) {
   state.hideInflated = !state.hideInflated;
   if (el) el.classList.toggle('active', state.hideInflated);
-  if (INSTANT_MODE && SIMPLE_MODE) { instantGraduate({}); return; }   // re-evaluates the whole catalog
+  if (INSTANT_MODE && SIMPLE_MODE) { _snapshotInstantTop(); instantGraduate({}); return; }   // re-evaluates the whole catalog
   resetAndRender();
 }
 function toggleVerified(el) {
   state.verifiedOnly = !state.verifiedOnly;
   if (el) el.classList.toggle('active', state.verifiedOnly);
-  if (INSTANT_MODE && SIMPLE_MODE) { instantGraduate({}); return; }   // whole-catalog subset filter
+  if (INSTANT_MODE && SIMPLE_MODE) { _snapshotInstantTop(); instantGraduate({}); return; }   // whole-catalog subset filter
   resetAndRender();
 }
 function sortDeals(v) { state.sort = v; resetAndRender(); }
 function clearFilters() {
   state = { store: 'all', category: 'all', minDiscount: 10, maxPrice: 0, minStars: 0, brandOnly: false, sort: state.sort, search: '', promoOnly: false, hideInflated: true, verifiedOnly: false, dateAdded: 'all', dateLabel: '' };
   state_minPrice = 0;
+  _instantTopIds = null;   // clearing filters drops the pinned curated top-20 too
   document.getElementById('chipPromo').classList.remove('active');
   document.querySelectorAll('#quickChipsInline .quick-chip').forEach(function(c) { c.classList.remove('active'); });
   document.querySelector('#quickChipsInline .quick-chip').classList.add('active');
