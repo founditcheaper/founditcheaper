@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>freebies and deals | founditcheaper</title>
-<meta name="description" content="Free food, fuel discounts, and limited-time offers worth knowing about. What the deal is, exactly how to get it, and the catch.">
+<title>crumbl is giving away a free cookie thin today | founditcheaper</title>
+<meta name="description" content="Crumbl's Free Thins Day is today only. Walk into a participating Crumbl and get one free Cookie Thin, no purchase, no signup. Here's exactly how.">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
   :root{
@@ -21,7 +21,6 @@
   a{color:inherit}
   .wrap{max-width:760px;margin:0 auto;padding:0 20px}
 
-  /* header, matches the main site */
   header{position:sticky;top:0;z-index:200;background:rgba(10,31,51,0.99);border-bottom:2px solid var(--gold)}
   .bar{display:flex;align-items:center;justify-content:space-between;padding:12px 0}
   .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
@@ -34,7 +33,6 @@
   .back{font-size:14px;color:#9fb2c9;text-decoration:none;font-weight:600}
   .back:hover{color:#fff}
 
-  /* hero */
   .hero{padding:52px 0 20px;text-align:center}
   .pill{display:inline-block;background:var(--gold);color:#1a1300;font-weight:800;
     font-size:12px;letter-spacing:1.5px;padding:7px 14px;border-radius:999px;text-transform:uppercase}
@@ -44,18 +42,15 @@
   .posted{margin-top:16px;font-size:13px;color:#8ea3bd;font-weight:600;letter-spacing:.3px}
   .posted b{color:var(--gold);font-weight:700}
 
-  /* catch */
   .catch{background:linear-gradient(180deg,#132844,#0f2138);border:1px solid rgba(245,200,66,.35);
     border-left:5px solid var(--gold);border-radius:14px;padding:22px 24px;margin:34px 0}
   .catch b{color:var(--gold)}
   .catch p{color:#d7e2f0;font-size:16.5px}
 
-  /* section */
   section{margin:38px 0}
   h2{color:#fff;font-size:24px;font-weight:800;margin-bottom:6px;letter-spacing:-.3px}
   h2 + .hint{color:#8ea3bd;font-size:15px;margin-bottom:20px}
 
-  /* steps */
   .step{display:flex;gap:16px;background:var(--card);color:var(--ink);border-radius:14px;
     padding:18px 20px;margin-bottom:12px;box-shadow:0 6px 20px rgba(0,0,0,.18)}
   .num{flex:none;width:34px;height:34px;border-radius:50%;background:var(--navy);color:var(--gold);
@@ -64,18 +59,15 @@
   .step p{color:var(--muted);font-size:15px}
   .step p b{color:var(--ink)}
 
-  /* buttons */
   .btn{display:inline-block;margin-top:12px;background:var(--gold);color:#1a1300;font-weight:800;
     text-decoration:none;padding:11px 18px;border-radius:10px;font-size:15px}
   .btn:hover{filter:brightness(1.05)}
 
-  /* fine print */
   .fine{background:#0d1c30;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px 22px}
   .fine li{list-style:none;color:#c2d0e2;font-size:14.5px;padding:7px 0 7px 22px;position:relative;border-bottom:1px solid rgba(255,255,255,.05)}
   .fine li:last-child{border:0}
   .fine li:before{content:"\203a";position:absolute;left:4px;color:var(--gold);font-weight:800}
 
-  /* footer */
   footer{border-top:1px solid rgba(255,255,255,.08);margin-top:50px;padding:30px 0 44px;text-align:center}
   .fbrand{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px}
   .fbrand img{width:34px;height:34px;border-radius:50%;border:2px solid var(--gold)}
@@ -85,22 +77,10 @@
   footer .disc{color:#61748c;font-size:12px;margin-top:16px;max-width:460px;margin-left:auto;margin-right:auto}
 </style>
 <style>
-  .postlist{margin:34px 0}
-  .post{display:block;background:var(--card);color:var(--ink);border-radius:14px;padding:18px 20px;margin-bottom:12px;
-    text-decoration:none;box-shadow:0 6px 20px rgba(0,0,0,.18);transition:transform .12s}
-  .post:hover{transform:translateY(-2px)}
-  .post-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
-  .post-date{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
-  .post h3{font-size:18px;font-weight:800;line-height:1.25;margin-bottom:6px}
-  .post p{color:var(--muted);font-size:15px}
-  .badge{font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;padding:4px 9px;border-radius:999px;flex:none}
-  .badge-live{background:rgba(57,211,83,.15);color:#1a7f37;border:1px solid rgba(57,211,83,.4)}
-  .badge-ends{background:rgba(245,200,66,.18);color:#7a5c00;border:1px solid rgba(245,200,66,.5)}
-  .badge-exp{background:#eceff3;color:#77839a;border:1px solid #dfe4ea}
-  .post.expired{opacity:.55}
-  .post.expired h3{color:#5b6b80}
-  .sectitle{color:#8ea3bd;font-size:13px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;margin:34px 0 14px}
-  .empty{color:#8ea3bd;font-size:15px}
+  .expired-banner{display:none;background:linear-gradient(180deg,#3a1c22,#2b151a);
+    border:1px solid rgba(255,140,140,.35);border-left:5px solid #ff8a8a;border-radius:14px;
+    padding:18px 20px;margin:30px 0 0;color:#ffd9d9;font-size:16px;line-height:1.5}
+  .expired-banner b{color:#ff8a8a}
 </style>
 </head>
 <body>
@@ -117,13 +97,61 @@
 </header>
 
 <main class="wrap">
+  <div class="expired-banner" id="expiredBanner"><p><b>this one is over.</b> free thins day was a one-day thing on july 20, 2026 and has expired. the page is still here for reference, but do not walk in expecting a free one. <a href="/freebies" style="color:var(--gold);font-weight:700">see what is live now &rarr;</a></p></div>
   <div class="hero">
-    <span class="pill">freebies and deals</span>
-    <h1>free stuff, and <span class="g">deals worth the drive</span></h1>
-    <p class="lede">what the deal is, exactly how to get it, and the catch. no hype, no fake countdowns.</p>
+    <span class="pill">free food</span>
+    <h1>crumbl is giving away a<br><span class="g">free cookie thin</span> today</h1>
+    <p class="lede">it is free thins day. walk into a participating crumbl, no purchase, and try one of the new cookie thins on the house. today only.</p>
+    <p class="posted">posted july 20, 2026 · <b>today only</b></p>
   </div>
 
-  <div class="postlist" id="postlist"></div>
+  <div class="catch">
+    <p><b>the catch:</b> it is in-store only, one per person, at participating locations. no app, no signup, no purchase. you pick from four flavors, and it runs while they have them.</p>
+  </div>
+
+  <section>
+    <h2>how to get it</h2>
+    <div class="hint">walk in, ask, walk out with a cookie. that is the whole thing.</div>
+
+    <div class="step">
+      <div class="num">1</div>
+      <div>
+        <h3>find a participating crumbl near you</h3>
+        <p>not every location does every promo, so check first on crumbl's store finder.</p>
+        <a class="btn" href="https://crumblcookies.com/stores" target="_blank" rel="noopener">find a crumbl →</a>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">2</div>
+      <div>
+        <h3>go in and ask for the free thin</h3>
+        <p>tell them you want the <b>free cookie thin</b> for free thins day. no purchase, nothing to buy first.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">3</div>
+      <div>
+        <h3>pick your flavor</h3>
+        <p>four to choose from: <b>pink sugar</b>, <b>chocolate chip</b>, <b>s'mores</b>, and <b>brownie batter</b>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>the fine print</h2>
+    <div class="hint">so nobody drives out there for nothing.</div>
+    <ul class="fine">
+      <li>today only, monday july 20, 2026.</li>
+      <li>one free cookie thin per person, in-store, no purchase required.</li>
+      <li>participating locations only. not every crumbl is in on it, so check the store finder.</li>
+      <li>four flavors: pink sugar, chocolate chip, s'mores, brownie batter. while supplies last.</li>
+      <li>it kicks off crumbl's thins week, july 20 through 25. the free one is monday.</li>
+      <li>source: reported by <a href="https://parade.com/news/crumbl-is-giving-away-free-cookies-and-no-purchase-is-required-heres-how-to-get-them" target="_blank" rel="noopener" style="color:var(--gold);font-weight:700">Parade</a> and <a href="https://www.bakemag.com/articles/21810-crumbl-to-give-away-crumbl-thins" target="_blank" rel="noopener" style="color:var(--gold);font-weight:700">Bake Magazine</a>. terms are crumbl's, so check with your local store.</li>
+    </ul>
+  </section>
+
 </main>
 
 <footer>
@@ -131,50 +159,17 @@
     <a class="fbrand" href="https://founditcheaper.net"><img src="/assets/logo.png" alt="">founditcheaper</a>
     <div class="exp">deals can expire at any time.</div>
     <div class="links"><a href="https://founditcheaper.net">founditcheaper.net</a> · <a href="https://instagram.com/founditcheaper1">@founditcheaper1</a></div>
-    <p class="disc">we round up the free stuff and point you where to go. we are not affiliated with the brands listed here.</p>
+    <p class="disc">we are not crumbl. we just round up the free stuff and point you where to go.</p>
   </div>
 </footer>
 <script>
 (function () {
-  var POSTS = [{"title": "crumbl is giving away a free cookie thin today", "url": "/crumbl-free-thins-day", "posted": "2026-07-20", "ends": "2026-07-20", "blurb": "free thins day. walk into a participating crumbl, no purchase and no signup, and grab one free cookie thin. today only. four flavors while they last."}, {"title": "chipotle is giving away a million dollars in burritos during the world cup final", "url": "/chipotle-world-cup-burritos", "posted": "2026-07-16", "ends": "2026-07-19", "blurb": "100,000 free entree codes drop during sunday's final. a cup shuffle video on chipotle's instagram reveals a code around the 67th minute. first 100,000 to text it to 888-222 win."}, {"title": "love's is giving away a free hot dog today", "url": "/loves-free-hot-dog", "posted": "2026-07-15", "ends": "2026-07-15", "blurb": "free hot dog for national hot dog day, today only, in the free love's connect app. rewards signup required, also free. no purchase."}, {"title": "buffalo wild wings has a wing deal every tuesday", "url": "/buffalo-wild-wings-tuesday-wings", "posted": "2026-07-14", "blurb": "buy one order of bone-in wings, the second is discounted. their banner says half off, their own fine print says free. here is what to actually expect."}, {"title": "chick-fil-a will give you a free chicken sandwich for dressing like a cow", "url": "/chick-fil-a-cow-appreciation-day", "posted": "2026-07-10", "ends": "2026-07-14", "blurb": "one free entree on july 14 if you show up dressed like a cow. no purchase, no app. in person only."}, {"title": "chipotle is giving away 80,000 free entrées", "url": "/chipotle-free-entrees", "posted": "2026-07-08", "ends": "2026-07-29", "blurb": "the free entrées are locked inside a video game. here is the catch and how to actually claim one."}];
-  // "today" in Central time, matching how the deals site dates everything.
-  function todayCT() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); }
-  function pretty(d) {
-    var p = String(d).split('-');
-    var m = ['january','february','march','april','may','june','july','august','september','october','november','december'];
-    return m[parseInt(p[1], 10) - 1] + ' ' + parseInt(p[2], 10) + ', ' + p[0];
+  var ENDS = '2026-07-20';
+  var today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  if (today > ENDS) {
+    var b = document.getElementById('expiredBanner');
+    if (b) b.style.display = 'block';
   }
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
-
-  var today = todayCT();
-  var live = [], expired = [];
-  POSTS.forEach(function (p) {
-    // no end date = evergreen, never expires
-    (p.ends && today > p.ends ? expired : live).push(p);
-  });
-  function byNewest(a, b) { return a.posted < b.posted ? 1 : -1; }
-  live.sort(byNewest); expired.sort(byNewest);
-
-  function badge(p) {
-    if (p.ends && today > p.ends) return '<span class="badge badge-exp">expired</span>';
-    if (p.ends && today === p.ends) return '<span class="badge badge-ends">ends today</span>';
-    return '<span class="badge badge-live">live</span>';
-  }
-  function card(p) {
-    var isExp = p.ends && today > p.ends;
-    return '<a class="post' + (isExp ? ' expired' : '') + '" href="' + esc(p.url) + '">'
-      + '<div class="post-top"><span class="post-date">' + esc(pretty(p.posted)) + '</span>' + badge(p) + '</div>'
-      + '<h3>' + esc(p.title) + '</h3>'
-      + '<p>' + esc(p.blurb) + '</p></a>';
-  }
-
-  var out = '';
-  if (live.length) out += live.map(card).join('');
-  else out += '<div class="empty">nothing live right now. check back.</div>';
-  if (expired.length) {
-    out += '<div class="sectitle">past deals</div>' + expired.map(card).join('');
-  }
-  document.getElementById('postlist').innerHTML = out;
 })();
 </script>
 </body>

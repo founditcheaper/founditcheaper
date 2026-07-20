@@ -827,6 +827,22 @@ body.bio-mode #bioRoot { display:block !important; }
 </div>
 </header>
 
+<!-- FREEBIE BANNER: a today-only freebie surfaced at the top for bio-link visitors. Self-contained
+     and independent of the deal grid; the inline script shows it only on/before data-ends (Central
+     time), so it auto-hides after the freebie's day with no cleanup needed. -->
+<a id="freebieBanner" href="/crumbl-free-thins-day" data-ends="2026-07-20" style="display:none;text-decoration:none">
+  <div style="max-width:1200px;margin:10px auto 0;padding:0 16px">
+    <div style="display:flex;align-items:center;gap:12px;background:linear-gradient(90deg,#F5C842,#ffd85e);color:#1a1300;border-radius:12px;padding:11px 16px;box-shadow:0 4px 16px rgba(0,0,0,.28);font-family:'Inter',system-ui,sans-serif">
+      <span style="font-size:22px;line-height:1;flex:none">🍪</span>
+      <span style="font-size:14px;font-weight:700;line-height:1.35;flex:1 1 auto">Free Crumbl cookie thin today, no purchase. Tap for how to get one.</span>
+      <span style="font-weight:900;font-size:18px;flex:none">→</span>
+    </div>
+  </div>
+</a>
+<script>
+(function(){var el=document.getElementById('freebieBanner');if(!el)return;var ends=el.getAttribute('data-ends');var today=new Date().toLocaleDateString('en-CA',{timeZone:'America/Chicago'});if(!ends||today<=ends)el.style.display='block';})();
+</script>
+
 <!-- FILTERS (top of page, under the search bar) -->
 <div class="filters-bar-outer">
 <div class="filters-top">
