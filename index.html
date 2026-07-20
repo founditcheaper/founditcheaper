@@ -2084,6 +2084,11 @@ var KNOWN_STORES = { Amazon: 1, Walmart: 1 };
 function getFiltered() {
   // Admin Featured tab: a pasted deal link narrows the grid to that single deal.
   if (_onlyDeal) return (allProducts || []).filter(function (d) { return String(d.id) === _onlyDeal; });
+  // On the instant landing, the day's FEATURED pins bypass the store filter below, so a
+  // non-Amazon featured / auto-posted deal (Home Depot / Mavely store) still shows on the
+  // Amazon-scoped preview. The pool is already pre-scoped, so this only un-hides the pins.
+  var _featExemptSet = {};
+  if (INSTANT_MODE && SIMPLE_MODE) { _featuredForDay().forEach(function (id) { _featExemptSet[String(id)] = 1; }); }
   var f = allProducts.filter(function(p) {
     // Expiry always applies: a seller-set end date that has passed hides the deal instantly
     // (a cleanup job also removes the row; this makes it disappear the moment it lapses).
@@ -2097,8 +2102,10 @@ function getFiltered() {
       return hay.indexOf(q) !== -1;
     }
     if (state.promoOnly && !p.code) return false;
-    if (state.store === '__other__') { if (KNOWN_STORES[p.store]) return false; }
-    else if (state.store !== 'all' && p.store !== state.store) return false;
+    if (!_featExemptSet[String(p.id)]) {
+      if (state.store === '__other__') { if (KNOWN_STORES[p.store]) return false; }
+      else if (state.store !== 'all' && p.store !== state.store) return false;
+    }
     if (state.category !== 'all' && p.category !== state.category) return false;
     // The instant PREVIEW pre-scopes its fetch (today's featured + top-up), so skip the per-day
     // filter there. Once graduated to the full grid (SIMPLE_MODE off) the date filter works
@@ -3204,10 +3211,13 @@ async function _fetchAllDeals() {
 var _CENTRAL_TODAY = function () { try { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); } catch (e) { return null; } };
 // The curated preview pool for a given store + day: that day's featured pins + that day's deals
 // for the store, ordered by recency (not discount — "highest discount first" front-loads the
-// no-name junk the Remove-Inflated filter culls). STRICTLY the chosen store + FRESH prices:
-// a non-Amazon featured pin or a stale (>24h "See price on Amazon") deal doesn't belong in a
-// "Today's Top Amazon Deals" preview, so both are filtered out here (featured filtered too, so
-// applyPins can't sneak an off-store pin past the store filter).
+// no-name junk the Remove-Inflated filter culls). The non-featured autofill is STRICTLY the
+// chosen store + FRESH prices. FEATURED pins are the exception: they're exempt from the store
+// filter so an admin/auto-posted NON-Amazon featured deal (Home Depot / Mavely store) still
+// surfaces at the top of the Amazon-scoped landing — otherwise a shopper who clicks a posted
+// non-Amazon deal lands on a page that doesn't show it. Stale (>24h "See price on Amazon")
+// items are still dropped for everyone; _priceStale is Amazon-only, so a non-Amazon pin is
+// never stale, and a stale Amazon pin is still culled even when featured.
 async function _instantScopedPool(store, date, promoBias) {
   var featIds = (PINNED_BY_DAY && date && date !== 'all' && Array.isArray(PINNED_BY_DAY[date])) ? PINNED_BY_DAY[date].slice() : [];
   var rows = [];
@@ -3241,8 +3251,12 @@ async function _instantScopedPool(store, date, promoBias) {
       if (cr && cr.data) rows = rows.concat(cr.data);
     }
   } catch (e) {}
+  var _featSet = {};
+  featIds.forEach(function (fid) { _featSet[String(fid)] = 1; });
   return _dedupFeaturedAware(rows.map(_mapDealRow)).filter(function (p) {
-    if (store && store !== 'all' && store !== '__other__' && p.store !== store) return false;
+    // Featured pins for the day bypass the store filter (see the note above); non-featured
+    // autofill stays store-scoped.
+    if (!_featSet[String(p.id)] && store && store !== 'all' && store !== '__other__' && p.store !== store) return false;
     if (_priceStale(p)) return false;   // no >24h / "See price on Amazon" items in the curated preview
     return true;
   });
