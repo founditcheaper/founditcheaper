@@ -61,6 +61,9 @@ exports.handler = async function (event) {
   // resumes a game that was force-ended (clears the flag).
   if (body.gameEnded != null) updates.push(['game_ended', body.gameEnded ? '1' : '0']);
   else if (body.gamePeriodStart != null || body.gamePeriodEnd != null) updates.push(['game_ended', '0']);
+  // Auto-start the daily dice game. '1' = the game-auto-roll job starts a fresh single-day
+  // game each night (see netlify/functions/game-auto-roll.js). '0' = manual, as before.
+  if (body.gameAutoDaily != null) updates.push(['game_auto_daily', body.gameAutoDaily ? '1' : '0']);
 
   // ── Flappy Banana game (independent settings, same pattern as the dice game) ──
   if (body.flappyPrize != null) updates.push(['flappy_prize', String(body.flappyPrize).slice(0, 120)]);

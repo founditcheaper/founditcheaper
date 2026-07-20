@@ -381,6 +381,14 @@ header { background: rgba(10,31,51,0.95); border-bottom: 2px solid var(--accent)
           <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setGamePreset(3)">3 days</button>
           <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="setGamePreset(7)">1 week</button>
         </div>
+        <div style="border-top:1px solid rgba(255,255,255,0.08);margin:4px 0 14px;padding-top:14px">
+          <label style="display:flex;gap:9px;align-items:flex-start;cursor:pointer;font-size:13px">
+            <input type="checkbox" id="gameAutoDailyToggle" onchange="saveAutoDaily()" style="width:17px;height:17px;cursor:pointer;accent-color:#f5c842;margin-top:1px;flex:0 0 auto">
+            <span><strong>Auto-start a new game every day</strong><br>
+            <span style="color:var(--muted);font-weight:400;line-height:1.5">When on, a fresh dice game starts automatically each night for the new day — the leaderboard resets and the same prize carries over. Turn it off to set games up by hand.</span></span>
+          </label>
+          <span id="gameAutoDailyMsg" style="font-size:12px;display:block;margin-top:8px"></span>
+        </div>
         <button class="btn btn-primary" id="savePrizeBtn" onclick="saveGameSettings()">Start New Game</button>
         <span id="savePrizeMsg" style="font-size:12px;margin-left:10px"></span>
         <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:14px;padding-top:14px">
@@ -2207,6 +2215,7 @@ async function loadSettings() {
     if (m.game_period_start != null && document.getElementById('gameStartInput')) document.getElementById('gameStartInput').value = m.game_period_start;
     if (m.game_period_end != null && document.getElementById('gameEndInput')) document.getElementById('gameEndInput').value = m.game_period_end;
     _gameCfg = { start: m.game_period_start || '', end: m.game_period_end || '', ended: String(m.game_ended || '0') === '1' };
+    if (document.getElementById('gameAutoDailyToggle')) document.getElementById('gameAutoDailyToggle').checked = String(m.game_auto_daily || '0') === '1';
     renderGameStatus();
     if (m.flappy_prize != null && document.getElementById('flappyPrizeInput')) document.getElementById('flappyPrizeInput').value = m.flappy_prize;
     if (m.flappy_prize_sub != null && document.getElementById('flappyPrizeSubInput')) document.getElementById('flappyPrizeSubInput').value = m.flappy_prize_sub;
@@ -2283,6 +2292,28 @@ async function saveGameSettings() {
     else { msg.style.color = '#f87171'; msg.textContent = 'Failed' + (d.error ? ': ' + d.error : ''); }
   } catch (e) { msg.style.color = '#f87171'; msg.textContent = 'Network error'; }
   btn.disabled = false; btn.textContent = 'Start New Game';
+}
+async function saveAutoDaily() {
+  var on = document.getElementById('gameAutoDailyToggle').checked;
+  var msg = document.getElementById('gameAutoDailyMsg');
+  msg.style.color = 'var(--muted)'; msg.textContent = 'Saving…';
+  try {
+    var res = await fetch('/.netlify/functions/save-settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: sessionPass, gameAutoDaily: on }),
+    });
+    var d = await res.json();
+    if (res.ok && d.ok) {
+      msg.style.color = 'var(--green)';
+      msg.textContent = on ? '✓ Auto-start on — a fresh game will start each day' : '✓ Auto-start off — games are manual';
+    } else {
+      msg.style.color = '#f87171'; msg.textContent = 'Failed' + (d.error ? ': ' + d.error : '');
+      document.getElementById('gameAutoDailyToggle').checked = !on;
+    }
+  } catch (e) {
+    msg.style.color = '#f87171'; msg.textContent = 'Network error';
+    document.getElementById('gameAutoDailyToggle').checked = !on;
+  }
 }
 async function forceEndGame() {
   if (!confirm('Force end the game now? The dice page will show no game running and no one can roll. Scores are kept. You can start a new game anytime by setting Competition dates and saving.')) return;

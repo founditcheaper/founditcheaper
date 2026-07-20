@@ -1,0 +1,30 @@
+name: game-auto-roll
+
+# Starts a fresh daily DICE game each night when the admin "Auto-start a new game every day"
+# toggle is on. Netlify's own scheduler fires unreliably, so we drive it from GitHub Actions.
+#
+# We trigger at BOTH 05:20 and 06:20 UTC so it lands just after midnight US Central in either
+# daylight or standard time. The endpoint is idempotent and self-guarding: it no-ops if the
+# round is still live or if today's game already started, so the extra call is harmless.
+#   - CDT (summer, UTC-5): 05:20 UTC = 12:20 AM  |  06:20 UTC = 1:20 AM (no-op)
+#   - CST (winter, UTC-6): 05:20 UTC = 11:20 PM (still live, no-op)  |  06:20 UTC = 12:20 AM
+
+on:
+  schedule:
+    - cron: '20 5,6 * * *'
+  workflow_dispatch: {}        # allows a manual run from the Actions tab
+
+concurrency:
+  group: game-auto-roll
+  cancel-in-progress: false
+
+jobs:
+  roll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Roll the daily dice game forward (if auto-daily is on and the round has ended)
+        run: |
+          URL="https://founditcheaper.net/.netlify/functions/game-auto-roll"
+          r=$(curl -s --max-time 60 "$URL" || echo '{"error":"curl_failed"}')
+          echo "response: $r"
