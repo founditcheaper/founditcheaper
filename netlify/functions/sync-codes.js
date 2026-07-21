@@ -121,6 +121,16 @@ function parseSheet(text) {
     // Keep only the first token of the code — never a comma/space-joined list.
     const code1 = code.split(/[,\s]/)[0].replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 24);
     if (!code1) continue;
+    // A row whose "code" is really a note meaning "no code required" (NOTNEEDCODE, NA, NONE,
+    // "no code needed"…) must NOT become a coded deal. The old behaviour stored the note verbatim,
+    // so the site advertised a CODE + PROMO badge that shoppers typed into Amazon and it failed.
+    // Strip non-letters first so spaced/hyphenated variants collapse to the same shape.
+    const letters = code.replace(/[^A-Za-z]/g, '').toUpperCase();
+    if (/^(NA|NONE|NO|NULL|NIL)$/.test(code1)
+        || /NOTNEED|NONEED|NOCODE|NEEDCODE|NOCOUPON|NOPROMO|NOTREQUIRED|AUTOAPPLIED/.test(letters)) {
+      console.warn(`[sync-codes] skipping placeholder code "${code}" for ${asin} — not a real promo code`);
+      continue;
+    }
     out[asin] = { asin, code: code1, discount: discount > 0 ? discount : 0, expires };
   }
   return Object.values(out);   // dedup by ASIN — last row wins
