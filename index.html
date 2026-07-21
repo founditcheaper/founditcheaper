@@ -1125,6 +1125,10 @@ var EMBED_PICKS = /[?&]embed=picks(?:&|$)/.test(location.search);
 // each card, wired to the admin via postMessage. It's a superset of embed=grid.
 var EMBED_FEATURE = /[?&]embed=feature(?:&|$)/.test(location.search);
 var EMBED_GRID  = /[?&]embed=grid(?:&|$)/.test(location.search) || EMBED_FEATURE;
+// The dice-game page's deal feed specifically (embed=grid, not the admin Featured tab). It is
+// scoped to a single day and drops the "Any time" date option — the game page shows TODAY's
+// deals, not a mix going back weeks.
+var EMBED_GAME  = EMBED_GRID && !EMBED_FEATURE;
 var EMBED = EMBED_PICKS || EMBED_GRID;
 // ── SIMPLE / AMAZON-FIRST preview (?v=simple) ─────────────────────────────
 // Opt-in redesign under test: land on a curated top-30 Amazon-only view (mirrors the old
@@ -2884,7 +2888,8 @@ function buildDateChips(startDate) {
   // what "See more deals" is for) and one extra day so the grid stays even on mobile.
   var out = [];
   var days = 7;
-  if (INSTANT_MODE) { days = 8; }
+  // The dice-game feed is day-scoped by design, so it gets no "Any time" either.
+  if (INSTANT_MODE || EMBED_GAME) { days = 8; }
   else { out.push('<button class="chip active" data-day="all" onclick="setDate(this,\'all\',\'\')">Any time</button>'); }
   // Start from `startDate` (the most recent day that actually HAS deals) if given, else today.
   // So on an empty "today" (e.g. just after midnight) the list starts at the previous day —
@@ -3567,7 +3572,13 @@ async function initInstant() {
       applyDefaultDate();   // today's sync hasn't landed yet — fall back to the newest day that has deals
     }
   }
-  else if (EMBED_GRID) { state.sort = 'random'; }   // game-page feed: shuffled each visit so repeat players see fresh deals
+  else if (EMBED_GRID) {
+    // Game-page feed: shuffled each visit so repeat players see fresh deals, and scoped to a
+    // single day — today, or the newest day that has deals if today's sync hasn't landed yet.
+    // Never "Any time"; the dice page should show today's deals, not a mix going back weeks.
+    state.sort = 'random';
+    applyDefaultDate();
+  }
   else { applyDefaultDate(); state.store = 'Amazon'; }   // main site: newest day, Amazon-first default (conversion test)
   if (SIMPLE_MODE) { document.body.classList.add('simple-mode'); state.store = 'Amazon'; }   // Amazon-first curated view
   buildRepeatIndex();   // stamp each deal with how many recent days its product family already ran
