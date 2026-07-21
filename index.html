@@ -1125,10 +1125,6 @@ var EMBED_PICKS = /[?&]embed=picks(?:&|$)/.test(location.search);
 // each card, wired to the admin via postMessage. It's a superset of embed=grid.
 var EMBED_FEATURE = /[?&]embed=feature(?:&|$)/.test(location.search);
 var EMBED_GRID  = /[?&]embed=grid(?:&|$)/.test(location.search) || EMBED_FEATURE;
-// The dice-game page's deal feed specifically (embed=grid, not the admin Featured tab). It is
-// scoped to a single day and drops the "Any time" date option — the game page shows TODAY's
-// deals, not a mix going back weeks.
-var EMBED_GAME  = EMBED_GRID && !EMBED_FEATURE;
 var EMBED = EMBED_PICKS || EMBED_GRID;
 // ── SIMPLE / AMAZON-FIRST preview (?v=simple) ─────────────────────────────
 // Opt-in redesign under test: land on a curated top-30 Amazon-only view (mirrors the old
@@ -2888,8 +2884,9 @@ function buildDateChips(startDate) {
   // what "See more deals" is for) and one extra day so the grid stays even on mobile.
   var out = [];
   var days = 7;
-  // The dice-game feed is day-scoped by design, so it gets no "Any time" either.
-  if (INSTANT_MODE || EMBED_GAME) { days = 8; }
+  // Both embeds are day-scoped by design (the dice-game feed and the admin Featured tab, which
+  // curates per-day), so neither gets an "Any time" option.
+  if (INSTANT_MODE || EMBED_GRID) { days = 8; }
   else { out.push('<button class="chip active" data-day="all" onclick="setDate(this,\'all\',\'\')">Any time</button>'); }
   // Start from `startDate` (the most recent day that actually HAS deals) if given, else today.
   // So on an empty "today" (e.g. just after midnight) the list starts at the previous day —
