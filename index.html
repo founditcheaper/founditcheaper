@@ -3203,13 +3203,29 @@ function _afterLoad() {
 var _DEAL_COLS = 'id,name,store,category,brand,brand_name,price,was,off,rating,reviews,img,url,first_seen,created_at,active_date,code,verified_low,ends_at,price_checked_at,price_unavailable';
 
 // One raw Supabase row → the deal object the grid/cards use.
+// A stored `code` only counts as a real promo code if it isn't a placeholder. Imports have
+// written junk like "NOTNEEDCODE" and "NA" to mean "no code required", and the grid rendered
+// those as an actual CODE row + PROMO badge — shoppers typed them into Amazon and they failed.
+// Normalising at this single mapping point means the badge, code row, drawer, "Promo Codes Only"
+// filter and the promo-weighted landing ALL treat them as codeless, with no per-call-site guards.
+// Deliberately conservative: only clear values that cannot be a real code, so genuine ones that
+// merely contain "CODE" (e.g. BSCODER9, PDCODEAFF) are kept.
+var _CODE_JUNK_EXACT = /^(n\/?a|none|no|null|nil|-+|\.+)$/i;
+function _realCode(c) {
+  if (c == null) return null;
+  var s = String(c).trim();
+  if (!s || _CODE_JUNK_EXACT.test(s)) return null;
+  var letters = s.replace(/[^a-z]/gi, '').toUpperCase();   // catches NOTNEEDCODE, NO-CODE-NEEDED, "no code needed"
+  if (/NOTNEED|NONEED|NOCODE|NEEDCODE|NOCOUPON|NOPROMO|NOTREQUIRED|AUTOAPPLIED/.test(letters)) return null;
+  return s;
+}
 function _mapDealRow(d) {
   return {
     id: String(d.id), name: d.name, store: d.store, category: d.category || 'General',
     brand: d.brand, brandName: d.brand_name || '', price: d.price, was: d.was,
     off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
     rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
-    found: formatFound(d.first_seen || d.created_at, d.active_date), addedDay: _addedDayOf(d), code: d.code || null,
+    found: formatFound(d.first_seen || d.created_at, d.active_date), addedDay: _addedDayOf(d), code: _realCode(d.code),
     priceCheckedAt: d.price_checked_at || d.created_at || d.first_seen, priceUnavailable: !!d.price_unavailable,
     _ts: (function(){ var t = d.first_seen || d.created_at || d.active_date; var n = t ? new Date(t).getTime() : 0; return isNaN(n) ? 0 : n; })(),
     verifiedLow: !!d.verified_low, endsAt: d.ends_at || null, _jit: Math.random()
@@ -3490,7 +3506,7 @@ async function initInstant() {
                    price: r.price, was: r.was,
                    off: (r.was > r.price && r.was > 0) ? Math.round((1 - r.price / r.was) * 100) : (r.off || 0),
                    url: r.url,
-                   code: r.code || null, rating: r.rating, reviews: r.reviews,
+                   code: _realCode(r.code), rating: r.rating, reviews: r.reviews,
                    category: r.category || '',
                    priceCheckedAt: r.price_checked_at || r.created_at || r.first_seen, priceUnavailable: !!r.price_unavailable,
                    found: formatFound(r.created_at, r.active_date) };
@@ -3715,7 +3731,7 @@ async function openDrawer(productId) {
         brand: d.brand, brandName: d.brand_name || '', price: d.price, was: d.was,
         off: (d.was > d.price && d.was > 0) ? Math.round((1 - d.price / d.was) * 100) : (d.off || 0),
         rating: d.rating, reviews: d.reviews, img: d.img, url: d.url,
-        found: formatFound(d.first_seen || d.created_at, d.active_date), addedDay: _addedDayOf(d), code: d.code || null,
+        found: formatFound(d.first_seen || d.created_at, d.active_date), addedDay: _addedDayOf(d), code: _realCode(d.code),
         priceCheckedAt: d.price_checked_at || d.created_at || d.first_seen, priceUnavailable: !!d.price_unavailable,
         verifiedLow: !!d.verified_low,
         endsAt: d.ends_at || null,       // seller-set expiry — deal is hidden once this passes
