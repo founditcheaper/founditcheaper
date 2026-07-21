@@ -118,8 +118,11 @@ function parseSheet(text) {
     if (!asin || !code) continue;
     const discount = iPrice >= 0 ? parseFloat(String(r[iPrice]).replace(/[^0-9.]/g, '')) : 0;
     const expires = iExp >= 0 ? (r[iExp] || '').trim() : '';
-    // Keep only the first token of the code — never a comma/space-joined list.
-    const code1 = code.split(/[,\s]/)[0].replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 24);
+    // Keep only the FIRST alphanumeric token. Amazon promo codes are alphanumeric with no
+    // separators, so anything after a space/hyphen/slash/colon is a note, not part of the code.
+    // Splitting on comma+space only (the old rule) let "878LZWRS-50OFF" collapse into the single
+    // token 878LZWRS50OFF, which fails at checkout exactly like a placeholder does.
+    const code1 = (code.split(/[^A-Za-z0-9]+/).filter(Boolean)[0] || '').toUpperCase().slice(0, 24);
     if (!code1) continue;
     // A row whose "code" is really a note meaning "no code required" (NOTNEEDCODE, NA, NONE,
     // "no code needed"…) must NOT become a coded deal. The old behaviour stored the note verbatim,
@@ -129,6 +132,17 @@ function parseSheet(text) {
     if (/^(NA|NONE|NO|NULL|NIL)$/.test(code1)
         || /NOTNEED|NONEED|NOCODE|NEEDCODE|NOCOUPON|NOPROMO|NOTREQUIRED|AUTOAPPLIED/.test(letters)) {
       console.warn(`[sync-codes] skipping placeholder code "${code}" for ${asin} — not a real promo code`);
+      continue;
+    }
+    // Two more shapes that are provably NOT a promo code, so importing them would advertise
+    // something that fails at checkout. Better to drop the row than publish a broken code.
+    //   - an expiry stamp pasted into the code column: "2026-07-31 23:59 PDT" splits to "2026",
+    //     and "20267312359PDT" keeps a long digit run — both are dates, not codes. Amazon codes
+    //     are alphanumeric MIXES, so an all-digit token is never a real one.
+    //   - a still-mangled code+note that survived the split, e.g. 4CN8VCHTWORKFORALL (18 chars).
+    //     Amazon codes run ~8-10 chars; >15 is not a real one.
+    if (/^\d+$/.test(code1) || /^\d{8,}/.test(code1) || code1.length > 15) {
+      console.warn(`[sync-codes] skipping malformed code "${code}" for ${asin} — looks like a date/note, not a code`);
       continue;
     }
     out[asin] = { asin, code: code1, discount: discount > 0 ? discount : 0, expires };
