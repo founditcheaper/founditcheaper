@@ -257,13 +257,13 @@
     <div id="emailGate" class="email-gate">
       <div class="gate-icon">🍌</div>
       <div class="gate-title">Hungry Banana</div>
-      <div class="gate-sub">Enter your email and pick a display name to play.<br>Eat bananas. Don't bite yourself. Highest score wins.</div>
+      <div class="gate-sub">Pick a display name and play. Add your email only if you want on the leaderboard and a shot at the prize.<br>Eat bananas. Don't bite yourself. Highest score wins.</div>
       <div class="email-input-wrap">
         <input type="text" class="username-input" id="usernameInput" placeholder="Display name (e.g. DealHunter_RGV)" maxlength="20">
-        <input type="email" class="email-input" id="emailInput" placeholder="your@email.com">
+        <input type="email" class="email-input" id="emailInput" placeholder="email (optional, for the leaderboard)">
         <button class="play-btn" onclick="startPlaying()">Let's Go 🍌</button>
       </div>
-      <div class="gate-fine">By entering your email you agree to receive deal updates from founditcheaper. Unsubscribe anytime.</div>
+      <div class="gate-fine">No email needed to play. Add one only to get on the leaderboard and win prizes. If you do, you agree to deal updates from founditcheaper. Unsubscribe anytime.</div>
     </div>
 
     <div id="gameArea" class="game-area" style="display:none">
@@ -272,6 +272,10 @@
         <div style="text-align:right">
           <div class="player-score"><span>Your best this round · </span><span id="playerScoreDisplay">0</span></div>
         </div>
+      </div>
+      <div id="anonNudge" style="display:none;text-align:center;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.3);border-radius:8px;padding:10px 12px;margin:0 0 12px;font-size:12px;color:var(--text-soft);line-height:1.5">
+        Playing without an email, so you are not on the leaderboard and can't win the prize. Play all you want.
+        <button onclick="joinLeaderboard()" style="display:block;margin:8px auto 0;background:rgba(245,200,66,0.2);border:1px solid rgba(245,200,66,0.45);border-radius:6px;padding:7px 14px;font-size:12px;font-weight:800;color:var(--accent);cursor:pointer;font-family:'Inter',sans-serif">Add my email to join the leaderboard</button>
       </div>
       <div style="display:flex;justify-content:center;gap:8px;margin-bottom:12px">
         <button onclick="promptRename()" style="font-size:11px;font-weight:600;color:var(--text-soft);background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif">✏️ Rename</button>
@@ -446,22 +450,51 @@ function switchTab(tab) {
   if (tab === 'leaderboard') renderLeaderboard();
 }
 
+function _anonTag() {
+  // A local, random player tag for someone playing WITHOUT an email. It never touches the
+  // leaderboard (that needs an email) — it just gives the on-screen "your best" a key.
+  return String(10000 + Math.floor(Math.random() * 90000));
+}
 async function startPlaying() {
   var username = document.getElementById('usernameInput').value.trim();
   var email = document.getElementById('emailInput').value.trim();
   if (!username) { alert('Please enter a display name.'); return; }
-  if (!email || !email.includes('@')) { alert('Please enter a valid email.'); return; }
-  player = { username: username, email: email, tag: tagFromEmail(email) };
+  if (email && !email.includes('@')) { alert('That email does not look right. Leave it blank to just play, or fix it to join the leaderboard.'); return; }
+  if (email) {
+    player = { username: username, email: email, tag: tagFromEmail(email) };
+  } else {
+    player = { username: username, email: '', anon: true, tag: _anonTag() };
+  }
   savePlayer();
   await loadScores();
   myBest = (scores[player.tag] && scores[player.tag].bestScore) || 0;
-  try {
-    fetch('/.netlify/functions/subscribe', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, source: 'snake' }),
-    });
-  } catch (e) {}
+  if (email) {
+    try {
+      fetch('/.netlify/functions/subscribe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, source: 'snake' }),
+      });
+    } catch (e) {}
+  }
   showGame();
+}
+function joinLeaderboard() {
+  var email = prompt('Enter your email to get on the leaderboard and be able to win the prize:', '');
+  if (email == null) return;
+  email = email.trim();
+  if (!email.includes('@')) { alert('That email does not look right.'); return; }
+  player.email = email; player.anon = false; player.tag = tagFromEmail(email);
+  savePlayer();
+  try {
+    fetch('/.netlify/functions/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email, source: 'snake' }) });
+  } catch (e) {}
+  document.getElementById('playerNameDisplay').innerHTML = player.username + ' <span style="color:var(--muted);font-weight:600">#' + player.tag + '</span>';
+  _renderAnonNudge();
+  var note = document.getElementById('saveNote'); if (note) note.textContent = 'You are on the leaderboard now. Your next run counts.';
+}
+function _renderAnonNudge() {
+  var el = document.getElementById('anonNudge'); if (!el) return;
+  el.style.display = (player && !player.email) ? 'block' : 'none';
 }
 
 function promptRename() {
@@ -498,6 +531,7 @@ function showGame() {
   document.getElementById('emailGate').style.display = 'none';
   document.getElementById('gameArea').style.display = 'block';
   document.getElementById('playerNameDisplay').innerHTML = player.username + ' <span style="color:var(--muted);font-weight:600">#' + player.tag + '</span>';
+  _renderAnonNudge();
   updateScoreDisplay();
   initGame();
 }
@@ -673,7 +707,9 @@ function resetRound() {
 async function startRun() {
   state = 'starting';
   var seed;
-  if (DEMO) {
+  if (DEMO || !player.email) {
+    // DEMO sandbox, or an ANONYMOUS player (no email): local board, nothing submitted. The
+    // leaderboard needs a real email, so these runs are just for fun (no server token needed).
     seed = (Math.random() * 0xFFFFFFFF) >>> 0;
     runToken = null;
   } else {
@@ -741,9 +777,13 @@ function gameOver() {
   state = 'over';
   var score = sim.score;
   var isPb = score > myBest;
-  if (DEMO) {
+  if (DEMO || !player.email) {
+    // DEMO or ANONYMOUS: show the score locally, keep the local best, submit nothing (the
+    // leaderboard needs an email). Nudge an anon player to join if they want it to count.
     if (isPb) { myBest = score; updateScoreDisplay(); if (player) scores[player.tag] = { name: player.username, tag: player.tag, bestScore: myBest }; }
     showOverlay('over', { score: score, best: myBest, pb: isPb });
+    var _n = document.getElementById('saveNote');
+    if (_n && player && !player.email) _n.innerHTML = 'Score not saved. <span style="text-decoration:underline;cursor:pointer" onclick="joinLeaderboard()">Add your email to get on the leaderboard.</span>';
     return;
   }
   showOverlay('over', { score: score, best: Math.max(myBest, score), pb: isPb });
@@ -962,7 +1002,7 @@ if (DEMO) {
     return loadScores();
   }).then(function () {
     if (!applyGameLiveState()) return;
-    if (player && player.email) showGame();
+    if (player && (player.email || player.anon)) showGame();   // returning players skip the gate, email or not
   });
 }
 </script>
