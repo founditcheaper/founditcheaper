@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>games | founditcheaper</title>
+<meta name="description" content="Play founditcheaper's games for prizes. Daily Dice Roll, Flappy Banana, and Hungry Banana. See which game is live right now and what it's paying out.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap');
+  :root{
+    --navy:#0a1f33; --navy2:#0f2138; --gold:#F5C842; --green:#4ade80; --card:#ffffff;
+    --ink:#0f1b2d; --muted:#5b6b80; --text:#eaf0f8; --text-soft:#c2d0e2;
+    --font:'Inter','Segoe UI',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:var(--font); color:var(--text); line-height:1.5;
+    background:linear-gradient(160deg,#1c5080 0%,#0f2e47 55%,#0a1f33 100%) fixed;
+    min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit}
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px}
+
+  header{position:sticky;top:0;z-index:200;background:rgba(10,31,51,0.99);border-bottom:2px solid var(--gold)}
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:12px 0}
+  .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+  .logo-circle{width:38px;height:38px;border-radius:50%;border:2px solid var(--gold);object-fit:cover;display:block;flex-shrink:0}
+  .logo{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;line-height:1;color:#fff}
+  .logo sub{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,.5);text-transform:uppercase;margin-top:3px}
+  .back{font-size:14px;color:#9fb2c9;text-decoration:none;font-weight:600}
+  .back:hover{color:#fff}
+
+  .hero{padding:48px 0 8px;text-align:center}
+  .pill{display:inline-block;background:var(--gold);color:#1a1300;font-weight:800;
+    font-size:12px;letter-spacing:1.5px;padding:7px 14px;border-radius:999px;text-transform:uppercase}
+  h1{font-size:clamp(32px,7vw,52px);line-height:1.05;font-weight:900;color:#fff;margin:16px 0 12px;letter-spacing:-.5px;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase}
+  .lede{font-size:17px;color:#b9c7da;max-width:520px;margin:0 auto}
+
+  .grid{display:grid;grid-template-columns:1fr;gap:16px;margin:34px 0 20px}
+  @media(min-width:680px){ .grid{grid-template-columns:1fr 1fr 1fr} }
+
+  .gcard{background:linear-gradient(135deg,rgba(245,200,66,0.14),rgba(10,31,51,0.5));
+    border:1px solid rgba(245,200,66,0.35);border-radius:16px;padding:24px 18px;
+    display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;min-height:280px}
+  .gcard.off{border-color:rgba(255,255,255,0.12);background:linear-gradient(135deg,rgba(255,255,255,0.05),rgba(10,31,51,0.4))}
+  .gicon{font-size:52px;line-height:1}
+  .gtitle{font-family:'Barlow Condensed',sans-serif;font-size:23px;font-weight:900;color:#fff;text-transform:uppercase;line-height:1.1}
+  .status{font-size:11px;font-weight:800;letter-spacing:.6px;border-radius:20px;padding:4px 12px}
+  .status.live{color:#4ade80;background:rgba(74,222,128,0.14);border:1px solid rgba(74,222,128,0.45)}
+  .status.dim{color:#8ea3bd;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.14)}
+  .prize{font-size:13px;color:var(--text-soft);line-height:1.5}
+  .prize b{color:var(--gold)}
+  .blurb{font-size:12px;color:var(--muted);line-height:1.5}
+  .spacer{flex:1 1 auto;min-height:4px}
+  .play{width:100%;background:var(--gold);color:#0a1f33;border:none;border-radius:9px;padding:12px;
+    font-size:15px;font-weight:800;cursor:pointer;font-family:Inter,sans-serif;text-decoration:none;display:block}
+  .play:hover{filter:brightness(1.05)}
+  .peek{width:100%;background:rgba(255,255,255,0.06);color:var(--text);border:1px solid rgba(255,255,255,0.2);
+    border-radius:9px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;text-decoration:none;display:block}
+  .peek:hover{background:rgba(255,255,255,0.12)}
+
+  .note{max-width:560px;margin:8px auto 0;text-align:center;color:#8ea3bd;font-size:13px;line-height:1.6}
+
+  footer{border-top:1px solid rgba(255,255,255,.08);margin-top:44px;padding:28px 0 44px;text-align:center}
+  .fbrand{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px}
+  .fbrand img{width:34px;height:34px;border-radius:50%;border:2px solid var(--gold)}
+  footer .links{color:#8ea3bd;font-size:14px;margin-top:12px}
+  footer .links a{color:#b9c7da;text-decoration:none;font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="/">
+      <img class="logo-circle" src="/assets/logo.png" alt="founditcheaper">
+      <span class="logo">founditcheaper
+        <sub>deals hub</sub>
+      </span>
+    </a>
+    <a class="back" href="/">← all deals</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <span class="pill">games</span>
+    <h1>pick a game, play for prizes</h1>
+    <p class="lede">one roll or one run a day. top score at the end wins whatever that game is paying out. free to play.</p>
+  </div>
+
+  <div class="grid" id="gameGrid">
+    <!-- cards render here; a plain fallback shows first in case the script is blocked -->
+    <noscript><p class="note">Turn on JavaScript to see which games are live.</p></noscript>
+  </div>
+
+  <p class="note" id="statusNote">Checking which games are live…</p>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a class="fbrand" href="/"><img src="/assets/logo.png" alt="">founditcheaper</a>
+    <div class="links"><a href="/">founditcheaper.net</a> · <a href="https://instagram.com/founditcheaper1">@founditcheaper1</a></div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var SB  = 'https://kvscvenwhdfwiswcfmxq.supabase.co';
+  var KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2c2N2ZW53aGRmd2lzd2NmbXhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MTA5MDgsImV4cCI6MjA5ODA4NjkwOH0.9icQB55QM9U9KAMePgOs84Ye6-cZ07N_z0sEn7mFSgY';
+
+  // The three games. `prefix` matches the settings keys: dice uses game_*, the others use their own.
+  var GAMES = [
+    { prefix: 'game',   url: 'founditcheaper-game.html',   icon: '\u{1F3B2}', title: 'Daily Dice Roll', blurb: 'Roll every day. Top score wins.' },
+    { prefix: 'flappy', url: 'founditcheaper-flappy.html', icon: '\u{1F34C}', title: 'Flappy Banana',   blurb: 'Tap to fly. Top score wins.' },
+    { prefix: 'snake',  url: 'founditcheaper-snake.html',  icon: '\u{1F40D}', title: 'Hungry Banana',   blurb: 'Eat bananas. Top score wins.' }
+  ];
+
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' })[c]; }); }
+  function todayCT(){ return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }); }
+
+  function cardHtml(g, live, prize) {
+    var h = '<div class="gcard' + (live ? '' : ' off') + '">';
+    h += '<div class="gicon">' + g.icon + '</div>';
+    h += '<div class="gtitle">' + g.title + '</div>';
+    h += live
+      ? '<div class="status live">● LIVE NOW</div>'
+      : '<div class="status dim">not running right now</div>';
+    if (live && prize) h += '<div class="prize">Playing for <b>' + esc(prize) + '</b></div>';
+    else if (live)      h += '<div class="blurb">' + esc(g.blurb) + '</div>';
+    else                h += '<div class="blurb">no prize game on this one right now. you can still play it.</div>';
+    h += '<div class="spacer"></div>';
+    h += live
+      ? '<a class="play" href="' + g.url + '">Play now</a>'
+      : '<a class="peek" href="' + g.url + '">Play anyway</a>';
+    h += '</div>';
+    return h;
+  }
+
+  function render(map) {
+    var t = todayCT();
+    var liveCount = 0;
+    var html = GAMES.map(function (g) {
+      var start = map[g.prefix + '_period_start'] || '';
+      var end   = map[g.prefix + '_period_end']   || '';
+      var ended = String(map[g.prefix + '_ended'] || '0') === '1';
+      var prize = map[g.prefix + '_prize'] || '';
+      var live  = !!(start && end && !ended && t >= start && t <= end);
+      if (live) liveCount++;
+      return cardHtml(g, live, prize);
+    }).join('');
+    document.getElementById('gameGrid').innerHTML = html;
+    var note = document.getElementById('statusNote');
+    if (liveCount === 0) note.textContent = 'No prize game is running at the moment. Check back, or play any of them just for fun.';
+    else if (liveCount === 1) note.textContent = 'One game is live right now. Top score when it ends takes the prize.';
+    else note.textContent = liveCount + ' games are live right now. Each pays out its own prize.';
+  }
+
+  // Fetch the whole (small) settings table and filter client-side.
+  fetch(SB + '/rest/v1/settings?select=key,value', { headers: { apikey: KEY, Authorization: 'Bearer ' + KEY } })
+    .then(function (r) { return r.ok ? r.json() : []; })
+    .then(function (rows) {
+      var map = {};
+      (Array.isArray(rows) ? rows : []).forEach(function (x) { map[x.key] = x.value; });
+      render(map);
+    })
+    .catch(function () {
+      // On any failure, still show the three games (all as playable) so the page is never a dead end.
+      render({});
+      document.getElementById('statusNote').textContent = 'Could not check live status. All games are playable below.';
+    });
+})();
+</script>
+</body>
+</html>
