@@ -730,52 +730,65 @@ body.folders-mode #foldersRoot { display:block !important; }
 #foldersRoot * { box-sizing:border-box; }
 .folders-wrap { max-width:600px; margin:0 auto; padding:14px 6px 60px; }
 .folders-intro { text-align:center; color:#b9c7da; font-size:13.5px; line-height:1.5; margin:2px 6px 14px; }
-/* Folder visuals — the flat all-white bio treatment read cheap: a white panel holding white
-   cards on white images, with hairline borders and one weak shadow, so nothing separated.
-   Here the open folder is a soft neutral tray, the cards are white objects ON it with layered
-   shadows, each product sits on its own tinted tile, and savings read as a green accent.
-   Scoped to #foldersRoot so the ?v=bio page keeps its original look. */
+/* Folder visuals — ON BRAND: the light/white treatment did not match the navy+gold site, so
+   these use the site's own tokens (--surface cards, --border hairlines, gold prices and
+   accents) exactly like the main deal grid. Product images keep a white tile because Amazon
+   shots are white-backed and need it. Scoped to #foldersRoot; ?v=bio keeps its original look. */
 #foldersRoot .bio-section { margin:14px 0; }
-#foldersRoot .bio-sec-head { border-radius:14px; padding:18px; box-shadow:0 1px 2px rgba(16,24,40,.06), 0 6px 18px rgba(16,24,40,.10); }
-#foldersRoot .bsh-title { font-size:17px; font-weight:700; color:#101828; letter-spacing:-.2px; }
-#foldersRoot .bsh-sub { font-size:12px; font-weight:500; color:#98a2b3; margin-top:3px; letter-spacing:.2px; }
-#foldersRoot .bsh-chev { width:30px; height:30px; padding:6px; border-radius:50%; background:#f2f4f7; color:#667085; box-sizing:border-box; }
-/* Open folder = a soft tray, so the white cards inside read as separate objects */
-#foldersRoot .bio-section.open { background:#e9ecf2; border-radius:16px;
-  box-shadow:0 2px 6px rgba(16,24,40,.10), 0 14px 30px rgba(16,24,40,.16); }
-#foldersRoot .bio-section.open .bio-sec-head { background:#fff; box-shadow:none; border-radius:16px 16px 0 0; }
+#foldersRoot .bio-sec-head { background:var(--surface); border:1px solid var(--border); border-radius:14px;
+  padding:17px 18px; box-shadow:0 6px 20px rgba(0,0,0,.28); }
+#foldersRoot .bsh-title { font-size:17px; font-weight:800; color:var(--text); letter-spacing:-.2px; }
+#foldersRoot .bsh-sub { font-size:12px; font-weight:700; color:var(--accent); margin-top:3px; letter-spacing:.3px; }
+#foldersRoot .bsh-chev { width:30px; height:30px; padding:6px; border-radius:50%;
+  background:rgba(245,200,66,.12); color:var(--accent); box-sizing:border-box; }
+/* Open folder = a raised navy tray with a gold hairline */
+#foldersRoot .bio-section.open { background:rgba(255,255,255,.035); border:1px solid rgba(245,200,66,.28);
+  border-radius:16px; box-shadow:0 12px 32px rgba(0,0,0,.38); }
+#foldersRoot .bio-section.open .bio-sec-head { background:transparent; border:0; border-bottom:1px solid var(--border);
+  box-shadow:none; border-radius:16px 16px 0 0; }
 #foldersRoot .bio-section.open .bio-grid { padding:14px; gap:14px; margin-top:0; }
-/* Deal card */
-#foldersRoot .bio-card { border:0; border-radius:14px;
-  box-shadow:0 1px 2px rgba(16,24,40,.06), 0 6px 16px rgba(16,24,40,.10); transition:transform .14s ease; }
+/* Deal card = the site's product card */
+#foldersRoot .bio-card { background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  box-shadow:0 4px 14px rgba(0,0,0,.28); transition:border-color .2s, transform .14s; }
+#foldersRoot .bio-card:hover { border-color:rgba(245,200,66,.55); }
 #foldersRoot .bio-card:active { transform:translateY(1px); }
-#foldersRoot .bio-card .bc-imgwrap { background:#f7f8fa; padding:10px; margin:10px 10px 0; border-radius:10px; }
+#foldersRoot .bio-card .bc-imgwrap { background:#fff; padding:10px; margin:10px 10px 0; border-radius:9px; }
 #foldersRoot .bio-card .bc-img { height:132px; }
-#foldersRoot .bio-card .bc-store { background:rgba(16,24,40,.78); font-size:8.5px; letter-spacing:.4px; padding:3px 7px; border-radius:5px; }
+#foldersRoot .bio-card .bc-store { background:#F5C842; color:#1a1300; font-size:8.5px; font-weight:800;
+  letter-spacing:.4px; padding:3px 7px; border-radius:4px; box-shadow:0 1px 4px rgba(0,0,0,.3); }
 #foldersRoot .bio-card .bc-body { padding:12px 13px 13px; gap:8px; }
-#foldersRoot .bio-card .bc-name { font-size:13px; font-weight:500; color:#344054; }
-#foldersRoot .bio-card .bc-off { background:#e7f6ec; color:#12784a; font-size:10.5px; font-weight:700; letter-spacing:.2px; border-radius:999px; padding:4px 10px; }
-#foldersRoot .bio-card .bc-now { font-size:20px; font-weight:800; color:#101828; letter-spacing:-.5px; }
-#foldersRoot .bio-card .bc-was { font-size:12.5px; color:#98a2b3; }
-#foldersRoot .bio-card .bc-checked { font-size:9.5px; color:#b3bac5; }
-/* Tap-to-copy chip (kept — Erik likes it), just richer */
-#foldersRoot .bio-code { background:#f8f9fb; border:1px solid #e4e8ef; border-radius:10px; padding:10px; }
-#foldersRoot .bio-code .bcc-val { font-size:15.5px; letter-spacing:.8px; color:#101828; }
-#foldersRoot .bio-code .bcc-tag { font-size:9px; color:#98a2b3; }
-#foldersRoot .bio-code.copied { background:#e8f7ee; border-color:#b7e6c9; }
+#foldersRoot .bio-card .bc-name { font-size:13px; font-weight:500; color:var(--text-soft); }
+#foldersRoot .bio-card .bc-off { background:rgba(74,222,128,.16); color:#4ade80; border:1px solid rgba(74,222,128,.35);
+  font-size:10.5px; font-weight:800; letter-spacing:.2px; border-radius:999px; padding:3px 10px; }
+#foldersRoot .bio-card .bc-now { font-size:20px; font-weight:800; color:var(--accent); letter-spacing:-.5px; }
+#foldersRoot .bio-card .bc-was { font-size:12.5px; color:var(--muted); }
+#foldersRoot .bio-card .bc-checked { font-size:9.5px; color:var(--muted); }
+/* Tap-to-copy chip — gold, like the code block in the deal card */
+#foldersRoot .bio-code { background:rgba(245,200,66,.10); border:1px dashed rgba(245,200,66,.45); border-radius:10px; padding:10px; }
+#foldersRoot .bio-code .bcc-val { font-size:15.5px; letter-spacing:.8px; color:var(--accent); }
+#foldersRoot .bio-code .bcc-tag { font-size:9px; color:var(--muted); }
+#foldersRoot .bio-code.copied { background:rgba(74,222,128,.14); border-color:rgba(74,222,128,.5); }
+#foldersRoot .bio-code.copied .bcc-val { color:#4ade80; }
 /* Per-card share */
 #foldersRoot .bio-share { display:flex; align-items:center; justify-content:center; gap:6px; width:100%;
-  margin-top:8px; padding:8px; background:#fff; color:#667085; border:1px solid #e4e8ef; border-radius:10px;
+  margin-top:8px; padding:8px; background:rgba(255,255,255,.06); color:var(--text-soft);
+  border:1px solid rgba(255,255,255,.16); border-radius:9px;
   font-size:11.5px; font-weight:700; font-family:'Inter',sans-serif; cursor:pointer; }
 #foldersRoot .bio-share svg { width:13px; height:13px; }
-#foldersRoot .bio-share.shared { background:#e8f7ee; border-color:#b7e6c9; color:#12784a; }
+#foldersRoot .bio-share.shared { background:rgba(74,222,128,.16); border-color:rgba(74,222,128,.5); color:#4ade80; }
 /* Wide, SHORT button that closes out a folder — spans both columns, not a card's height */
 #foldersRoot .folders-seeall { grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:8px;
-  width:100%; padding:14px 16px; background:#fff; color:#101828; border:1px solid #dfe3ea; border-radius:12px;
-  font-size:13.5px; font-weight:700; font-family:'Inter',sans-serif; cursor:pointer;
-  box-shadow:0 1px 2px rgba(16,24,40,.06); }
+  width:100%; padding:14px 16px; background:rgba(245,200,66,.12); color:var(--accent);
+  border:1px solid rgba(245,200,66,.4); border-radius:12px;
+  font-size:13.5px; font-weight:800; font-family:'Inter',sans-serif; cursor:pointer; }
 #foldersRoot .folders-seeall:active { transform:translateY(1px); }
-#foldersRoot .folders-seeall .fsa-arrow { font-size:17px; line-height:1; color:#98a2b3; }
+#foldersRoot .folders-seeall .fsa-arrow { font-size:17px; line-height:1; color:var(--accent); }
+/* Promo-code help, pinned to the top of an open folder. Tapping a card leaves for Amazon, so
+   this is the only place these instructions can reach people in this layout. Reuses the deal
+   card's own .drawer-why-* classes so it looks and behaves identically. */
+#foldersRoot .folders-help { grid-column:1 / -1; }
+#foldersRoot .folders-help .drawer-why-wrap { margin-bottom:10px; background:rgba(0,0,0,.16); }
+#foldersRoot .folders-help .drawer-why-wrap:last-child { margin-bottom:2px; }
 /* Shared ?deal= landing: the drawer opens over the folders — dim them so the deal owns the screen */
 body.folders-mode.deal-landing #foldersRoot { filter:saturate(.6) brightness(.82); }
 /* Tuned to match the old joylink page: light Inter weights (400-700), small radii (8-10px),
@@ -1755,6 +1768,36 @@ function _bioSortDay(items) {
 }
 var _bioDayCache = {};   // i -> that day's sorted items, so collapsed sections render lazily on first open
 var _bioDayKeys = {};    // i -> that section's YYYY-MM-DD, for the folders "See all deals" button
+// Promo-code help for the top of an open folder. In this layout tapping a card opens Amazon
+// directly, so shoppers never see the deal drawer — these instructions have to live here or
+// they never reach anyone. Generic (folder-wide) rather than tied to one code, and built from
+// the drawer's own .drawer-why-* markup + toggleWhy so it matches the deal card exactly.
+function _foldersHelpHtml() {
+  var chev = '<svg style="width:16px;height:16px;transition:transform .2s" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+  var h = '<div class="folders-help">';
+
+  h += '<div class="drawer-why-wrap"><button type="button" class="drawer-why-toggle" onclick="event.stopPropagation();toggleWhy(this)"><span>\u{1F6D2} How to use these codes</span>' + chev + '</button><div class="drawer-why-body">';
+  h += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num yellow">1</span><div><div class="why-title">Copy the code</div><div class="why-desc">Tap the code on any deal below &#8212; it copies itself. Then tap the deal to open the product page.</div></div></div></div>';
+  h += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num green">2</span><div><div class="why-title">Grab any on-page coupon</div><div class="why-desc">If the product page shows a clip-on coupon box, check it too &#8212; it can stack for extra savings.</div></div></div></div>';
+  h += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num blue">3</span><div><div class="why-title">Add to cart and check out</div><div class="why-desc">Pick your options, add to cart, and start checkout.</div></div></div></div>';
+  h += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num yellow">4</span><div><div class="why-title">Find the promo code box</div><div class="why-desc">At checkout, open <strong>&quot;Gift cards &amp; promotional codes&quot;</strong> (sometimes shown as &quot;Add a gift card or promo code&quot;).</div></div></div></div>';
+  h += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num green">5</span><div><div class="why-title">Paste the code &amp; Apply</div><div class="why-desc">Paste the code, tap <strong>Apply</strong>, and the discount comes off your total.</div></div></div></div>';
+  h += '<div class="why-item" style="border-bottom:none"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num" style="background:rgba(255,255,255,0.08);color:var(--accent)">★</span><div><div class="why-title">Tip</div><div class="why-desc">Codes sometimes need a second try &#8212; re-enter it or refresh the page. Works on the U.S. store.</div></div></div></div>';
+  h += '</div></div>';
+
+  h += '<div class="drawer-why-wrap"><button type="button" class="drawer-why-toggle" onclick="event.stopPropagation();toggleWhy(this)"><span>\u{1F914} Promo code not working?</span>' + chev + '</button><div class="drawer-why-body">';
+  h += '<div style="background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.25);border-radius:7px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--muted);line-height:1.5">If you\'re outside the U.S., the promo code or discount may not work.</div>';
+  h += '<div style="font-size:12px;font-weight:600;color:var(--text-soft);margin-bottom:10px">Inside the USA &amp; still not applying? After applying the code, you\'ll receive one of 4 messages:</div>';
+  h += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num green">1</span><div><div class="why-title">It worked!</div><div class="why-desc"><em>"This promotional code has been successfully applied to your account."</em></div></div></div></div>';
+  h += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num yellow">2</span><div><div class="why-title">Amazon glitch &#8212; try again</div><div class="why-desc"><em>&quot;We&#39;re having trouble applying this code.&quot;</em><br>Enter the code again and it should work.</div></div></div></div>';
+  h += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num blue">3</span><div><div class="why-title">Already applied via our link</div><div class="why-desc"><em>"This promotional code cannot be applied to your account."</em><br>Check your cart. The discount may already be reflected in the price.</div></div></div></div>';
+  h += '<div class="why-item"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num red">4</span><div><div class="why-title">Expired</div><div class="why-desc"><em>"This promotional code is not valid."</em><br>Unfortunately this promo code has expired.</div></div></div></div>';
+  h += '<div class="why-item" style="border-bottom:none"><div style="display:flex;align-items:flex-start;gap:8px"><span class="why-num" style="background:rgba(255,255,255,0.08);color:var(--muted)">?</span><div><div class="why-title">Why do codes expire so fast?</div><div class="why-desc">The seller sets a promotional budget, say $5,000. Every time someone uses the code, it chips away at that budget. Once it hits $0, the code stops working for everyone. The more popular the deal, the faster it goes.</div></div></div></div>';
+  h += '</div></div>';
+
+  h += '</div>';
+  return h;
+}
 // Wide, short button that closes out each open folder (folders preview only). Spans both
 // card columns but is nowhere near a card's height.
 function _foldersSeeAllHtml(dk) {
@@ -1786,7 +1829,9 @@ function bioRenderSections() {
     var open = i === 0;   // today's section open, older days collapsed (matches the old page)
     // Only the open (today) section renders its cards now; collapsed days fill in on first tap
     // so we don't build 200+ cards/images upfront.
-    var grid = open ? (items.map(bioCardHtml).join('') + (FOLDERS_MODE ? _foldersSeeAllHtml(dk) : '')) : '';
+    var grid = open
+      ? ((FOLDERS_MODE ? _foldersHelpHtml() : '') + items.map(bioCardHtml).join('') + (FOLDERS_MODE ? _foldersSeeAllHtml(dk) : ''))
+      : '';
     html += '<div class="bio-section' + (open ? ' open' : '') + '" id="biosec-' + i + '">'
           + '<div class="bio-sec-head" onclick="bioToggleSection(' + i + ')"><div class="bsh-mid">'
           + '<div class="bsh-title">' + _bioDateLabel(dk) + ' Deals</div><div class="bsh-sub">Click to open</div></div>'
@@ -1836,8 +1881,9 @@ function bioToggleSection(i) {
   if (!el) return;
   var grid = el.querySelector('.bio-grid');
   if (grid && grid.getAttribute('data-filled') === '0' && _bioDayCache[i]) {
-    // lazy-build this day's cards on first open (+ the folders "See all" button)
-    grid.innerHTML = _bioDayCache[i].map(bioCardHtml).join('')
+    // lazy-build this day's cards on first open (+ the folders help header and "See all" button)
+    grid.innerHTML = (FOLDERS_MODE ? _foldersHelpHtml() : '')
+      + _bioDayCache[i].map(bioCardHtml).join('')
       + ((FOLDERS_MODE && _bioDayKeys[i]) ? _foldersSeeAllHtml(_bioDayKeys[i]) : '');
     grid.setAttribute('data-filled', '1');
   }
