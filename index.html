@@ -763,6 +763,21 @@ body.folders-mode #foldersRoot { display:block !important; }
 #foldersRoot .bio-code .bcc-val { font-size:15.5px; letter-spacing:.8px; color:#101828; }
 #foldersRoot .bio-code .bcc-tag { font-size:9px; color:#98a2b3; }
 #foldersRoot .bio-code.copied { background:#e8f7ee; border-color:#b7e6c9; }
+/* Per-card share */
+#foldersRoot .bio-share { display:flex; align-items:center; justify-content:center; gap:6px; width:100%;
+  margin-top:8px; padding:8px; background:#fff; color:#667085; border:1px solid #e4e8ef; border-radius:10px;
+  font-size:11.5px; font-weight:700; font-family:'Inter',sans-serif; cursor:pointer; }
+#foldersRoot .bio-share svg { width:13px; height:13px; }
+#foldersRoot .bio-share.shared { background:#e8f7ee; border-color:#b7e6c9; color:#12784a; }
+/* Wide, SHORT button that closes out a folder — spans both columns, not a card's height */
+#foldersRoot .folders-seeall { grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:8px;
+  width:100%; padding:14px 16px; background:#fff; color:#101828; border:1px solid #dfe3ea; border-radius:12px;
+  font-size:13.5px; font-weight:700; font-family:'Inter',sans-serif; cursor:pointer;
+  box-shadow:0 1px 2px rgba(16,24,40,.06); }
+#foldersRoot .folders-seeall:active { transform:translateY(1px); }
+#foldersRoot .folders-seeall .fsa-arrow { font-size:17px; line-height:1; color:#98a2b3; }
+/* Shared ?deal= landing: the drawer opens over the folders — dim them so the deal owns the screen */
+body.folders-mode.deal-landing #foldersRoot { filter:saturate(.6) brightness(.82); }
 /* Tuned to match the old joylink page: light Inter weights (400-700), small radii (8-10px),
    near-invisible shadows. Keeps it clean and professional rather than bold/heavy. */
 #bioRoot { font-family:'Inter','Segoe UI',system-ui,sans-serif; color:#e9edf3;
@@ -1622,7 +1637,10 @@ function _goDeal(id, e) {
 // Share a card's deal: the ?deal= link opens the deal CARD for whoever receives it. On mobile
 // this opens the native share sheet (pick Facebook, Messages, …); on desktop it copies the link.
 function _shareCardDeal(id, el) {
-  var url = window.location.origin + window.location.pathname + '?deal=' + id;   // pathname is "/", so no ?v= flag rides along
+  // pathname is "/", so no ?v= flag rides along on the live site. The folders PREVIEW keeps its
+  // flag, otherwise a shared preview link would land on the live layout instead.
+  var _q = (typeof FOLDERS_MODE !== 'undefined' && FOLDERS_MODE) ? '?v=folders&deal=' : '?deal=';
+  var url = window.location.origin + window.location.pathname + _q + id;
   if (navigator.share) { navigator.share({ url: url }).catch(function () {}); return; }
   var done = function () {
     var orig = el.innerHTML; el.classList.add('shared'); el.innerHTML = '✓ Link copied';
@@ -1736,6 +1754,25 @@ function _bioSortDay(items) {
   });
 }
 var _bioDayCache = {};   // i -> that day's sorted items, so collapsed sections render lazily on first open
+var _bioDayKeys = {};    // i -> that section's YYYY-MM-DD, for the folders "See all deals" button
+// Wide, short button that closes out each open folder (folders preview only). Spans both
+// card columns but is nowhere near a card's height.
+function _foldersSeeAllHtml(dk) {
+  return '<button type="button" class="folders-seeall" onclick="event.stopPropagation();foldersSeeAllDay(\'' + dk + '\')">'
+       + 'See all deals for ' + _bioDateLabel(dk) + '<span class="fsa-arrow">&#8250;</span></button>';
+}
+// Leave the folders and show the FULL grid filtered to that one day.
+function foldersSeeAllDay(dk) {
+  document.body.classList.remove('folders-mode');
+  state.search = '';
+  var si = document.getElementById('searchInput'); if (si) si.value = '';
+  var sc = document.getElementById('searchClear'); if (sc) sc.style.display = 'none';
+  var el = document.querySelector('#dateChips .chip[data-day="' + dk + '"]');
+  var label = el ? el.textContent : _bioDateLabel(dk);
+  state.dateAdded = 'all';                 // so setDate's "tap the same day again" toggle can't fire
+  setDate(el, dk, label);                  // reuse the normal date filter (chips + re-render)
+  window.scrollTo(0, 0);
+}
 function bioRenderSections() {
   var wrap = document.getElementById('bioSections'); if (!wrap) return;
   var g = _bioDayGroups();
@@ -1745,10 +1782,11 @@ function bioRenderSections() {
   g.order.slice(0, BIO_MAX_DAYS).forEach(function (dk, i) {
     var items = _bioSortDay(g.groups[dk]).slice(0, BIO_CAP_PER_DAY);
     _bioDayCache[i] = items;
+    _bioDayKeys[i] = dk;
     var open = i === 0;   // today's section open, older days collapsed (matches the old page)
     // Only the open (today) section renders its cards now; collapsed days fill in on first tap
     // so we don't build 200+ cards/images upfront.
-    var grid = open ? items.map(bioCardHtml).join('') : '';
+    var grid = open ? (items.map(bioCardHtml).join('') + (FOLDERS_MODE ? _foldersSeeAllHtml(dk) : '')) : '';
     html += '<div class="bio-section' + (open ? ' open' : '') + '" id="biosec-' + i + '">'
           + '<div class="bio-sec-head" onclick="bioToggleSection(' + i + ')"><div class="bsh-mid">'
           + '<div class="bsh-title">' + _bioDateLabel(dk) + ' Deals</div><div class="bsh-sub">Click to open</div></div>'
@@ -1785,6 +1823,11 @@ function bioCardHtml(p) {
        + '<span class="bcc-val">' + _fesc(p.code) + '</span>'
        + '<span class="bcc-tag">tap to copy</span></div>';
   }
+  // Share lives on every folder card (folders preview only — ?v=bio keeps its original card).
+  if (FOLDERS_MODE) {
+    h += '<button type="button" class="bio-share" onclick="event.stopPropagation();_shareCardDeal(\'' + p.id + '\',this)" title="Share this deal">'
+       + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>Share</button>';
+  }
   h += '</div></div>';
   return h;
 }
@@ -1793,7 +1836,9 @@ function bioToggleSection(i) {
   if (!el) return;
   var grid = el.querySelector('.bio-grid');
   if (grid && grid.getAttribute('data-filled') === '0' && _bioDayCache[i]) {
-    grid.innerHTML = _bioDayCache[i].map(bioCardHtml).join('');   // lazy-build this day's cards on first open
+    // lazy-build this day's cards on first open (+ the folders "See all" button)
+    grid.innerHTML = _bioDayCache[i].map(bioCardHtml).join('')
+      + ((FOLDERS_MODE && _bioDayKeys[i]) ? _foldersSeeAllHtml(_bioDayKeys[i]) : '');
     grid.setAttribute('data-filled', '1');
   }
   el.classList.toggle('open');
@@ -3512,8 +3557,13 @@ async function initInstant() {
     // parallel with the grid load kicked off below, so the single-row fetch opens the
     // drawer in ~0.3s and the shopper never sees the wrong grid.
     var _openShared = function () {
+      // Landing from a shared link: dim the page behind so the deal itself is unmistakably
+      // what they came for, and drop the dim when they close the drawer.
+      document.body.classList.add('deal-landing');
       openDrawer(_sharedDealId).finally(function () {
-        window.history.replaceState({}, '', window.location.pathname);
+        // Keep ?v=folders on the preview so closing the deal leaves them in the folders.
+        var _keep = (typeof FOLDERS_MODE !== 'undefined' && FOLDERS_MODE) ? '?v=folders' : '';
+        window.history.replaceState({}, '', window.location.pathname + _keep);
       });
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _openShared);
@@ -4052,6 +4102,7 @@ function closeDrawer() {
   document.getElementById('drawerOverlay').style.display = 'none';
   document.getElementById('productDrawer').style.display = 'none';
   document.body.style.overflow = '';
+  document.body.classList.remove('deal-landing');   // drop the shared-link dim
   currentDrawerProduct = null;
   if (EMBED_FEATURE) { try { postEmbedHeight(); } catch (e) {} }   // shrink the iframe back down
 }
