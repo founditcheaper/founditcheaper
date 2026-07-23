@@ -105,6 +105,25 @@
     <p class="posted">posted july 20, 2026 · <b>today only</b></p>
   </div>
 
+  <!-- SHARE: native share sheet on mobile, copy-link fallback elsewhere. Self-contained. -->
+  <div style="text-align:center;margin:30px 0 4px">
+    <button type="button" onclick="fcShare(this)" style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);color:#eaf0f8;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Inter',system-ui,sans-serif">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>
+      <span>share this</span>
+    </button>
+  </div>
+  <script>
+  function fcShare(btn){
+    var url=location.href.split('#')[0].split('?')[0];
+    var lede=document.querySelector('.lede'); var text=lede?lede.textContent.trim():document.title;
+    if(navigator.share){ navigator.share({title:document.title,text:text,url:url}).catch(function(){}); return; }
+    var span=btn.querySelector('span'); var old=span?span.textContent:'';
+    var ok=function(){ if(span)span.textContent='link copied'; btn.style.borderColor='#4ade80'; btn.style.color='#4ade80'; setTimeout(function(){ if(span)span.textContent=old; btn.style.borderColor='rgba(255,255,255,0.2)'; btn.style.color='#eaf0f8'; },2000); };
+    var legacy=function(){ try{var ta=document.createElement('textarea');ta.value=url;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();document.execCommand('copy');document.body.removeChild(ta);ok();}catch(e){} };
+    try{ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(ok,legacy);}else{legacy();} }catch(e){legacy();}
+  }
+  </script>
+
   <div class="catch">
     <p><b>the catch:</b> it is in-store only, one per person, at participating locations. no app, no signup, no purchase. you pick from four flavors, and it runs while they have them.</p>
   </div>
