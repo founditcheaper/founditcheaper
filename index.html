@@ -715,6 +715,21 @@ body.bio-mode > .layout,
 body.bio-mode > footer,
 body.bio-mode > .site-footer { display:none !important; }
 body.bio-mode #bioRoot { display:block !important; }
+/* ── FOLDERS layout (?v=folders) — PREVIEW ONLY, never the live default ──────────────
+   The hybrid Erik asked for: keep the CURRENT top section (header: logo + Live + search +
+   hamburger, and the freebie banner), then the link-in-bio day folders underneath. So this
+   hides the filters bar, picks carousel and normal grid, but NOT the header. */
+body.folders-mode > .filters-bar-outer,
+body.folders-mode > .picks-outer,
+body.folders-mode > .section-divider,
+body.folders-mode > .layout,
+body.folders-mode > footer,
+body.folders-mode > .site-footer { display:none !important; }
+body.folders-mode #foldersRoot { display:block !important; }
+#foldersRoot { font-family:'Inter','Segoe UI',system-ui,sans-serif; color:#e9edf3; -webkit-font-smoothing:antialiased; }
+#foldersRoot * { box-sizing:border-box; }
+.folders-wrap { max-width:600px; margin:0 auto; padding:14px 6px 60px; }
+.folders-intro { text-align:center; color:#b9c7da; font-size:13.5px; line-height:1.5; margin:2px 6px 14px; }
 /* Tuned to match the old joylink page: light Inter weights (400-700), small radii (8-10px),
    near-invisible shadows. Keeps it clean and professional rather than bold/heavy. */
 #bioRoot { font-family:'Inter','Segoe UI',system-ui,sans-serif; color:#e9edf3;
@@ -854,6 +869,10 @@ body.bio-mode #bioRoot { display:block !important; }
   }).catch(function () {});
 })();
 </script>
+
+<!-- FOLDERS layout root (?v=folders) — sits directly under the header + freebie banner so the
+     current top section stays put and the day folders start right below it. -->
+<div id="foldersRoot" style="display:none"></div>
 
 <!-- FILTERS (top of page, under the search bar) -->
 <div class="filters-bar-outer">
@@ -1142,6 +1161,13 @@ var BIO_MODE = (_vparam.toLowerCase() === 'bio') && !EMBED;
 var BIO_CAP_PER_DAY = 20;   // 20 deals per day folder
 var BIO_MAX_DAYS = 5;       // the 5 most recent dates, one folder each
 var _bioSearching = false;
+
+// ── FOLDERS layout (?v=folders) — PREVIEW ONLY, never the live default ────────
+// The hybrid: the CURRENT top section (header logo + Live + search + hamburger)
+// stays exactly as-is, and the link-in-bio day folders start underneath it. Reuses
+// the bio folder machinery (_bioDayGroups / bioRenderSections / bioCardHtml), so the
+// folders are identical to the bio page and read the same live admin data.
+var FOLDERS_MODE = (_vparam.toLowerCase() === 'folders') && !EMBED;
 
 // ── INSTANT / fast-featured landing (?v=instant) ──────────────────────────────
 // Kills the loading wait: on landing we fetch ONLY the ~20 featured deals (one tiny
@@ -1630,6 +1656,20 @@ function renderBio() {
   html += '</div>';
   root.innerHTML = html;
   bioRenderSections();
+}
+// FOLDERS layout: no profile block, no bio search — the page header above already has the
+// logo, the Live badge, the search and the hamburger. This just drops the day folders in.
+function renderFolders() {
+  var root = document.getElementById('foldersRoot');
+  if (!root) return;
+  var html = '<div class="folders-wrap">';
+  html += '<div class="folders-intro">Every day gets its own folder. Tap one to open it.</div>';
+  html += '<div id="bioSections"></div>';
+  html += '<div class="bio-footer"><div class="bf-disc">Deals can expire at any time.</div>'
+        + 'founditcheaper.net · <a href="https://instagram.com/founditcheaper1" target="_blank" rel="noopener" style="color:#b9c7da">@founditcheaper1</a></div>';
+  html += '</div>';
+  root.innerHTML = html;
+  bioRenderSections();   // same folders as the bio page
 }
 function _bioDateLabel(dk) {
   try { return new Date(dk + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' }); }
@@ -2818,6 +2858,9 @@ function submitSearch(val) {
   // Fired on Enter or the magnifier click. Empty query → just clear back to the normal view.
   val = (val || '').trim();
   if (!val) { clearSearch(); return; }
+  // FOLDERS preview: searching steps out of the folders so results are visible; clearing the
+  // search drops back into them.
+  if (FOLDERS_MODE) document.body.classList.remove('folders-mode');
   updateSearch(val);
 }
 function updateSearch(val) {
@@ -2840,6 +2883,7 @@ function clearSearch() {
   document.getElementById('searchInput').value = '';
   document.getElementById('searchClear').style.display = 'none';
   resetAndRender();
+  if (FOLDERS_MODE) document.body.classList.add('folders-mode');   // back into the folders
 }
 function togglePromo(el) {
   state.promoOnly = !state.promoOnly;
@@ -3597,6 +3641,9 @@ async function initInstant() {
   if (BIO_MODE) { document.body.classList.add('bio-mode'); try { renderBio(); } catch (e) {} fadeIntroOut(); return; }
   resetAndRender();
   fadeIntroOut();   // grid is on screen now — drop the first-paint splash
+  // FOLDERS preview: header stays, folders go under it. The normal grid still rendered above
+  // (just hidden by body.folders-mode) so the header search can drop out and show results.
+  if (FOLDERS_MODE) { document.body.classList.add('folders-mode'); try { renderFolders(); } catch (e) {} }
   // A wide desktop's first screen can be short enough that nothing triggers the next page.
   // Nudge the fill a few times as layout/images settle (no-op once the fold is covered).
   if (!EMBED_GRID) { [200, 700, 1500].forEach(function (ms) { setTimeout(maybeFillViewport, ms); }); }
