@@ -258,8 +258,8 @@
     <!-- Shown when no competition is live -->
     <div id="noGameNotice" style="display:none;text-align:center;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.4);border-radius:12px;padding:26px 16px;margin:0 0 4px">
       <div style="font-size:40px;margin-bottom:8px">🍌</div>
-      <div style="font-size:18px;font-weight:800;color:var(--accent);margin-bottom:6px">No game running right now</div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px">The next round hasn't started yet. Drop your email and we'll tell you the moment Flappy Banana is live.</div>
+      <div style="font-size:18px;font-weight:800;color:var(--accent);margin-bottom:6px">No prize round running right now</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px">You can still play below, it just won't count yet. Drop your email and we'll tell you the moment the next Flappy Banana round is live.</div>
       <div style="max-width:320px;margin:0 auto;display:flex;flex-direction:column;gap:8px">
         <input type="email" id="notifyEmailInput" placeholder="your@email.com" style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);font-size:14px;font-family:'Inter',sans-serif;outline:none;box-sizing:border-box" onkeydown="if(event.key==='Enter')signupGameNotify()">
         <button onclick="signupGameNotify()" style="width:100%;padding:12px;background:var(--accent);color:#0a1f33;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif">🔔 Notify me when it is live</button>
@@ -288,10 +288,8 @@
           <div class="player-score"><span>Your best this round · </span><span id="playerScoreDisplay">0</span></div>
         </div>
       </div>
-      <div id="anonNudge" style="display:none;text-align:center;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.3);border-radius:8px;padding:10px 12px;margin:0 0 12px;font-size:12px;color:var(--text-soft);line-height:1.5">
-        Playing without an email, so you are not on the leaderboard and can't win the prize. Play all you want.
-        <button onclick="joinLeaderboard()" style="display:block;margin:8px auto 0;background:rgba(245,200,66,0.2);border:1px solid rgba(245,200,66,0.45);border-radius:6px;padding:7px 14px;font-size:12px;font-weight:800;color:var(--accent);cursor:pointer;font-family:'Inter',sans-serif">Add my email to join the leaderboard</button>
-      </div>
+      <!-- Filled by _renderAnonNudge(): explains why a run is not counting (no round / no email). -->
+      <div id="anonNudge" style="display:none;text-align:center;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.3);border-radius:8px;padding:10px 12px;margin:0 0 12px;font-size:12px;color:var(--text-soft);line-height:1.5"></div>
       <div style="display:flex;justify-content:center;gap:8px;margin-bottom:12px">
         <button onclick="promptRename()" style="font-size:11px;font-weight:600;color:var(--text-soft);background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif">✏️ Rename</button>
         <button onclick="logoutPlayer()" style="font-size:11px;font-weight:600;color:var(--muted);background:transparent;border:1px solid rgba(255,255,255,0.15);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif">Log out</button>
@@ -510,7 +508,12 @@ function joinLeaderboard() {
 }
 function _renderAnonNudge() {
   var el = document.getElementById('anonNudge'); if (!el) return;
-  el.style.display = (player && !player.email) ? 'block' : 'none';
+  if (!player || !practiceMode()) { el.style.display = 'none'; return; }
+  var btn = '<button onclick="joinLeaderboard()" style="display:block;margin:8px auto 0;background:rgba(245,200,66,0.2);border:1px solid rgba(245,200,66,0.45);border-radius:6px;padding:7px 14px;font-size:12px;font-weight:800;color:var(--accent);cursor:pointer;font-family:\'Inter\',sans-serif">Add my email to join the leaderboard</button>';
+  el.innerHTML = !gameIsLive()
+    ? 'No prize round running right now, so scores do not count yet. Play all you want.'
+    : 'Playing without an email, so you are not on the leaderboard and can\'t win the prize. Play all you want.' + btn;
+  el.style.display = 'block';
 }
 
 function promptRename() {
@@ -534,12 +537,8 @@ function logoutPlayer() {
   document.getElementById('gameArea').style.display = 'none';
   var u = document.getElementById('usernameInput'); if (u) u.value = '';
   var em = document.getElementById('emailInput'); if (em) em.value = '';
-  if (gameIsLive()) {
-    document.getElementById('emailGate').style.display = '';
-    var notice = document.getElementById('noGameNotice'); if (notice) notice.style.display = 'none';
-  } else {
-    applyGameLiveState();
-  }
+  document.getElementById('emailGate').style.display = '';   // playable whether or not a round is live
+  applyGameLiveState();
 }
 
 function showGame() {
@@ -552,22 +551,26 @@ function showGame() {
   initGame();
 }
 
+// A live round decides whether scores COUNT, not whether you can play. With no round running
+// the game stays fully playable for fun (no leaderboard, no prize) — see practiceMode().
 function applyGameLiveState() {
   var live = gameIsLive();
   var notice = document.getElementById('noGameNotice');
   if (notice) notice.style.display = live ? 'none' : 'block';
   if (!live) {
-    var gate = document.getElementById('emailGate'); if (gate) gate.style.display = 'none';
-    var area = document.getElementById('gameArea'); if (area) area.style.display = 'none';
-    var pt = document.getElementById('prizeText'); if (pt) pt.textContent = 'No game running right now';
-    var ps = document.getElementById('prizeSub'); if (ps) ps.textContent = 'Check back soon for the next round';
+    var pt = document.getElementById('prizeText'); if (pt) pt.textContent = 'No prize round running';
+    var ps = document.getElementById('prizeSub'); if (ps) ps.textContent = 'You can still play for fun';
     var wr = document.getElementById('weekRange'); if (wr) wr.textContent = '';
     // Prefill the notify signup with a known email (if they've played before).
     var ni = document.getElementById('notifyEmailInput');
     if (ni && !ni.value && player && player.email) ni.value = player.email;
   }
-  return live;
+  return true;   // always playable
 }
+
+// A run only counts (server-issued course + leaderboard) when a round is live AND we have an
+// email to attach it to. Otherwise it is a local practice run.
+function practiceMode() { return !gameIsLive() || !player || !player.email; }
 
 // "Notify me when it's live" (shown in the no-game notice). Scoped to THIS game:
 // signing up here only ever gets you Flappy Banana emails.
@@ -734,9 +737,9 @@ function resetRound() {
 async function startRun() {
   state = 'starting';
   var seed;
-  if (DEMO || !player.email) {
-    // DEMO sandbox, or an ANONYMOUS player (no email): local course, nothing submitted. The
-    // leaderboard needs a real email, so these runs are just for fun (and don't need a server token).
+  if (DEMO || practiceMode()) {
+    // DEMO sandbox, an ANONYMOUS player (no email), or no round running: local course, nothing
+    // submitted. These runs are just for fun, so they need no server token.
     seed = (Math.random() * 0xFFFFFFFF) >>> 0;
     runToken = null;
   } else {
@@ -838,9 +841,12 @@ function gameOver() {
 async function submitRun(isPb) {
   var note = document.getElementById('saveNote');
   if (!player || !player.email || !runToken) {
-    // Anonymous / practice run: nothing to submit (the leaderboard needs an email). Their score
-    // still shows on screen; nudge them to join if they want it to count.
-    if (note && player && !player.email) note.innerHTML = 'Score not saved. <span style="text-decoration:underline;cursor:pointer" onclick="joinLeaderboard()">Add your email to get on the leaderboard.</span>';
+    // Practice run: nothing to submit. Their score still shows on screen; say why it did not count.
+    if (note && player) {
+      note.innerHTML = !gameIsLive()
+        ? 'Practice run. No prize round is running, so scores are not saved yet.'
+        : 'Score not saved. <span style="text-decoration:underline;cursor:pointer" onclick="joinLeaderboard()">Add your email to get on the leaderboard.</span>';
+    }
     return;
   }
   if (note) note.textContent = isPb ? 'Saving your run…' : 'Checking your run…';
