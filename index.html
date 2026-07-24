@@ -730,6 +730,30 @@ body.folders-mode #foldersRoot { display:block !important; }
 #foldersRoot * { box-sizing:border-box; }
 .folders-wrap { max-width:600px; margin:0 auto; padding:14px 6px 60px; }
 .folders-intro { text-align:center; color:#b9c7da; font-size:13.5px; line-height:1.5; margin:2px 6px 14px; }
+/* Landing title — tells someone what this page is the second they arrive */
+#foldersRoot .folders-head { text-align:center; padding:14px 8px 4px; }
+#foldersRoot .folders-title { font-family:'Barlow Condensed',sans-serif; font-size:34px; font-weight:900;
+  text-transform:uppercase; color:var(--text); line-height:1.05; letter-spacing:-.3px; margin:0; }
+#foldersRoot .folders-title span { color:var(--accent); }
+#foldersRoot .folders-sub { font-size:13px; color:var(--muted); margin-top:7px; line-height:1.5; }
+/* Per-folder quick search */
+#foldersRoot .folders-searchwrap { grid-column:1 / -1; }
+#foldersRoot .folders-search { display:flex; align-items:center; gap:9px; background:rgba(0,0,0,.22);
+  border:1px solid var(--border); border-radius:10px; padding:11px 13px; }
+#foldersRoot .folders-search svg { width:16px; height:16px; color:var(--muted); flex:none; }
+#foldersRoot .folders-search input { flex:1; min-width:0; background:none; border:0; outline:0; color:var(--text);
+  font-size:14px; font-family:'Inter',sans-serif; }
+#foldersRoot .folders-search input::placeholder { color:var(--muted); }
+#foldersRoot .ffs-note { margin:8px 2px 0; font-size:11.5px; color:var(--muted); line-height:1.5; }
+#foldersRoot .ffs-all { color:var(--accent); font-weight:700; text-decoration:underline; cursor:pointer; }
+/* Newsletter tile — was the light bio tile; bring it onto the navy+gold scheme */
+#foldersRoot .bio-tile { background:var(--surface); border:1px solid var(--border); color:var(--text);
+  border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,.28); }
+#foldersRoot .bio-tile .bt-ico { background:rgba(245,200,66,.14); }
+#foldersRoot .bio-tile .bt-ico svg { color:var(--accent); }
+#foldersRoot .bio-tile .bt-title { color:var(--text); font-weight:700; }
+#foldersRoot .bio-tile .bt-sub { color:var(--muted); }
+#foldersRoot .bio-tile .bt-arrow { background:rgba(245,200,66,.14); color:var(--accent); }
 /* Folder visuals — ON BRAND: the light/white treatment did not match the navy+gold site, so
    these use the site's own tokens (--surface cards, --border hairlines, gold prices and
    accents) exactly like the main deal grid. Product images keep a white tile because Amazon
@@ -1727,7 +1751,11 @@ function renderFolders() {
   var root = document.getElementById('foldersRoot');
   if (!root) return;
   var html = '<div class="folders-wrap">';
-  html += '<div class="folders-intro">Every day gets its own folder. Tap one to open it.</div>';
+  // Landing title — says what this page IS the moment someone arrives.
+  html += '<div class="folders-head">'
+        + '<h1 class="folders-title">Top <span>20</span> Amazon Deals</h1>'
+        + '<div class="folders-sub">One folder per day. Codes included, prices checked.</div>'
+        + '</div>';
   html += '<div id="bioSections"></div>';
   html += '<div class="bio-footer"><div class="bf-disc">Deals can expire at any time.</div>'
         + 'founditcheaper.net · <a href="https://instagram.com/founditcheaper1" target="_blank" rel="noopener" style="color:#b9c7da">@founditcheaper1</a></div>';
@@ -1798,6 +1826,46 @@ function _foldersHelpHtml() {
   h += '</div>';
   return h;
 }
+// Quick search scoped to ONE folder. The header already has a site-wide search, so this is
+// labelled and worded to make the narrower scope obvious ("Search these 20 deals", plus a
+// count and a way out to the full search) — nobody should think the folder is all we have.
+function _foldersSearchHtml(i, count) {
+  return '<div class="folders-searchwrap">'
+       + '<div class="folders-search">'
+       + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
+       + '<input type="text" placeholder="Search these ' + count + ' deals" oninput="foldersFilter(' + i + ',this.value)">'
+       + '</div><div class="ffs-note" style="display:none"></div></div>';
+}
+// Filter just this folder's cards. Pure show/hide so the help, search and "see all" survive.
+function foldersFilter(i, val) {
+  var sec = document.getElementById('biosec-' + i); if (!sec) return;
+  var q = (val || '').trim().toLowerCase();
+  var cards = sec.querySelectorAll('.bio-card');
+  var shown = 0;
+  Array.prototype.forEach.call(cards, function (c) {
+    var nameEl = c.querySelector('.bc-name');
+    var name = nameEl ? nameEl.textContent.toLowerCase() : '';
+    var hit = !q || name.indexOf(q) !== -1;
+    c.style.display = hit ? '' : 'none';
+    if (hit) shown++;
+  });
+  var note = sec.querySelector('.ffs-note'); if (!note) return;
+  if (!q) { note.style.display = 'none'; note.innerHTML = ''; return; }
+  note.style.display = 'block';
+  note.innerHTML = (shown === 0 ? 'Nothing in this folder matched.' : shown + ' of ' + cards.length + ' in this folder.')
+    + ' <span class="ffs-all" onclick="foldersSearchAll(' + i + ')">Search all deals instead</span>';
+}
+// Escape hatch: take what they typed in the folder up to the site-wide search.
+function foldersSearchAll(i) {
+  var sec = document.getElementById('biosec-' + i);
+  var inp = sec ? sec.querySelector('.folders-search input') : null;
+  var v = inp ? inp.value.trim() : '';
+  var top = document.getElementById('searchInput');
+  if (top) top.value = v;
+  var sc = document.getElementById('searchClear'); if (sc && v) sc.style.display = 'flex';
+  window.scrollTo(0, 0);
+  submitSearch(v);
+}
 // Wide, short button that closes out each open folder (folders preview only). Spans both
 // card columns but is nowhere near a card's height.
 function _foldersSeeAllHtml(dk) {
@@ -1830,7 +1898,9 @@ function bioRenderSections() {
     // Only the open (today) section renders its cards now; collapsed days fill in on first tap
     // so we don't build 200+ cards/images upfront.
     var grid = open
-      ? ((FOLDERS_MODE ? _foldersHelpHtml() : '') + items.map(bioCardHtml).join('') + (FOLDERS_MODE ? _foldersSeeAllHtml(dk) : ''))
+      ? ((FOLDERS_MODE ? _foldersHelpHtml() + _foldersSearchHtml(i, items.length) : '')
+         + items.map(bioCardHtml).join('')
+         + (FOLDERS_MODE ? _foldersSeeAllHtml(dk) : ''))
       : '';
     html += '<div class="bio-section' + (open ? ' open' : '') + '" id="biosec-' + i + '">'
           + '<div class="bio-sec-head" onclick="bioToggleSection(' + i + ')"><div class="bsh-mid">'
@@ -1881,8 +1951,8 @@ function bioToggleSection(i) {
   if (!el) return;
   var grid = el.querySelector('.bio-grid');
   if (grid && grid.getAttribute('data-filled') === '0' && _bioDayCache[i]) {
-    // lazy-build this day's cards on first open (+ the folders help header and "See all" button)
-    grid.innerHTML = (FOLDERS_MODE ? _foldersHelpHtml() : '')
+    // lazy-build this day's cards on first open (+ the folders help, its search and "See all")
+    grid.innerHTML = (FOLDERS_MODE ? _foldersHelpHtml() + _foldersSearchHtml(i, _bioDayCache[i].length) : '')
       + _bioDayCache[i].map(bioCardHtml).join('')
       + ((FOLDERS_MODE && _bioDayKeys[i]) ? _foldersSeeAllHtml(_bioDayKeys[i]) : '');
     grid.setAttribute('data-filled', '1');
