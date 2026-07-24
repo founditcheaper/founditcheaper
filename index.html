@@ -2868,9 +2868,14 @@ function showSimpleMore() {
   var g = document.getElementById('productGrid'); if (!g) return;
   var b = document.createElement('div');
   b.id = 'simpleMore';
-  // Instant preview graduates to the full grid (all stores); ?v=simple keeps its continuation.
-  b.onclick = INSTANT_MODE ? function () { instantGraduate({ broaden: true }); } : simpleSeeMore;
-  b.innerHTML = 'See more deals &nbsp;&darr;<div class="sub">other stores, categories &amp; the full list</div>';
+  // Instant preview: "See more" opens the full grid but STAYS on this day's Amazon deals with the
+  // filter bar revealed, so shoppers see everything for today on Amazon and narrow it themselves
+  // (not the whole catalog dumped on them). keepScope preserves store+date; snapshot pins the
+  // curated top-20 to the front. ?v=simple keeps its own continuation.
+  b.onclick = INSTANT_MODE ? function () { _snapshotInstantTop(); instantGraduate({ keepScope: true }); } : simpleSeeMore;
+  b.innerHTML = INSTANT_MODE
+    ? 'See all of today’s Amazon deals &nbsp;&darr;<div class="sub">filter by discount, category, price and more</div>'
+    : 'See more deals &nbsp;&darr;<div class="sub">other stores, categories &amp; the full list</div>';
   g.appendChild(b);
 }
 // INSTANT: the moment a shopper filters, searches, opens All Filters, or taps "See more deals",
@@ -2893,8 +2898,8 @@ async function instantGraduate(opts) {
   simpleExpanded = true;
   document.body.classList.remove('simple-mode');
   var more = document.getElementById('simpleMore'); if (more) more.remove();
-  state.dateAdded = 'all';        // browse every day now
-  if (opts.broaden) state.store = 'all';   // "See more deals" opens up every store; narrow filters (discount/category/…) are kept
+  if (!opts.keepScope) state.dateAdded = 'all';   // browse every day now — UNLESS "See more" wants to stay on today
+  if (opts.broaden) state.store = 'all';   // opens up every store; narrow filters (discount/category/…) are kept
   if (typeof opts.then === 'function') { try { opts.then(); } catch (e) {} }
   resetAndRender();
   fadeIntroOut();
