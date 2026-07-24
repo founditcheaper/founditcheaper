@@ -754,6 +754,14 @@ body.folders-mode #foldersRoot { display:block !important; }
 #foldersRoot .bio-tile .bt-title { color:var(--text); font-weight:700; }
 #foldersRoot .bio-tile .bt-sub { color:var(--muted); }
 #foldersRoot .bio-tile .bt-arrow { background:rgba(245,200,66,.14); color:var(--accent); }
+/* Deal Alerts + Games row, right after today's folder */
+#foldersRoot .folders-extras { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:12px 0; }
+/* "Back to Top 20 Deals" button, shown under the All Deals divider after "See all deals" */
+#foldersBackBtn { max-width:1200px; margin:14px auto 0; padding:0 16px; text-align:center; }
+#foldersBackBtn button { display:inline-flex; align-items:center; gap:8px; background:rgba(245,200,66,.12);
+  color:var(--accent); border:1px solid rgba(245,200,66,.4); border-radius:999px; padding:11px 22px;
+  font-size:14px; font-weight:800; font-family:'Inter',sans-serif; cursor:pointer; }
+#foldersBackBtn button:hover { background:rgba(245,200,66,.2); }
 /* Folder visuals — ON BRAND: the light/white treatment did not match the navy+gold site, so
    these use the site's own tokens (--surface cards, --border hairlines, gold prices and
    accents) exactly like the main deal grid. Product images keep a white tile because Amazon
@@ -1866,6 +1874,56 @@ function foldersSearchAll(i) {
   window.scrollTo(0, 0);
   submitSearch(v);
 }
+// Deal Alerts + Games for the folders page. Folder-scoped IDs/handlers so they never collide
+// with the hidden grid's own promo cards. Games reuse the live _gameCards data: a card per LIVE
+// game (Play Now), or — when nothing is live — the dice card with the notify signup, exactly
+// like the main grid.
+function foldersStartAlert() {
+  var el = document.getElementById('foldersAlertInput');
+  var v = el ? (el.value || '').trim() : '';
+  window.location.href = 'deal-alert.html' + (v ? ('?q=' + encodeURIComponent(v)) : '');
+}
+function _foldersGameCard(c) {
+  if (c.live) return _gameCardHtml(c);   // live card is just links — no IDs to collide
+  var meta = c.meta, savedEmail = '';
+  try { var _pj = JSON.parse(localStorage.getItem(meta.playerKey) || localStorage.getItem('fic_player_v1') || 'null'); if (_pj && _pj.email) savedEmail = _pj.email; } catch (e) {}
+  var n = '<div style="background:linear-gradient(135deg,rgba(245,200,66,0.15),rgba(10,31,51,0.5));border:1px solid rgba(245,200,66,0.35);border-radius:10px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px">';
+  n += '<div style="font-size:28px">' + meta.icon + '</div>';
+  n += '<div style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:900;color:var(--text);text-transform:uppercase;line-height:1.2">' + meta.title + '</div>';
+  n += '<div style="font-size:11px;color:var(--muted);line-height:1.5">No game running right now. Get an email when ' + meta.name + ' is live.</div>';
+  n += '<input id="foldersGameNotifyInput" type="email" value="' + _pcEsc(savedEmail) + '" placeholder="your@email.com" onkeydown="if(event.key===\'Enter\')foldersGameNotify()" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:9px 10px;color:var(--text);font-size:12px;font-family:Inter,sans-serif;outline:none;box-sizing:border-box">';
+  n += '<button onclick="foldersGameNotify()" style="width:100%;background:rgba(245,200,66,0.2);border:1px solid rgba(245,200,66,0.45);border-radius:6px;padding:9px;font-size:13px;font-weight:800;color:var(--accent);cursor:pointer;font-family:Inter,sans-serif">\u{1F514} Notify me when it is live</button>';
+  n += '<div id="foldersGameNotifyMsg" style="font-size:11px;display:none"></div>';
+  n += '<div onclick="window.location.href=\'' + meta.url + '\'" style="font-size:10px;color:var(--muted);text-decoration:underline;cursor:pointer">or peek at the game</div>';
+  n += '</div>';
+  return n;
+}
+function _foldersExtrasHtml() {
+  var alertCard = '<div style="background:linear-gradient(135deg,rgba(245,200,66,0.15),rgba(245,200,66,0.05));border:1px solid rgba(245,200,66,0.35);border-radius:10px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px">';
+  alertCard += '<div style="font-size:24px">\u{1F514}</div>';
+  alertCard += '<div style="font-family:Barlow Condensed,sans-serif;font-size:20px;font-weight:900;color:var(--text);text-transform:uppercase;line-height:1.1">Deal Alerts</div>';
+  alertCard += '<div style="font-size:11px;color:var(--muted);line-height:1.5">Tell us what you want. We email you when it is cheap.</div>';
+  alertCard += '<input id="foldersAlertInput" type="text" placeholder="cordless drill, or a link" maxlength="300" onkeydown="if(event.key===\'Enter\')foldersStartAlert()" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:9px 10px;color:var(--text);font-size:12px;font-family:Inter,sans-serif;outline:none;box-sizing:border-box">';
+  alertCard += '<button onclick="foldersStartAlert()" style="width:100%;background:var(--accent);color:#0a1f33;border:none;border-radius:6px;padding:9px;font-size:13px;font-weight:800;cursor:pointer;font-family:Inter,sans-serif">Set an Alert</button>';
+  alertCard += '<div onclick="window.location.href=\'deal-alert.html\'" style="font-size:10px;color:var(--muted);text-decoration:underline;cursor:pointer">or send a screenshot</div>';
+  alertCard += '</div>';
+  return alertCard + (_gameCards || []).map(_foldersGameCard).join('');
+}
+// "Back to Top 20 Deals" — after "See all deals" graduates to the full grid, this drops the
+// shopper back into the folders layout if they prefer it. Sits under the All Deals divider.
+function _foldersShowBackBtn() {
+  if (document.getElementById('foldersBackBtn')) return;
+  var anchor = document.getElementById('allDealsAnchor'); if (!anchor) return;
+  var wrap = document.createElement('div');
+  wrap.id = 'foldersBackBtn';
+  wrap.innerHTML = '<button type="button" onclick="foldersBackToTop()">&#8249; Back to Top 20 Deals</button>';
+  anchor.parentNode.insertBefore(wrap, anchor.nextSibling);
+}
+function foldersBackToTop() {
+  document.body.classList.add('folders-mode');
+  var b = document.getElementById('foldersBackBtn'); if (b) b.remove();
+  try { window.scrollTo(0, 0); } catch (e) {}
+}
 // Wide, short button that closes out each open folder (folders preview only). Spans both
 // card columns but is nowhere near a card's height.
 function _foldersSeeAllHtml(dk) {
@@ -1882,6 +1940,7 @@ function foldersSeeAllDay(dk) {
   var label = el ? el.textContent : _bioDateLabel(dk);
   state.dateAdded = 'all';                 // so setDate's "tap the same day again" toggle can't fire
   setDate(el, dk, label);                  // reuse the normal date filter (chips + re-render)
+  _foldersShowBackBtn();                    // give them a way back into the folders layout
   window.scrollTo(0, 0);
 }
 function bioRenderSections() {
@@ -1907,7 +1966,10 @@ function bioRenderSections() {
           + '<div class="bsh-title">' + _bioDateLabel(dk) + ' Deals</div><div class="bsh-sub">Click to open</div></div>'
           + '<svg class="bsh-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>'
           + '<div class="bio-grid" data-filled="' + (open ? '1' : '0') + '">' + grid + '</div></div>';
-    if (i === 0) {   // "Want tomorrow's deals?" tile right after today, like the old page
+    if (i === 0) {   // extras right after today's folder (the top-20)
+      // Folders preview: Deal Alerts + the live game (or dice-notify) card, like the main grid.
+      if (FOLDERS_MODE) html += '<div class="folders-extras">' + _foldersExtrasHtml() + '</div>';
+      // "Want tomorrow's deals?" tile, like the old page
       html += '<a class="bio-tile" href="https://founditcheaper.beehiiv.com/" target="_blank" rel="noopener">'
             + '<div class="bt-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M3 6l9 7 9-7"/></svg></div>'
             + '<div class="bt-mid"><div class="bt-title">Want tomorrow\'s deals?</div><div class="bt-sub">Free daily email</div></div>'
@@ -2790,9 +2852,11 @@ async function gridEmailSignup() {
 
 // "Notify me when it's live" on the grid card. Scoped to the featured game, so people
 // only hear about the game whose card they signed up on.
-async function gridGameNotify() {
-  var input = document.getElementById('gridGameNotifyInput');
-  var msg = document.getElementById('gridGameNotifyMsg');
+async function gridGameNotify() { return _gameNotify('gridGameNotifyInput', 'gridGameNotifyMsg'); }
+async function foldersGameNotify() { return _gameNotify('foldersGameNotifyInput', 'foldersGameNotifyMsg'); }
+async function _gameNotify(inputId, msgId) {
+  var input = document.getElementById(inputId);
+  var msg = document.getElementById(msgId);
   var email = input ? (input.value || '').trim() : '';
   if (!email.includes('@')) { if (msg) { msg.style.display = 'block'; msg.style.color = '#f87171'; msg.textContent = 'Enter a valid email.'; } return; }
   if (msg) { msg.style.display = 'block'; msg.style.color = 'var(--muted)'; msg.textContent = 'Signing up…'; }
